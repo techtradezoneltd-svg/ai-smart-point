@@ -1,11 +1,41 @@
-// Update this page (the content is just a fallback if you fail to update the page)
+import { useState } from "react";
+import Navigation from "@/components/Navigation";
+import Dashboard from "@/components/Dashboard";
+import POSInterface from "@/components/POSInterface";
+import Inventory from "@/components/Inventory";
+import Customers from "@/components/Customers";
+import Analytics from "@/components/Analytics";
 
 const Index = () => {
+  const [currentView, setCurrentView] = useState("dashboard");
+
+  const renderCurrentView = () => {
+    switch (currentView) {
+      case "pos":
+        return <POSInterface />;
+      case "inventory":
+        return <Inventory />;
+      case "customers":
+        return <Customers />;
+      case "analytics":
+        return <Analytics />;
+      case "settings":
+        return (
+          <div className="text-center py-20">
+            <h2 className="text-2xl font-bold mb-4">Settings Coming Soon</h2>
+            <p className="text-muted-foreground">Advanced AI configuration and system settings</p>
+          </div>
+        );
+      default:
+        return <Dashboard onNavigate={setCurrentView} />;
+    }
+  };
+
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background">
-      <div className="text-center">
-        <h1 className="text-4xl font-bold mb-4">Welcome to Your Blank App</h1>
-        <p className="text-xl text-muted-foreground">Start building your amazing project here!</p>
+    <div className="flex min-h-screen bg-gradient-bg">
+      <Navigation currentView={currentView} onNavigate={setCurrentView} />
+      <div className="flex-1 p-6 overflow-auto">
+        {renderCurrentView()}
       </div>
     </div>
   );
