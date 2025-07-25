@@ -29,12 +29,14 @@ const POSInterface = () => {
   const [cart, setCart] = useState<CartItem[]>([]);
   const [barcode, setBarcode] = useState("");
 
-  // Sample products for demonstration
+  // Sample products with enhanced data for AI features
   const sampleProducts = [
-    { id: "1", name: "iPhone 15 Pro", price: 999.99, category: "Electronics" },
-    { id: "2", name: "Samsung Galaxy S24", price: 799.99, category: "Electronics" },
-    { id: "3", name: "Apple AirPods Pro", price: 249.99, category: "Electronics" },
-    { id: "4", name: "Wireless Charger", price: 39.99, category: "Accessories" },
+    { id: "1", name: "iPhone 15 Pro", price: 999.99, category: "Electronics", barcode: "123456789012", stock: 23, margin: 0.35 },
+    { id: "2", name: "Samsung Galaxy S24", price: 799.99, category: "Electronics", barcode: "123456789013", stock: 8, margin: 0.28 },
+    { id: "3", name: "Apple AirPods Pro", price: 249.99, category: "Electronics", barcode: "123456789014", stock: 45, margin: 0.42 },
+    { id: "4", name: "Wireless Charger", price: 39.99, category: "Accessories", barcode: "123456789015", stock: 67, margin: 0.55 },
+    { id: "5", name: "Phone Case Premium", price: 29.99, category: "Accessories", barcode: "123456789016", stock: 120, margin: 0.65 },
+    { id: "6", name: "Screen Protector", price: 19.99, category: "Accessories", barcode: "123456789017", stock: 200, margin: 0.70 }
   ];
 
   // AI Recommendations based on cart
@@ -273,7 +275,7 @@ const POSInterface = () => {
               {/* Payment Methods */}
               <div className="space-y-2">
                 <p className="text-sm font-medium">Payment Method:</p>
-                <div className="grid grid-cols-3 gap-2">
+                <div className="grid grid-cols-2 gap-2">
                   <Button variant="outline" className="flex flex-col items-center p-3 h-auto">
                     <CreditCard className="w-5 h-5 mb-1" />
                     <span className="text-xs">Card</span>
@@ -284,7 +286,11 @@ const POSInterface = () => {
                   </Button>
                   <Button variant="outline" className="flex flex-col items-center p-3 h-auto">
                     <Smartphone className="w-5 h-5 mb-1" />
-                    <span className="text-xs">Mobile</span>
+                    <span className="text-xs">Mobile Pay</span>
+                  </Button>
+                  <Button variant="outline" className="flex flex-col items-center p-3 h-auto">
+                    <CreditCard className="w-5 h-5 mb-1" />
+                    <span className="text-xs">Split</span>
                   </Button>
                 </div>
               </div>
