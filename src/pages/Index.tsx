@@ -3,12 +3,16 @@ import Navigation from "@/components/Navigation";
 import Dashboard from "@/components/Dashboard";
 import POSInterface from "@/components/POSInterface";
 import Inventory from "@/components/Inventory";
+import StockManagement from "@/components/StockManagement";
 import Customers from "@/components/Customers";
 import Analytics from "@/components/Analytics";
 import SalesHistory from "@/components/SalesHistory";
 import ProductCRM from "@/components/ProductCRM";
 import Reports from "@/components/Reports";
 import Suppliers from "@/components/Suppliers";
+import ExpenseManagement from "@/components/ExpenseManagement";
+import StaffManagement from "@/components/StaffManagement";
+import CategoryUnitManagement from "@/components/CategoryUnitManagement";
 
 const Index = () => {
   const [currentView, setCurrentView] = useState("dashboard");
@@ -19,6 +23,14 @@ const Index = () => {
         return <POSInterface />;
       case "inventory":
         return <Inventory />;
+      case "stock":
+        return <StockManagement />;
+      case "expenses":
+        return <ExpenseManagement />;
+      case "staff":
+        return <StaffManagement />;
+      case "categories":
+        return <CategoryUnitManagement />;
       case "customers":
         return <Customers />;
       case "saleshistory":
