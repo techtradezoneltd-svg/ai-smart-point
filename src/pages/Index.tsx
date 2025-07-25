@@ -5,6 +5,10 @@ import POSInterface from "@/components/POSInterface";
 import Inventory from "@/components/Inventory";
 import Customers from "@/components/Customers";
 import Analytics from "@/components/Analytics";
+import SalesHistory from "@/components/SalesHistory";
+import ProductCRM from "@/components/ProductCRM";
+import Reports from "@/components/Reports";
+import Suppliers from "@/components/Suppliers";
 
 const Index = () => {
   const [currentView, setCurrentView] = useState("dashboard");
@@ -17,6 +21,14 @@ const Index = () => {
         return <Inventory />;
       case "customers":
         return <Customers />;
+      case "saleshistory":
+        return <SalesHistory />;
+      case "productcrm":
+        return <ProductCRM />;
+      case "suppliers":
+        return <Suppliers />;
+      case "reports":
+        return <Reports />;
       case "analytics":
         return <Analytics />;
       case "settings":

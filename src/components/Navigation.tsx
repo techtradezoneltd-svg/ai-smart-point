@@ -8,7 +8,10 @@ import {
   BarChart3, 
   Settings,
   Brain,
-  Zap
+  Zap,
+  FileText,
+  Truck,
+  TrendingUp
 } from "lucide-react";
 
 interface NavigationProps {
@@ -28,7 +31,7 @@ const Navigation = ({ currentView, onNavigate }: NavigationProps) => {
       id: "pos", 
       label: "Point of Sale", 
       icon: ShoppingCart, 
-      badge: null 
+      badge: "AI" 
     },
     { 
       id: "inventory", 
@@ -43,10 +46,34 @@ const Navigation = ({ currentView, onNavigate }: NavigationProps) => {
       badge: null 
     },
     { 
-      id: "analytics", 
-      label: "Analytics", 
+      id: "saleshistory", 
+      label: "Sales History", 
+      icon: FileText, 
+      badge: "NEW" 
+    },
+    { 
+      id: "productcrm", 
+      label: "Product CRM", 
+      icon: Package, 
+      badge: null 
+    },
+    { 
+      id: "suppliers", 
+      label: "Suppliers", 
+      icon: Truck, 
+      badge: null 
+    },
+    { 
+      id: "reports", 
+      label: "Reports", 
       icon: BarChart3, 
       badge: null 
+    },
+    { 
+      id: "analytics", 
+      label: "Analytics", 
+      icon: TrendingUp, 
+      badge: "AI" 
     },
     { 
       id: "settings", 
