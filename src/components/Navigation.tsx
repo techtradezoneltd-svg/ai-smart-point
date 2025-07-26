@@ -11,7 +11,11 @@ import {
   Zap,
   FileText,
   Truck,
-  TrendingUp
+  TrendingUp,
+  Warehouse,
+  DollarSign,
+  UserCheck,
+  Tags
 } from "lucide-react";
 
 interface NavigationProps {
@@ -38,6 +42,30 @@ const Navigation = ({ currentView, onNavigate }: NavigationProps) => {
       label: "Inventory", 
       icon: Package, 
       badge: "2" 
+    },
+    { 
+      id: "stock", 
+      label: "Stock Management", 
+      icon: Warehouse, 
+      badge: "NEW" 
+    },
+    { 
+      id: "expenses", 
+      label: "Expense Management", 
+      icon: DollarSign, 
+      badge: null 
+    },
+    { 
+      id: "staff", 
+      label: "Staff Management", 
+      icon: UserCheck, 
+      badge: null 
+    },
+    { 
+      id: "categories", 
+      label: "Category & Units", 
+      icon: Tags, 
+      badge: null 
     },
     { 
       id: "customers", 
