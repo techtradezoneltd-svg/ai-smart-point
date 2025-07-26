@@ -2,12 +2,10 @@ import { useState } from "react";
 import Navigation from "@/components/Navigation";
 import Dashboard from "@/components/Dashboard";
 import POSInterface from "@/components/POSInterface";
-import Inventory from "@/components/Inventory";
 import StockManagement from "@/components/StockManagement";
 import Customers from "@/components/Customers";
 import Analytics from "@/components/Analytics";
 import SalesHistory from "@/components/SalesHistory";
-import ProductCRM from "@/components/ProductCRM";
 import Reports from "@/components/Reports";
 import Suppliers from "@/components/Suppliers";
 import ExpenseManagement from "@/components/ExpenseManagement";
@@ -22,7 +20,6 @@ const Index = () => {
       case "pos":
         return <POSInterface />;
       case "inventory":
-        return <Inventory />;
       case "stock":
         return <StockManagement />;
       case "expenses":
@@ -35,8 +32,6 @@ const Index = () => {
         return <Customers />;
       case "saleshistory":
         return <SalesHistory />;
-      case "productcrm":
-        return <ProductCRM />;
       case "suppliers":
         return <Suppliers />;
       case "reports":

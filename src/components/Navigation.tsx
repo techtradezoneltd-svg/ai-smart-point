@@ -12,7 +12,6 @@ import {
   FileText,
   Truck,
   TrendingUp,
-  Warehouse,
   DollarSign,
   UserCheck,
   Tags
@@ -39,14 +38,8 @@ const Navigation = ({ currentView, onNavigate }: NavigationProps) => {
     },
     { 
       id: "inventory", 
-      label: "Inventory", 
+      label: "Inventory & Stock", 
       icon: Package, 
-      badge: "2" 
-    },
-    { 
-      id: "stock", 
-      label: "Stock Management", 
-      icon: Warehouse, 
       badge: "NEW" 
     },
     { 
@@ -77,12 +70,6 @@ const Navigation = ({ currentView, onNavigate }: NavigationProps) => {
       id: "saleshistory", 
       label: "Sales History", 
       icon: FileText, 
-      badge: "NEW" 
-    },
-    { 
-      id: "productcrm", 
-      label: "Product CRM", 
-      icon: Package, 
       badge: null 
     },
     { 
