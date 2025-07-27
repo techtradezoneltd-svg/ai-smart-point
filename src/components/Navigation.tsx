@@ -38,9 +38,15 @@ const Navigation = ({ currentView, onNavigate }: NavigationProps) => {
     },
     { 
       id: "inventory", 
-      label: "Inventory & Stock", 
+      label: "Product Management", 
       icon: Package, 
       badge: "NEW" 
+    },
+    { 
+      id: "stock", 
+      label: "Stock Movements", 
+      icon: TrendingUp, 
+      badge: null 
     },
     { 
       id: "expenses", 
