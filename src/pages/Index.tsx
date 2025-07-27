@@ -12,6 +12,7 @@ import ExpenseManagement from "@/components/ExpenseManagement";
 import StaffManagement from "@/components/StaffManagement";
 import CategoryUnitManagement from "@/components/CategoryUnitManagement";
 import Customers from "@/components/Customers";
+import Settings from "@/components/Settings";
 
 const Index = () => {
   const [currentView, setCurrentView] = useState("dashboard");
@@ -41,12 +42,7 @@ const Index = () => {
       case "analytics":
         return <Analytics />;
       case "settings":
-        return (
-          <div className="text-center py-20">
-            <h2 className="text-2xl font-bold mb-4">Settings Coming Soon</h2>
-            <p className="text-muted-foreground">Advanced AI configuration and system settings</p>
-          </div>
-        );
+        return <Settings />;
       default:
         return <Dashboard onNavigate={setCurrentView} />;
     }
