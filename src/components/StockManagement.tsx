@@ -300,16 +300,16 @@ const StockManagement = () => {
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+    <div className="p-3 sm:p-4 md:p-6 space-y-4 md:space-y-6 min-h-screen overflow-x-hidden">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-3xl font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
-            Stock & Inventory Management
+          <h1 className="text-xl sm:text-2xl md:text-3xl font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
+            Stock & Inventory
           </h1>
-          <p className="text-muted-foreground">Track stock movements, manage inventory levels</p>
+          <p className="text-muted-foreground text-sm sm:text-base">Track stock movements, manage inventory levels</p>
         </div>
         
-        <div className="flex gap-2">
+        <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
           <input
             ref={fileInputRef}
             type="file"
@@ -321,6 +321,7 @@ const StockManagement = () => {
           <Button 
             variant="outline" 
             onClick={() => fileInputRef.current?.click()}
+            className="text-sm sm:text-base"
           >
             <Upload className="mr-2 h-4 w-4" />
             Import
@@ -328,7 +329,7 @@ const StockManagement = () => {
 
           <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
             <DialogTrigger asChild>
-              <Button className="bg-gradient-to-r from-primary to-secondary hover:opacity-90">
+              <Button className="bg-gradient-to-r from-primary to-secondary hover:opacity-90 text-sm sm:text-base">
                 <Package className="mr-2 h-4 w-4" />
                 Record Movement
               </Button>
@@ -508,98 +509,104 @@ const StockManagement = () => {
                   </p>
                 </div>
               ) : (
-                <div className="rounded-md border">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead className="font-semibold">Product</TableHead>
-                        <TableHead className="font-semibold">SKU</TableHead>
-                        <TableHead className="font-semibold">Category</TableHead>
-                        <TableHead className="font-semibold text-center">Current Stock</TableHead>
-                        <TableHead className="font-semibold text-center">Min Level</TableHead>
-                        <TableHead className="font-semibold text-center">Max Level</TableHead>
-                        <TableHead className="font-semibold text-center">Status</TableHead>
-                        <TableHead className="font-semibold text-right">Unit Price</TableHead>
-                        <TableHead className="font-semibold text-right">Stock Value</TableHead>
-                        <TableHead className="font-semibold text-center">Actions</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {filteredProducts.map(product => {
-                        const stockStatus = getStockStatus(product.current_stock, product.min_stock_level);
-                        const stockValue = product.current_stock * product.cost_price;
-                        return (
-                          <TableRow key={product.id} className="hover:bg-muted/50">
-                            <TableCell>
-                              <div className="font-medium">{product.name}</div>
-                              <div className="text-xs text-muted-foreground">{product.units?.name}</div>
-                            </TableCell>
-                            <TableCell>
-                              <Badge variant="outline" className="font-mono text-xs">
-                                {product.sku || 'N/A'}
-                              </Badge>
-                            </TableCell>
-                            <TableCell>
-                              <Badge variant="secondary" className="text-xs">
-                                {product.categories?.name || 'Uncategorized'}
-                              </Badge>
-                            </TableCell>
-                            <TableCell className="text-center">
-                              <div className="font-medium">
-                                {product.current_stock} {product.units?.symbol}
-                              </div>
-                            </TableCell>
-                            <TableCell className="text-center text-muted-foreground">
-                              {product.min_stock_level} {product.units?.symbol}
-                            </TableCell>
-                            <TableCell className="text-center text-muted-foreground">
-                              {product.max_stock_level} {product.units?.symbol}
-                            </TableCell>
-                            <TableCell className="text-center">
-                              <Badge 
-                                variant={stockStatus.color as any}
-                                className="text-xs"
-                              >
-                                {stockStatus.status}
-                              </Badge>
-                            </TableCell>
-                            <TableCell className="text-right font-medium">
-                              ${product.cost_price.toFixed(2)}
-                            </TableCell>
-                            <TableCell className="text-right font-medium">
-                              <div className="text-sm">${stockValue.toFixed(2)}</div>
-                              <div className="text-xs text-muted-foreground">
-                                {product.current_stock} × ${product.cost_price.toFixed(2)}
-                              </div>
-                            </TableCell>
-                            <TableCell className="text-center">
-                              <DropdownMenu>
-                                <DropdownMenuTrigger asChild>
-                                  <Button variant="ghost" className="h-8 w-8 p-0">
-                                    <MoreHorizontal className="h-4 w-4" />
-                                  </Button>
-                                </DropdownMenuTrigger>
-                                <DropdownMenuContent align="end">
-                                  <DropdownMenuItem>
-                                    <Package className="mr-2 h-4 w-4" />
-                                    View Details
-                                  </DropdownMenuItem>
-                                  <DropdownMenuItem>
-                                    <TrendingUp className="mr-2 h-4 w-4" />
-                                    Quick Stock In
-                                  </DropdownMenuItem>
-                                  <DropdownMenuItem>
-                                    <TrendingDown className="mr-2 h-4 w-4" />
-                                    Quick Stock Out
-                                  </DropdownMenuItem>
-                                </DropdownMenuContent>
-                              </DropdownMenu>
-                            </TableCell>
-                          </TableRow>
-                        );
-                      })}
-                    </TableBody>
-                  </Table>
+                <div className="rounded-md border overflow-hidden">
+                  <div className="overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow className="bg-muted/50">
+                          <TableHead className="font-semibold text-xs sm:text-sm whitespace-nowrap">Product</TableHead>
+                          <TableHead className="font-semibold text-xs sm:text-sm whitespace-nowrap hidden sm:table-cell">SKU</TableHead>
+                          <TableHead className="font-semibold text-xs sm:text-sm whitespace-nowrap hidden md:table-cell">Category</TableHead>
+                          <TableHead className="font-semibold text-center text-xs sm:text-sm whitespace-nowrap">Stock</TableHead>
+                          <TableHead className="font-semibold text-center text-xs sm:text-sm whitespace-nowrap hidden lg:table-cell">Min</TableHead>
+                          <TableHead className="font-semibold text-center text-xs sm:text-sm whitespace-nowrap hidden lg:table-cell">Max</TableHead>
+                          <TableHead className="font-semibold text-center text-xs sm:text-sm whitespace-nowrap">Status</TableHead>
+                          <TableHead className="font-semibold text-right text-xs sm:text-sm whitespace-nowrap hidden md:table-cell">Price</TableHead>
+                          <TableHead className="font-semibold text-right text-xs sm:text-sm whitespace-nowrap hidden lg:table-cell">Value</TableHead>
+                          <TableHead className="font-semibold text-center text-xs sm:text-sm whitespace-nowrap">Actions</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {filteredProducts.map(product => {
+                          const stockStatus = getStockStatus(product.current_stock, product.min_stock_level);
+                          const stockValue = product.current_stock * product.cost_price;
+                          return (
+                            <TableRow key={product.id} className="hover:bg-muted/50 transition-colors">
+                              <TableCell className="min-w-0">
+                                <div className="font-medium text-xs sm:text-sm max-w-[120px] sm:max-w-[200px] truncate">
+                                  {product.name}
+                                </div>
+                                <div className="text-xs text-muted-foreground sm:hidden">
+                                  {product.categories?.name || 'N/A'}
+                                </div>
+                              </TableCell>
+                              <TableCell className="hidden sm:table-cell">
+                                <Badge variant="outline" className="font-mono text-xs max-w-[80px] truncate">
+                                  {product.sku || 'N/A'}
+                                </Badge>
+                              </TableCell>
+                              <TableCell className="hidden md:table-cell">
+                                <Badge variant="secondary" className="text-xs max-w-[100px] truncate">
+                                  {product.categories?.name || 'Uncategorized'}
+                                </Badge>
+                              </TableCell>
+                              <TableCell className="text-center">
+                                <div className="font-medium text-xs sm:text-sm">
+                                  {product.current_stock} {product.units?.symbol}
+                                </div>
+                              </TableCell>
+                              <TableCell className="text-center text-muted-foreground text-xs hidden lg:table-cell">
+                                {product.min_stock_level} {product.units?.symbol}
+                              </TableCell>
+                              <TableCell className="text-center text-muted-foreground text-xs hidden lg:table-cell">
+                                {product.max_stock_level} {product.units?.symbol}
+                              </TableCell>
+                              <TableCell className="text-center">
+                                <Badge 
+                                  variant={stockStatus.color as any}
+                                  className="text-xs"
+                                >
+                                  {stockStatus.status}
+                                </Badge>
+                              </TableCell>
+                              <TableCell className="text-right font-medium text-xs sm:text-sm hidden md:table-cell">
+                                ${product.cost_price.toFixed(2)}
+                              </TableCell>
+                              <TableCell className="text-right font-medium text-xs hidden lg:table-cell">
+                                <div className="text-xs sm:text-sm">${stockValue.toFixed(2)}</div>
+                                <div className="text-xs text-muted-foreground">
+                                  {product.current_stock} × ${product.cost_price.toFixed(2)}
+                                </div>
+                              </TableCell>
+                              <TableCell className="text-center">
+                                <DropdownMenu>
+                                  <DropdownMenuTrigger asChild>
+                                    <Button variant="ghost" className="h-7 w-7 sm:h-8 sm:w-8 p-0">
+                                      <MoreHorizontal className="h-3 w-3 sm:h-4 sm:w-4" />
+                                    </Button>
+                                  </DropdownMenuTrigger>
+                                  <DropdownMenuContent align="end">
+                                    <DropdownMenuItem>
+                                      <Package className="mr-2 h-4 w-4" />
+                                      View Details
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem>
+                                      <TrendingUp className="mr-2 h-4 w-4" />
+                                      Quick Stock In
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem>
+                                      <TrendingDown className="mr-2 h-4 w-4" />
+                                      Quick Stock Out
+                                    </DropdownMenuItem>
+                                  </DropdownMenuContent>
+                                </DropdownMenu>
+                              </TableCell>
+                            </TableRow>
+                          );
+                        })}
+                      </TableBody>
+                    </Table>
+                  </div>
                 </div>
               )}
             </CardContent>

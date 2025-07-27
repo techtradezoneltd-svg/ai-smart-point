@@ -99,15 +99,15 @@ const Navigation = ({ currentView, onNavigate }: NavigationProps) => {
   ];
 
   return (
-    <div className="bg-gradient-card border-r border-border w-64 min-h-screen p-6">
+    <div className="bg-gradient-card border-r border-border w-full sm:w-64 md:w-72 lg:w-80 min-h-screen p-3 sm:p-4 md:p-6 animate-fade-in">
       {/* Logo/Brand */}
-      <div className="mb-8">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-gradient-primary rounded-xl flex items-center justify-center">
-            <Brain className="w-6 h-6 text-white animate-pulse" />
+      <div className="mb-6 sm:mb-8">
+        <div className="flex items-center gap-2 sm:gap-3">
+          <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-primary rounded-xl flex items-center justify-center">
+            <Brain className="w-4 h-4 sm:w-6 sm:h-6 text-white animate-pulse" />
           </div>
-          <div>
-            <h1 className="font-bold text-xl bg-gradient-primary bg-clip-text text-transparent">
+          <div className="hidden sm:block">
+            <h1 className="font-bold text-lg sm:text-xl bg-gradient-primary bg-clip-text text-transparent">
               SmartPOS
             </h1>
             <p className="text-xs text-muted-foreground">AI-Powered</p>
@@ -116,38 +116,40 @@ const Navigation = ({ currentView, onNavigate }: NavigationProps) => {
       </div>
 
       {/* AI Status */}
-      <div className="mb-6 p-3 bg-accent/10 border border-accent/30 rounded-lg">
+      <div className="mb-4 sm:mb-6 p-2 sm:p-3 bg-accent/10 border border-accent/30 rounded-lg">
         <div className="flex items-center gap-2 mb-2">
-          <Zap className="w-4 h-4 text-accent" />
-          <span className="text-sm font-medium text-accent">AI Engine</span>
+          <Zap className="w-3 h-3 sm:w-4 sm:h-4 text-accent" />
+          <span className="text-xs sm:text-sm font-medium text-accent hidden sm:inline">AI Engine</span>
           <Badge variant="outline" className="border-accent text-accent text-xs">
             ACTIVE
           </Badge>
         </div>
-        <p className="text-xs text-muted-foreground">
+        <p className="text-xs text-muted-foreground hidden sm:block">
           Processing 47 data points for intelligent insights
         </p>
       </div>
 
       {/* Navigation Items */}
-      <nav className="space-y-2">
-        {navigationItems.map((item) => (
+      <nav className="space-y-1 sm:space-y-2">
+        {navigationItems.map((item, index) => (
           <Button
             key={item.id}
             variant={currentView === item.id ? "default" : "ghost"}
-            className={`w-full justify-start h-12 ${
+            className={`w-full justify-start h-10 sm:h-12 animate-fade-in ${
               currentView === item.id 
                 ? "bg-gradient-primary text-white shadow-glow" 
                 : "hover:bg-secondary/50"
             }`}
+            style={{ animationDelay: `${index * 0.1}s` }}
             onClick={() => onNavigate(item.id)}
           >
-            <item.icon className="w-5 h-5 mr-3" />
-            <span className="flex-1 text-left">{item.label}</span>
+            <item.icon className="w-4 h-4 sm:w-5 sm:h-5 mr-2 sm:mr-3 flex-shrink-0" />
+            <span className="flex-1 text-left text-xs sm:text-sm truncate hidden sm:block">{item.label}</span>
+            <span className="flex-1 text-left text-xs truncate sm:hidden">{item.label.split(' ')[0]}</span>
             {item.badge && (
               <Badge 
                 variant="secondary" 
-                className="bg-destructive text-destructive-foreground text-xs"
+                className="bg-destructive text-destructive-foreground text-xs hidden sm:inline-flex"
               >
                 {item.badge}
               </Badge>
@@ -157,7 +159,7 @@ const Navigation = ({ currentView, onNavigate }: NavigationProps) => {
       </nav>
 
       {/* AI Insights Summary */}
-      <div className="mt-8 p-4 bg-primary/10 border border-primary/30 rounded-lg">
+      <div className="mt-6 sm:mt-8 p-3 sm:p-4 bg-primary/10 border border-primary/30 rounded-lg hidden md:block">
         <div className="flex items-center gap-2 mb-3">
           <Brain className="w-4 h-4 text-primary animate-pulse" />
           <span className="text-sm font-medium text-primary">Today's AI Insights</span>
