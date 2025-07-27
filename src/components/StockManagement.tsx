@@ -36,8 +36,11 @@ interface Product {
   sku: string;
   current_stock: number;
   min_stock_level: number;
+  max_stock_level: number;
   cost_price: number;
   selling_price: number;
+  category_id: string;
+  unit_id: string;
   categories: { name: string };
   units: { name: string; symbol: string };
 }
@@ -49,7 +52,8 @@ interface StockMovement {
   reference_number: string;
   notes: string;
   created_at: string;
-  products: { name: string };
+  unit_cost?: number;
+  products: { name: string; sku: string };
 }
 
 const StockManagement = () => {
@@ -62,73 +66,135 @@ const StockManagement = () => {
   const [movementType, setMovementType] = useState<'in' | 'out' | 'damage' | 'return' | 'adjustment'>('in');
   const [quantity, setQuantity] = useState<number>(0);
   const [notes, setNotes] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    fetchProducts();
-    fetchStockMovements();
+    const loadData = async () => {
+      setLoading(true);
+      await Promise.all([fetchProducts(), fetchStockMovements()]);
+      setLoading(false);
+    };
+    loadData();
   }, []);
 
   const fetchProducts = async () => {
-    const { data, error } = await supabase
-      .from('products')
-      .select(`
-        id, name, sku, current_stock, min_stock_level, cost_price, selling_price,
-        categories(name),
-        units(name, symbol)
-      `)
-      .eq('is_active', true);
+    try {
+      const { data, error } = await supabase
+        .from('products')
+        .select(`
+          id, name, sku, current_stock, min_stock_level, max_stock_level, 
+          cost_price, selling_price, category_id, unit_id,
+          categories!inner(name),
+          units!inner(name, symbol)
+        `)
+        .eq('is_active', true)
+        .order('name');
 
-    if (error) {
-      toast({ title: "Error", description: "Failed to fetch products", variant: "destructive" });
-    } else {
-      setProducts(data || []);
+      if (error) {
+        console.error('Products fetch error:', error);
+        toast({ 
+          title: "Error", 
+          description: `Failed to fetch products: ${error.message}`, 
+          variant: "destructive" 
+        });
+      } else {
+        setProducts(data || []);
+      }
+    } catch (err) {
+      console.error('Unexpected error:', err);
+      toast({ 
+        title: "Error", 
+        description: "An unexpected error occurred while fetching products", 
+        variant: "destructive" 
+      });
     }
   };
 
   const fetchStockMovements = async () => {
-    const { data, error } = await supabase
-      .from('stock_movements')
-      .select(`
-        id, type, quantity, reference_number, notes, created_at,
-        products(name)
-      `)
-      .order('created_at', { ascending: false })
-      .limit(50);
+    try {
+      const { data, error } = await supabase
+        .from('stock_movements')
+        .select(`
+          id, type, quantity, reference_number, notes, created_at, unit_cost,
+          products!inner(name, sku)
+        `)
+        .order('created_at', { ascending: false })
+        .limit(100);
 
-    if (error) {
-      toast({ title: "Error", description: "Failed to fetch stock movements", variant: "destructive" });
-    } else {
-      setStockMovements(data || []);
+      if (error) {
+        console.error('Stock movements fetch error:', error);
+        toast({ 
+          title: "Error", 
+          description: `Failed to fetch stock movements: ${error.message}`, 
+          variant: "destructive" 
+        });
+      } else {
+        setStockMovements(data || []);
+      }
+    } catch (err) {
+      console.error('Unexpected error:', err);
+      toast({ 
+        title: "Error", 
+        description: "An unexpected error occurred while fetching stock movements", 
+        variant: "destructive" 
+      });
     }
   };
 
   const handleStockMovement = async () => {
-    if (!selectedProduct || !quantity) {
-      toast({ title: "Error", description: "Please select product and enter quantity", variant: "destructive" });
+    if (!selectedProduct || !quantity || quantity <= 0) {
+      toast({ 
+        title: "Validation Error", 
+        description: "Please select a product and enter a valid quantity", 
+        variant: "destructive" 
+      });
       return;
     }
 
-    const { error } = await supabase
-      .from('stock_movements')
-      .insert({
-        product_id: selectedProduct,
-        type: movementType,
-        quantity: quantity,
-        reference_number: `${movementType.toUpperCase()}-${Date.now()}`,
-        notes: notes
-      });
+    setSubmitting(true);
+    
+    try {
+      const { error } = await supabase
+        .from('stock_movements')
+        .insert({
+          product_id: selectedProduct,
+          type: movementType,
+          quantity: quantity,
+          reference_number: `${movementType.toUpperCase()}-${Date.now()}`,
+          notes: notes || null,
+          created_by: (await supabase.auth.getUser()).data.user?.id
+        });
 
-    if (error) {
-      toast({ title: "Error", description: "Failed to record stock movement", variant: "destructive" });
-    } else {
-      toast({ title: "Success", description: "Stock movement recorded successfully" });
+      if (error) {
+        throw error;
+      }
+
+      toast({ 
+        title: "Success", 
+        description: "Stock movement recorded successfully",
+        variant: "default"
+      });
+      
       setIsDialogOpen(false);
+      setSelectedProduct("");
       setQuantity(0);
       setNotes("");
-      fetchProducts();
-      fetchStockMovements();
+      
+      // Refresh data
+      await Promise.all([fetchProducts(), fetchStockMovements()]);
+      
+    } catch (error: any) {
+      console.error('Stock movement error:', error);
+      toast({ 
+        title: "Error", 
+        description: `Failed to record stock movement: ${error.message}`, 
+        variant: "destructive" 
+      });
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -323,8 +389,19 @@ const StockManagement = () => {
                   />
                 </div>
                 
-                <Button onClick={handleStockMovement} className="w-full">
-                  Record Movement
+                <Button 
+                  onClick={handleStockMovement} 
+                  className="w-full"
+                  disabled={submitting || !selectedProduct || !quantity}
+                >
+                  {submitting ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                      Recording...
+                    </>
+                  ) : (
+                    'Record Movement'
+                  )}
                 </Button>
               </div>
             </DialogContent>
@@ -415,60 +492,116 @@ const StockManagement = () => {
             </CardHeader>
             
             <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Product</TableHead>
-                    <TableHead>SKU</TableHead>
-                    <TableHead>Category</TableHead>
-                    <TableHead>Current Stock</TableHead>
-                    <TableHead>Min Level</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Unit Price</TableHead>
-                    <TableHead>Stock Value</TableHead>
-                    <TableHead>Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredProducts.map(product => {
-                    const stockStatus = getStockStatus(product.current_stock, product.min_stock_level);
-                    return (
-                      <TableRow key={product.id}>
-                        <TableCell className="font-medium">{product.name}</TableCell>
-                        <TableCell>
-                          <Badge variant="outline">{product.sku}</Badge>
-                        </TableCell>
-                        <TableCell>{product.categories?.name}</TableCell>
-                        <TableCell>
-                          {product.current_stock} {product.units?.symbol}
-                        </TableCell>
-                        <TableCell>
-                          {product.min_stock_level} {product.units?.symbol}
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant={stockStatus.color as any}>{stockStatus.status}</Badge>
-                        </TableCell>
-                        <TableCell>${product.cost_price.toFixed(2)}</TableCell>
-                        <TableCell>${(product.current_stock * product.cost_price).toFixed(2)}</TableCell>
-                        <TableCell>
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" className="h-8 w-8 p-0">
-                                <MoreHorizontal className="h-4 w-4" />
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                              <DropdownMenuItem>View Details</DropdownMenuItem>
-                              <DropdownMenuItem>Edit Product</DropdownMenuItem>
-                              <DropdownMenuItem>Stock Movement</DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                        </TableCell>
+              {loading ? (
+                <div className="flex items-center justify-center py-8">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+                  <span className="ml-3 text-muted-foreground">Loading products...</span>
+                </div>
+              ) : filteredProducts.length === 0 ? (
+                <div className="text-center py-8">
+                  <Package className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
+                  <h3 className="text-lg font-medium text-muted-foreground mb-2">No Products Found</h3>
+                  <p className="text-sm text-muted-foreground">
+                    {searchTerm || filterType !== "all" 
+                      ? "No products match your current filters" 
+                      : "Start by adding products to your inventory"}
+                  </p>
+                </div>
+              ) : (
+                <div className="rounded-md border">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="font-semibold">Product</TableHead>
+                        <TableHead className="font-semibold">SKU</TableHead>
+                        <TableHead className="font-semibold">Category</TableHead>
+                        <TableHead className="font-semibold text-center">Current Stock</TableHead>
+                        <TableHead className="font-semibold text-center">Min Level</TableHead>
+                        <TableHead className="font-semibold text-center">Max Level</TableHead>
+                        <TableHead className="font-semibold text-center">Status</TableHead>
+                        <TableHead className="font-semibold text-right">Unit Price</TableHead>
+                        <TableHead className="font-semibold text-right">Stock Value</TableHead>
+                        <TableHead className="font-semibold text-center">Actions</TableHead>
                       </TableRow>
-                    );
-                  })}
-                </TableBody>
-              </Table>
+                    </TableHeader>
+                    <TableBody>
+                      {filteredProducts.map(product => {
+                        const stockStatus = getStockStatus(product.current_stock, product.min_stock_level);
+                        const stockValue = product.current_stock * product.cost_price;
+                        return (
+                          <TableRow key={product.id} className="hover:bg-muted/50">
+                            <TableCell>
+                              <div className="font-medium">{product.name}</div>
+                              <div className="text-xs text-muted-foreground">{product.units?.name}</div>
+                            </TableCell>
+                            <TableCell>
+                              <Badge variant="outline" className="font-mono text-xs">
+                                {product.sku || 'N/A'}
+                              </Badge>
+                            </TableCell>
+                            <TableCell>
+                              <Badge variant="secondary" className="text-xs">
+                                {product.categories?.name || 'Uncategorized'}
+                              </Badge>
+                            </TableCell>
+                            <TableCell className="text-center">
+                              <div className="font-medium">
+                                {product.current_stock} {product.units?.symbol}
+                              </div>
+                            </TableCell>
+                            <TableCell className="text-center text-muted-foreground">
+                              {product.min_stock_level} {product.units?.symbol}
+                            </TableCell>
+                            <TableCell className="text-center text-muted-foreground">
+                              {product.max_stock_level} {product.units?.symbol}
+                            </TableCell>
+                            <TableCell className="text-center">
+                              <Badge 
+                                variant={stockStatus.color as any}
+                                className="text-xs"
+                              >
+                                {stockStatus.status}
+                              </Badge>
+                            </TableCell>
+                            <TableCell className="text-right font-medium">
+                              ${product.cost_price.toFixed(2)}
+                            </TableCell>
+                            <TableCell className="text-right font-medium">
+                              <div className="text-sm">${stockValue.toFixed(2)}</div>
+                              <div className="text-xs text-muted-foreground">
+                                {product.current_stock} × ${product.cost_price.toFixed(2)}
+                              </div>
+                            </TableCell>
+                            <TableCell className="text-center">
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                  <Button variant="ghost" className="h-8 w-8 p-0">
+                                    <MoreHorizontal className="h-4 w-4" />
+                                  </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end">
+                                  <DropdownMenuItem>
+                                    <Package className="mr-2 h-4 w-4" />
+                                    View Details
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem>
+                                    <TrendingUp className="mr-2 h-4 w-4" />
+                                    Quick Stock In
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem>
+                                    <TrendingDown className="mr-2 h-4 w-4" />
+                                    Quick Stock Out
+                                  </DropdownMenuItem>
+                                </DropdownMenuContent>
+                              </DropdownMenu>
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
+                </div>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
@@ -500,39 +633,85 @@ const StockManagement = () => {
             </CardHeader>
             
             <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Product</TableHead>
-                    <TableHead>Type</TableHead>
-                    <TableHead>Quantity</TableHead>
-                    <TableHead>Reference</TableHead>
-                    <TableHead>Date</TableHead>
-                    <TableHead>Notes</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {stockMovements.map(movement => (
-                    <TableRow key={movement.id}>
-                      <TableCell className="font-medium">{movement.products?.name}</TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          {getMovementIcon(movement.type)}
-                          <span className="capitalize">{movement.type}</span>
-                        </div>
-                      </TableCell>
-                      <TableCell>{movement.quantity}</TableCell>
-                      <TableCell>
-                        <Badge variant="outline">{movement.reference_number}</Badge>
-                      </TableCell>
-                      <TableCell>{new Date(movement.created_at).toLocaleDateString()}</TableCell>
-                      <TableCell className="max-w-[200px] truncate">
-                        {movement.notes || "-"}
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+              {loading ? (
+                <div className="flex items-center justify-center py-8">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+                  <span className="ml-3 text-muted-foreground">Loading movements...</span>
+                </div>
+              ) : stockMovements.length === 0 ? (
+                <div className="text-center py-8">
+                  <TrendingUp className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
+                  <h3 className="text-lg font-medium text-muted-foreground mb-2">No Stock Movements</h3>
+                  <p className="text-sm text-muted-foreground">
+                    Stock movements will appear here as you record them
+                  </p>
+                </div>
+              ) : (
+                <div className="rounded-md border">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="font-semibold">Product</TableHead>
+                        <TableHead className="font-semibold">Type</TableHead>
+                        <TableHead className="font-semibold text-center">Quantity</TableHead>
+                        <TableHead className="font-semibold">Reference</TableHead>
+                        <TableHead className="font-semibold">Date & Time</TableHead>
+                        <TableHead className="font-semibold">Notes</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {stockMovements.map(movement => (
+                        <TableRow key={movement.id} className="hover:bg-muted/50">
+                          <TableCell>
+                            <div className="font-medium">{movement.products?.name}</div>
+                            <div className="text-xs text-muted-foreground">
+                              SKU: {movement.products?.sku || 'N/A'}
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-2">
+                              {getMovementIcon(movement.type)}
+                              <Badge 
+                                variant={movement.type === 'in' || movement.type === 'return' ? 'default' : 'secondary'}
+                                className="capitalize text-xs"
+                              >
+                                {movement.type.replace('_', ' ')}
+                              </Badge>
+                            </div>
+                          </TableCell>
+                          <TableCell className="text-center font-medium">
+                            <span className={movement.type === 'in' || movement.type === 'return' ? 'text-green-600' : 'text-red-600'}>
+                              {movement.type === 'in' || movement.type === 'return' ? '+' : '-'}{movement.quantity}
+                            </span>
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant="outline" className="font-mono text-xs">
+                              {movement.reference_number}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            <div className="text-sm">
+                              {new Date(movement.created_at).toLocaleDateString()}
+                            </div>
+                            <div className="text-xs text-muted-foreground">
+                              {new Date(movement.created_at).toLocaleTimeString()}
+                            </div>
+                          </TableCell>
+                          <TableCell className="max-w-[200px]">
+                            {movement.notes ? (
+                              <div className="text-sm truncate" title={movement.notes}>
+                                {movement.notes}
+                              </div>
+                            ) : (
+                              <span className="text-muted-foreground text-sm">No notes</span>
+                            )}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
