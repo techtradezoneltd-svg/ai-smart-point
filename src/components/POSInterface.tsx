@@ -1,9 +1,11 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
 import { 
   Scan, 
   Plus, 
@@ -14,7 +16,8 @@ import {
   Smartphone,
   Brain,
   Sparkles,
-  Percent
+  Percent,
+  Package
 } from "lucide-react";
 
 interface CartItem {
@@ -23,29 +26,99 @@ interface CartItem {
   price: number;
   quantity: number;
   category: string;
+  stock: number;
+  sku: string;
+}
+
+interface Product {
+  id: string;
+  name: string;
+  sku: string | null;
+  selling_price: number;
+  current_stock: number;
+  categories?: { name: string };
+  units?: { name: string; symbol: string };
+  barcode: string | null;
+  is_active: boolean;
 }
 
 const POSInterface = () => {
+  const { toast } = useToast();
   const [cart, setCart] = useState<CartItem[]>([]);
   const [barcode, setBarcode] = useState("");
+  const [products, setProducts] = useState<Product[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [processing, setProcessing] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
 
-  // Sample products with enhanced data for AI features
-  const sampleProducts = [
-    { id: "1", name: "iPhone 15 Pro", price: 999.99, category: "Electronics", barcode: "123456789012", stock: 23, margin: 0.35 },
-    { id: "2", name: "Samsung Galaxy S24", price: 799.99, category: "Electronics", barcode: "123456789013", stock: 8, margin: 0.28 },
-    { id: "3", name: "Apple AirPods Pro", price: 249.99, category: "Electronics", barcode: "123456789014", stock: 45, margin: 0.42 },
-    { id: "4", name: "Wireless Charger", price: 39.99, category: "Accessories", barcode: "123456789015", stock: 67, margin: 0.55 },
-    { id: "5", name: "Phone Case Premium", price: 29.99, category: "Accessories", barcode: "123456789016", stock: 120, margin: 0.65 },
-    { id: "6", name: "Screen Protector", price: 19.99, category: "Accessories", barcode: "123456789017", stock: 200, margin: 0.70 }
-  ];
+  useEffect(() => {
+    fetchProducts();
+  }, []);
+
+  const fetchProducts = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('products')
+        .select(`
+          id, name, sku, selling_price, current_stock, barcode, is_active,
+          categories(name),
+          units(name, symbol)
+        `)
+        .eq('is_active', true)
+        .gt('current_stock', 0)
+        .order('name');
+
+      if (error) throw error;
+      setProducts(data || []);
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: "Failed to fetch products",
+        variant: "destructive"
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Filter products based on search
+  const filteredProducts = products.filter(product => 
+    product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    product.sku?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    product.barcode?.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
   // AI Recommendations based on cart
-  const aiRecommendations = [
-    { id: "5", name: "Phone Case", price: 29.99, reason: "Often bought with phones" },
-    { id: "6", name: "Screen Protector", price: 19.99, reason: "95% compatibility with your selection" },
-  ];
+  const getAIRecommendations = () => {
+    if (cart.length === 0) return [];
+    
+    // Simple recommendation logic - suggest products from same categories
+    const cartCategories = cart.map(item => item.category);
+    return products
+      .filter(p => cartCategories.includes(p.categories?.name || '') && !cart.find(c => c.id === p.id))
+      .slice(0, 3)
+      .map(p => ({
+        id: p.id,
+        name: p.name,
+        price: p.selling_price,
+        reason: "Often bought together"
+      }));
+  };
 
-  const addToCart = (product: any) => {
+  const addToCart = (product: Product | any) => {
+    // Check stock availability
+    const currentCartItem = cart.find(item => item.id === product.id);
+    const currentCartQuantity = currentCartItem ? currentCartItem.quantity : 0;
+    
+    if (currentCartQuantity >= (product.current_stock || product.stock)) {
+      toast({
+        title: "Insufficient Stock",
+        description: `Only ${product.current_stock || product.stock} units available`,
+        variant: "destructive"
+      });
+      return;
+    }
+
     setCart(prev => {
       const existing = prev.find(item => item.id === product.id);
       if (existing) {
@@ -55,7 +128,15 @@ const POSInterface = () => {
             : item
         );
       }
-      return [...prev, { ...product, quantity: 1 }];
+      return [...prev, { 
+        id: product.id,
+        name: product.name,
+        price: product.selling_price || product.price,
+        quantity: 1,
+        category: product.categories?.name || product.category || 'General',
+        stock: product.current_stock || product.stock || 0,
+        sku: product.sku || ''
+      }];
     });
   };
 
@@ -63,6 +144,14 @@ const POSInterface = () => {
     setCart(prev => prev.map(item => {
       if (item.id === id) {
         const newQuantity = item.quantity + change;
+        if (newQuantity > item.stock) {
+          toast({
+            title: "Insufficient Stock",
+            description: `Only ${item.stock} units available`,
+            variant: "destructive"
+          });
+          return item;
+        }
         return newQuantity > 0 ? { ...item, quantity: newQuantity } : item;
       }
       return item;
@@ -77,12 +166,93 @@ const POSInterface = () => {
   const tax = subtotal * 0.08; // 8% tax
   const total = subtotal + tax;
 
-  const simulateBarcodeScan = () => {
-    if (sampleProducts.length > 0) {
-      const randomProduct = sampleProducts[Math.floor(Math.random() * sampleProducts.length)];
-      addToCart(randomProduct);
-      setBarcode(randomProduct.id);
-      setTimeout(() => setBarcode(""), 2000);
+  const handleBarcodeSearch = () => {
+    if (!barcode.trim()) return;
+    
+    const product = products.find(p => 
+      p.barcode === barcode.trim() || 
+      p.sku === barcode.trim() ||
+      p.id === barcode.trim()
+    );
+    
+    if (product) {
+      addToCart(product);
+      setBarcode("");
+      toast({
+        title: "Product Added",
+        description: `${product.name} added to cart`
+      });
+    } else {
+      toast({
+        title: "Product Not Found",
+        description: "No product found with this barcode/SKU",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const completeSale = async (paymentMethod: string) => {
+    if (cart.length === 0) return;
+    
+    setProcessing(true);
+    try {
+      // Generate sale number
+      const saleNumber = `SALE-${Date.now()}`;
+      
+      // Create sale record
+      const { data: saleData, error: saleError } = await supabase
+        .from('sales')
+        .insert({
+          sale_number: saleNumber,
+          customer_name: null,
+          customer_phone: null,
+          subtotal: subtotal,
+          tax_amount: tax,
+          discount_amount: 0,
+          total_amount: total,
+          payment_method: paymentMethod,
+          created_by: (await supabase.auth.getUser()).data.user?.id
+        })
+        .select()
+        .single();
+
+      if (saleError) throw saleError;
+
+      // Create sale items and stock movements
+      for (const item of cart) {
+        // Insert sale item
+        const { error: itemError } = await supabase
+          .from('sale_items')
+          .insert({
+            sale_id: saleData.id,
+            product_id: item.id,
+            quantity: item.quantity,
+            unit_price: item.price,
+            total_price: item.price * item.quantity
+          });
+
+        if (itemError) throw itemError;
+
+        // Stock movement will be created automatically by trigger
+      }
+
+      toast({
+        title: "Sale Completed",
+        description: `Sale ${saleNumber} completed successfully`
+      });
+
+      // Clear cart and refresh products
+      setCart([]);
+      fetchProducts();
+      
+    } catch (error: any) {
+      toast({
+        title: "Sale Failed",
+        description: error.message,
+        variant: "destructive"
+      });
+    } finally {
+      setProcessing(false);
     }
   };
 
@@ -101,15 +271,24 @@ const POSInterface = () => {
           <CardContent className="space-y-4">
             <div className="flex gap-2">
               <Input
-                placeholder="Scan barcode or search product..."
+                placeholder="Scan barcode, SKU, or search product..."
                 value={barcode}
                 onChange={(e) => setBarcode(e.target.value)}
+                onKeyPress={(e) => e.key === 'Enter' && handleBarcodeSearch()}
                 className="flex-1"
               />
-              <Button onClick={simulateBarcodeScan} className="bg-gradient-primary">
+              <Button onClick={handleBarcodeSearch} className="bg-gradient-primary">
                 <Scan className="w-4 h-4 mr-2" />
-                Scan
+                Search
               </Button>
+            </div>
+            <div className="mt-2">
+              <Input
+                placeholder="Search products by name..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full"
+              />
             </div>
           </CardContent>
         </Card>
@@ -117,61 +296,81 @@ const POSInterface = () => {
         {/* Product Grid */}
         <Card className="bg-gradient-card border-border">
           <CardHeader>
-            <CardTitle>Quick Select Products</CardTitle>
+            <CardTitle>Products ({filteredProducts.length})</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-              {sampleProducts.map((product) => (
-                <div
-                  key={product.id}
-                  className="p-4 border border-border rounded-lg hover:border-primary/50 transition-all cursor-pointer group"
-                  onClick={() => addToCart(product)}
-                >
-                  <div className="text-center">
-                    <div className="w-16 h-16 bg-gradient-primary rounded-lg mx-auto mb-2 flex items-center justify-center">
-                      <Smartphone className="w-8 h-8 text-white" />
+            {loading ? (
+              <div className="text-center py-8">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
+                <p className="mt-2 text-muted-foreground">Loading products...</p>
+              </div>
+            ) : filteredProducts.length === 0 ? (
+              <div className="text-center py-8">
+                <Package className="w-12 h-12 text-muted-foreground mx-auto mb-2" />
+                <p className="text-muted-foreground">No products found</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-4 max-h-96 overflow-y-auto">
+                {filteredProducts.map((product) => (
+                  <div
+                    key={product.id}
+                    className="p-4 border border-border rounded-lg hover:border-primary/50 transition-all cursor-pointer group"
+                    onClick={() => addToCart(product)}
+                  >
+                    <div className="text-center">
+                      <div className="w-16 h-16 bg-gradient-primary rounded-lg mx-auto mb-2 flex items-center justify-center">
+                        <Package className="w-8 h-8 text-white" />
+                      </div>
+                      <h3 className="font-medium text-sm mb-1 line-clamp-2">{product.name}</h3>
+                      <p className="text-xs text-muted-foreground mb-1">SKU: {product.sku || 'N/A'}</p>
+                      <p className="text-lg font-bold text-primary">${product.selling_price}</p>
+                      <div className="flex items-center justify-center gap-2 mt-1">
+                        <Badge variant="secondary" className="text-xs">
+                          {product.categories?.name || 'General'}
+                        </Badge>
+                        <Badge variant={product.current_stock > 10 ? "secondary" : "destructive"} className="text-xs">
+                          {product.current_stock} in stock
+                        </Badge>
+                      </div>
                     </div>
-                    <h3 className="font-medium text-sm mb-1">{product.name}</h3>
-                    <p className="text-lg font-bold text-primary">${product.price}</p>
-                    <Badge variant="secondary" className="mt-1 text-xs">
-                      {product.category}
-                    </Badge>
                   </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
           </CardContent>
         </Card>
 
         {/* AI Recommendations */}
-        <Card className="bg-gradient-card border-accent/20">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Brain className="w-5 h-5 text-accent animate-pulse" />
-              AI Smart Recommendations
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              {aiRecommendations.map((rec) => (
-                <div
-                  key={rec.id}
-                  className="flex items-center justify-between p-3 border border-accent/30 rounded-lg hover:bg-accent/10 transition-all group cursor-pointer"
-                  onClick={() => addToCart(rec)}
-                >
-                  <div>
-                    <p className="font-medium">{rec.name}</p>
-                    <p className="text-sm text-accent">{rec.reason}</p>
+        {getAIRecommendations().length > 0 && (
+          <Card className="bg-gradient-card border-accent/20">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Brain className="w-5 h-5 text-accent animate-pulse" />
+                AI Smart Recommendations
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3">
+                {getAIRecommendations().map((rec) => (
+                  <div
+                    key={rec.id}
+                    className="flex items-center justify-between p-3 border border-accent/30 rounded-lg hover:bg-accent/10 transition-all group cursor-pointer"
+                    onClick={() => addToCart(rec)}
+                  >
+                    <div>
+                      <p className="font-medium">{rec.name}</p>
+                      <p className="text-sm text-accent">{rec.reason}</p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="font-bold text-accent">${rec.price}</span>
+                      <Plus className="w-4 h-4 text-accent group-hover:scale-110 transition-transform" />
+                    </div>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <span className="font-bold text-accent">${rec.price}</span>
-                    <Plus className="w-4 h-4 text-accent group-hover:scale-110 transition-transform" />
-                  </div>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
       </div>
 
       {/* Cart & Checkout */}
@@ -295,9 +494,22 @@ const POSInterface = () => {
                 </div>
               </div>
 
-              <Button className="w-full bg-gradient-primary text-lg font-semibold py-6">
-                Complete Sale - ${total.toFixed(2)}
-              </Button>
+              <div className="grid grid-cols-2 gap-2">
+                <Button 
+                  className="bg-gradient-primary text-sm font-semibold py-4"
+                  onClick={() => completeSale('cash')}
+                  disabled={processing}
+                >
+                  {processing ? 'Processing...' : 'Cash Sale'}
+                </Button>
+                <Button 
+                  className="bg-gradient-primary text-sm font-semibold py-4"
+                  onClick={() => completeSale('card')}
+                  disabled={processing}
+                >
+                  {processing ? 'Processing...' : 'Card Sale'}
+                </Button>
+              </div>
             </CardContent>
           </Card>
         )}
