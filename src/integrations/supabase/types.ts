@@ -289,6 +289,36 @@ export type Database = {
           },
         ]
       }
+      settings: {
+        Row: {
+          category: string
+          created_at: string
+          created_by: string | null
+          id: string
+          key: string
+          updated_at: string
+          value: Json
+        }
+        Insert: {
+          category?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          key: string
+          updated_at?: string
+          value?: Json
+        }
+        Update: {
+          category?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          key?: string
+          updated_at?: string
+          value?: Json
+        }
+        Relationships: []
+      }
       stock_movements: {
         Row: {
           created_at: string | null
@@ -369,9 +399,17 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      get_setting: {
+        Args: { setting_key: string }
+        Returns: Json
+      }
       is_admin: {
         Args: { user_id: string }
         Returns: boolean
+      }
+      update_setting: {
+        Args: { setting_key: string; setting_value: Json }
+        Returns: undefined
       }
     }
     Enums: {
