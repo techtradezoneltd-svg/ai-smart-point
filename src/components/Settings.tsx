@@ -24,7 +24,10 @@ import {
   Download,
   Upload,
   Save,
-  RotateCcw
+  RotateCcw,
+  ImageIcon,
+  Trash2,
+  Eye
 } from 'lucide-react';
 
 const Settings = () => {
@@ -49,12 +52,53 @@ const Settings = () => {
       maxDiscountPercent: 50
     },
     receipt: {
+      // Basic Receipt Content
       header: 'Thank you for your purchase!',
       footer: 'Please come again!',
       showLogo: true,
       showTaxBreakdown: true,
       printCustomerCopy: true,
-      enableEmail: false
+      enableEmail: false,
+      
+      // Logo Settings
+      primaryLogo: null as string | null,
+      secondaryLogo: null as string | null,
+      primaryLogoSize: 100,
+      secondaryLogoSize: 60,
+      logoPosition: 'top',
+      
+      // Receipt Layout & Design
+      receiptWidth: 80,
+      fontSize: 12,
+      fontFamily: 'monospace',
+      paperType: 'thermal',
+      showDateTime: true,
+      showOrderNumber: true,
+      showCashierName: true,
+      showQRCode: false,
+      qrCodeData: 'receipt-url',
+      
+      // Content Customization
+      showItemCodes: true,
+      showItemDescription: true,
+      showUnitPrice: true,
+      showSubtotal: true,
+      showDiscounts: true,
+      currencySymbol: '$',
+      
+      // Footer Content
+      customFooterText: '',
+      showSocialMedia: false,
+      website: '',
+      facebook: '',
+      instagram: '',
+      twitter: '',
+      
+      // Colors (for digital receipts)
+      backgroundColor: '#ffffff',
+      textColor: '#000000',
+      headerColor: '#333333',
+      borderColor: '#cccccc'
     },
     notifications: {
       lowStock: true,
@@ -105,6 +149,49 @@ const Settings = () => {
       };
       reader.readAsText(file);
     }
+  };
+
+  const handleLogoUpload = (type: 'primary' | 'secondary', event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      // Validate file type
+      const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp', 'image/svg+xml'];
+      if (!validTypes.includes(file.type)) {
+        toast.error('Please upload a valid image file (JPG, PNG, GIF, WebP, SVG)');
+        return;
+      }
+
+      // Validate file size (max 5MB)
+      if (file.size > 5 * 1024 * 1024) {
+        toast.error('File size must be less than 5MB');
+        return;
+      }
+
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const result = e.target?.result as string;
+        setSettings(prev => ({
+          ...prev,
+          receipt: {
+            ...prev.receipt,
+            [type === 'primary' ? 'primaryLogo' : 'secondaryLogo']: result
+          }
+        }));
+        toast.success(`${type} logo uploaded successfully!`);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleRemoveLogo = (type: 'primary' | 'secondary') => {
+    setSettings(prev => ({
+      ...prev,
+      receipt: {
+        ...prev.receipt,
+        [type === 'primary' ? 'primaryLogo' : 'secondaryLogo']: null
+      }
+    }));
+    toast.success(`${type} logo removed`);
   };
 
   return (
@@ -456,113 +543,617 @@ const Settings = () => {
 
         {/* Receipt Settings */}
         <TabsContent value="receipt">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Receipt className="h-5 w-5" />
-                Receipt Configuration
-              </CardTitle>
-              <CardDescription>
-                Customize receipt appearance and content
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="space-y-4">
+          <div className="space-y-6">
+            {/* Logo Management Section */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <ImageIcon className="h-5 w-5" />
+                  Logo Management
+                </CardTitle>
+                <CardDescription>
+                  Upload and configure your receipt logos (supports PNG, JPG, GIF, WebP, SVG)
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                {/* Primary Logo */}
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-base font-medium">Primary Logo</Label>
+                    <Badge variant="secondary">Main receipt logo</Badge>
+                  </div>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="space-y-4">
+                      <div className="border-2 border-dashed border-muted-foreground/25 rounded-lg p-6 text-center">
+                        {settings.receipt.primaryLogo ? (
+                          <div className="space-y-2">
+                            <img 
+                              src={settings.receipt.primaryLogo} 
+                              alt="Primary Logo" 
+                              className="max-h-24 mx-auto object-contain"
+                              style={{ width: `${settings.receipt.primaryLogoSize}px` }}
+                            />
+                            <div className="flex gap-2 justify-center">
+                              <Button size="sm" variant="outline" onClick={() => handleRemoveLogo('primary')}>
+                                <Trash2 className="h-4 w-4 mr-1" />
+                                Remove
+                              </Button>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="space-y-2">
+                            <ImageIcon className="h-12 w-12 text-muted-foreground mx-auto" />
+                            <p className="text-sm text-muted-foreground">Upload primary logo</p>
+                          </div>
+                        )}
+                      </div>
+                      
+                      <div className="relative">
+                        <Button variant="outline" className="w-full" asChild>
+                          <label htmlFor="primary-logo" className="cursor-pointer">
+                            <Upload className="h-4 w-4 mr-2" />
+                            {settings.receipt.primaryLogo ? 'Replace Logo' : 'Upload Logo'}
+                          </label>
+                        </Button>
+                        <input
+                          id="primary-logo"
+                          type="file"
+                          accept="image/*"
+                          onChange={(e) => handleLogoUpload('primary', e)}
+                          className="absolute inset-0 opacity-0 cursor-pointer"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="space-y-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="primary-logo-size">Size (pixels): {settings.receipt.primaryLogoSize}px</Label>
+                        <input
+                          type="range"
+                          id="primary-logo-size"
+                          min="50"
+                          max="200"
+                          value={settings.receipt.primaryLogoSize}
+                          onChange={(e) => setSettings(prev => ({
+                            ...prev,
+                            receipt: { ...prev.receipt, primaryLogoSize: parseInt(e.target.value) }
+                          }))}
+                          className="w-full"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <Separator />
+
+                {/* Secondary Logo */}
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-base font-medium">Secondary Logo</Label>
+                    <Badge variant="outline">Additional branding</Badge>
+                  </div>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="space-y-4">
+                      <div className="border-2 border-dashed border-muted-foreground/25 rounded-lg p-6 text-center">
+                        {settings.receipt.secondaryLogo ? (
+                          <div className="space-y-2">
+                            <img 
+                              src={settings.receipt.secondaryLogo} 
+                              alt="Secondary Logo" 
+                              className="max-h-16 mx-auto object-contain"
+                              style={{ width: `${settings.receipt.secondaryLogoSize}px` }}
+                            />
+                            <div className="flex gap-2 justify-center">
+                              <Button size="sm" variant="outline" onClick={() => handleRemoveLogo('secondary')}>
+                                <Trash2 className="h-4 w-4 mr-1" />
+                                Remove
+                              </Button>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="space-y-2">
+                            <ImageIcon className="h-8 w-8 text-muted-foreground mx-auto" />
+                            <p className="text-sm text-muted-foreground">Upload secondary logo</p>
+                          </div>
+                        )}
+                      </div>
+                      
+                      <div className="relative">
+                        <Button variant="outline" className="w-full" asChild>
+                          <label htmlFor="secondary-logo" className="cursor-pointer">
+                            <Upload className="h-4 w-4 mr-2" />
+                            {settings.receipt.secondaryLogo ? 'Replace Logo' : 'Upload Logo'}
+                          </label>
+                        </Button>
+                        <input
+                          id="secondary-logo"
+                          type="file"
+                          accept="image/*"
+                          onChange={(e) => handleLogoUpload('secondary', e)}
+                          className="absolute inset-0 opacity-0 cursor-pointer"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="space-y-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="secondary-logo-size">Size (pixels): {settings.receipt.secondaryLogoSize}px</Label>
+                        <input
+                          type="range"
+                          id="secondary-logo-size"
+                          min="30"
+                          max="120"
+                          value={settings.receipt.secondaryLogoSize}
+                          onChange={(e) => setSettings(prev => ({
+                            ...prev,
+                            receipt: { ...prev.receipt, secondaryLogoSize: parseInt(e.target.value) }
+                          }))}
+                          className="w-full"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Logo Position */}
                 <div className="space-y-2">
-                  <Label htmlFor="receipt-header">Receipt Header</Label>
-                  <Input
-                    id="receipt-header"
-                    value={settings.receipt.header}
-                    onChange={(e) => setSettings(prev => ({
-                      ...prev,
-                      receipt: { ...prev.receipt, header: e.target.value }
-                    }))}
-                  />
+                  <Label>Logo Position</Label>
+                  <Select value={settings.receipt.logoPosition} onValueChange={(value) => setSettings(prev => ({
+                    ...prev,
+                    receipt: { ...prev.receipt, logoPosition: value }
+                  }))}>
+                    <SelectTrigger className="w-48">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="top">Top of Receipt</SelectItem>
+                      <SelectItem value="header">In Header</SelectItem>
+                      <SelectItem value="footer">In Footer</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Receipt Layout & Design */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Receipt className="h-5 w-5" />
+                  Receipt Design & Layout
+                </CardTitle>
+                <CardDescription>
+                  Customize the appearance and formatting of your receipts
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                {/* Basic Content */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="receipt-header">Receipt Header Text</Label>
+                    <Input
+                      id="receipt-header"
+                      value={settings.receipt.header}
+                      onChange={(e) => setSettings(prev => ({
+                        ...prev,
+                        receipt: { ...prev.receipt, header: e.target.value }
+                      }))}
+                      placeholder="Thank you for your purchase!"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="receipt-footer">Receipt Footer Text</Label>
+                    <Input
+                      id="receipt-footer"
+                      value={settings.receipt.footer}
+                      onChange={(e) => setSettings(prev => ({
+                        ...prev,
+                        receipt: { ...prev.receipt, footer: e.target.value }
+                      }))}
+                      placeholder="Please come again!"
+                    />
+                  </div>
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="receipt-footer">Receipt Footer</Label>
-                  <Input
-                    id="receipt-footer"
-                    value={settings.receipt.footer}
+                  <Label htmlFor="custom-footer">Custom Footer Message</Label>
+                  <Textarea
+                    id="custom-footer"
+                    value={settings.receipt.customFooterText}
                     onChange={(e) => setSettings(prev => ({
                       ...prev,
-                      receipt: { ...prev.receipt, footer: e.target.value }
+                      receipt: { ...prev.receipt, customFooterText: e.target.value }
                     }))}
+                    placeholder="Add any additional information, policies, or promotional text"
+                    rows={3}
                   />
                 </div>
 
                 <Separator />
 
-                <div className="flex items-center justify-between">
-                  <div className="space-y-0.5">
-                    <Label>Show Logo</Label>
-                    <p className="text-sm text-muted-foreground">Display company logo on receipt</p>
+                {/* Layout Settings */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="receipt-width">Receipt Width (mm)</Label>
+                    <Input
+                      id="receipt-width"
+                      type="number"
+                      value={settings.receipt.receiptWidth}
+                      onChange={(e) => setSettings(prev => ({
+                        ...prev,
+                        receipt: { ...prev.receipt, receiptWidth: parseInt(e.target.value) }
+                      }))}
+                      min="50"
+                      max="120"
+                    />
                   </div>
-                  <Switch
-                    checked={settings.receipt.showLogo}
-                    onCheckedChange={(checked) => setSettings(prev => ({
-                      ...prev,
-                      receipt: { ...prev.receipt, showLogo: checked }
-                    }))}
-                  />
+                  <div className="space-y-2">
+                    <Label htmlFor="font-size">Font Size</Label>
+                    <Input
+                      id="font-size"
+                      type="number"
+                      value={settings.receipt.fontSize}
+                      onChange={(e) => setSettings(prev => ({
+                        ...prev,
+                        receipt: { ...prev.receipt, fontSize: parseInt(e.target.value) }
+                      }))}
+                      min="8"
+                      max="20"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="currency-symbol">Currency Symbol</Label>
+                    <Input
+                      id="currency-symbol"
+                      value={settings.receipt.currencySymbol}
+                      onChange={(e) => setSettings(prev => ({
+                        ...prev,
+                        receipt: { ...prev.receipt, currencySymbol: e.target.value }
+                      }))}
+                      maxLength={3}
+                    />
+                  </div>
                 </div>
 
-                <div className="flex items-center justify-between">
-                  <div className="space-y-0.5">
-                    <Label>Show Tax Breakdown</Label>
-                    <p className="text-sm text-muted-foreground">Display detailed tax information</p>
-                  </div>
-                  <Switch
-                    checked={settings.receipt.showTaxBreakdown}
-                    onCheckedChange={(checked) => setSettings(prev => ({
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Font Family</Label>
+                    <Select value={settings.receipt.fontFamily} onValueChange={(value) => setSettings(prev => ({
                       ...prev,
-                      receipt: { ...prev.receipt, showTaxBreakdown: checked }
-                    }))}
-                  />
+                      receipt: { ...prev.receipt, fontFamily: value }
+                    }))}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="monospace">Monospace</SelectItem>
+                        <SelectItem value="sans-serif">Sans Serif</SelectItem>
+                        <SelectItem value="serif">Serif</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Paper Type</Label>
+                    <Select value={settings.receipt.paperType} onValueChange={(value) => setSettings(prev => ({
+                      ...prev,
+                      receipt: { ...prev.receipt, paperType: value }
+                    }))}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="thermal">Thermal Paper</SelectItem>
+                        <SelectItem value="regular">Regular Paper</SelectItem>
+                        <SelectItem value="digital">Digital Only</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
 
-                <div className="flex items-center justify-between">
-                  <div className="space-y-0.5">
-                    <Label>Print Customer Copy</Label>
-                    <p className="text-sm text-muted-foreground">Automatically print customer receipt</p>
+                <Separator />
+
+                {/* Content Display Options */}
+                <div className="space-y-4">
+                  <Label className="text-base font-medium">Content Display Options</Label>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between">
+                        <Label>Show Date & Time</Label>
+                        <Switch
+                          checked={settings.receipt.showDateTime}
+                          onCheckedChange={(checked) => setSettings(prev => ({
+                            ...prev,
+                            receipt: { ...prev.receipt, showDateTime: checked }
+                          }))}
+                        />
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <Label>Show Order Number</Label>
+                        <Switch
+                          checked={settings.receipt.showOrderNumber}
+                          onCheckedChange={(checked) => setSettings(prev => ({
+                            ...prev,
+                            receipt: { ...prev.receipt, showOrderNumber: checked }
+                          }))}
+                        />
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <Label>Show Cashier Name</Label>
+                        <Switch
+                          checked={settings.receipt.showCashierName}
+                          onCheckedChange={(checked) => setSettings(prev => ({
+                            ...prev,
+                            receipt: { ...prev.receipt, showCashierName: checked }
+                          }))}
+                        />
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <Label>Show Item Codes</Label>
+                        <Switch
+                          checked={settings.receipt.showItemCodes}
+                          onCheckedChange={(checked) => setSettings(prev => ({
+                            ...prev,
+                            receipt: { ...prev.receipt, showItemCodes: checked }
+                          }))}
+                        />
+                      </div>
+                    </div>
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between">
+                        <Label>Show Item Description</Label>
+                        <Switch
+                          checked={settings.receipt.showItemDescription}
+                          onCheckedChange={(checked) => setSettings(prev => ({
+                            ...prev,
+                            receipt: { ...prev.receipt, showItemDescription: checked }
+                          }))}
+                        />
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <Label>Show Unit Prices</Label>
+                        <Switch
+                          checked={settings.receipt.showUnitPrice}
+                          onCheckedChange={(checked) => setSettings(prev => ({
+                            ...prev,
+                            receipt: { ...prev.receipt, showUnitPrice: checked }
+                          }))}
+                        />
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <Label>Show Tax Breakdown</Label>
+                        <Switch
+                          checked={settings.receipt.showTaxBreakdown}
+                          onCheckedChange={(checked) => setSettings(prev => ({
+                            ...prev,
+                            receipt: { ...prev.receipt, showTaxBreakdown: checked }
+                          }))}
+                        />
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <Label>Show Discounts</Label>
+                        <Switch
+                          checked={settings.receipt.showDiscounts}
+                          onCheckedChange={(checked) => setSettings(prev => ({
+                            ...prev,
+                            receipt: { ...prev.receipt, showDiscounts: checked }
+                          }))}
+                        />
+                      </div>
+                    </div>
                   </div>
-                  <Switch
-                    checked={settings.receipt.printCustomerCopy}
-                    onCheckedChange={(checked) => setSettings(prev => ({
-                      ...prev,
-                      receipt: { ...prev.receipt, printCustomerCopy: checked }
-                    }))}
-                  />
                 </div>
 
-                <div className="flex items-center justify-between">
-                  <div className="space-y-0.5">
-                    <Label>Email Receipts</Label>
-                    <p className="text-sm text-muted-foreground">Send receipts via email</p>
-                  </div>
-                  <Switch
-                    checked={settings.receipt.enableEmail}
-                    onCheckedChange={(checked) => setSettings(prev => ({
-                      ...prev,
-                      receipt: { ...prev.receipt, enableEmail: checked }
-                    }))}
-                  />
-                </div>
-              </div>
+                <Separator />
 
-              <div className="flex gap-2">
-                <Button onClick={() => handleSave('Receipt')}>
-                  <Save className="h-4 w-4 mr-2" />
-                  Save Changes
-                </Button>
-                <Button variant="outline" onClick={() => handleReset('Receipt')}>
-                  <RotateCcw className="h-4 w-4 mr-2" />
-                  Reset
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
+                {/* QR Code & Digital Features */}
+                <div className="space-y-4">
+                  <Label className="text-base font-medium">Digital Features</Label>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between">
+                        <div className="space-y-0.5">
+                          <Label>QR Code</Label>
+                          <p className="text-sm text-muted-foreground">Add QR code for digital features</p>
+                        </div>
+                        <Switch
+                          checked={settings.receipt.showQRCode}
+                          onCheckedChange={(checked) => setSettings(prev => ({
+                            ...prev,
+                            receipt: { ...prev.receipt, showQRCode: checked }
+                          }))}
+                        />
+                      </div>
+                      {settings.receipt.showQRCode && (
+                        <div className="space-y-2">
+                          <Label htmlFor="qr-data">QR Code Data</Label>
+                          <Input
+                            id="qr-data"
+                            value={settings.receipt.qrCodeData}
+                            onChange={(e) => setSettings(prev => ({
+                              ...prev,
+                              receipt: { ...prev.receipt, qrCodeData: e.target.value }
+                            }))}
+                            placeholder="URL or text for QR code"
+                          />
+                        </div>
+                      )}
+                    </div>
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between">
+                        <div className="space-y-0.5">
+                          <Label>Email Receipts</Label>
+                          <p className="text-sm text-muted-foreground">Send receipts via email</p>
+                        </div>
+                        <Switch
+                          checked={settings.receipt.enableEmail}
+                          onCheckedChange={(checked) => setSettings(prev => ({
+                            ...prev,
+                            receipt: { ...prev.receipt, enableEmail: checked }
+                          }))}
+                        />
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <div className="space-y-0.5">
+                          <Label>Print Customer Copy</Label>
+                          <p className="text-sm text-muted-foreground">Auto-print customer receipt</p>
+                        </div>
+                        <Switch
+                          checked={settings.receipt.printCustomerCopy}
+                          onCheckedChange={(checked) => setSettings(prev => ({
+                            ...prev,
+                            receipt: { ...prev.receipt, printCustomerCopy: checked }
+                          }))}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <Separator />
+
+                {/* Social Media & Contact */}
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-base font-medium">Social Media & Contact</Label>
+                    <Switch
+                      checked={settings.receipt.showSocialMedia}
+                      onCheckedChange={(checked) => setSettings(prev => ({
+                        ...prev,
+                        receipt: { ...prev.receipt, showSocialMedia: checked }
+                      }))}
+                    />
+                  </div>
+                  {settings.receipt.showSocialMedia && (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="website">Website</Label>
+                        <Input
+                          id="website"
+                          value={settings.receipt.website}
+                          onChange={(e) => setSettings(prev => ({
+                            ...prev,
+                            receipt: { ...prev.receipt, website: e.target.value }
+                          }))}
+                          placeholder="www.yourstore.com"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="facebook">Facebook</Label>
+                        <Input
+                          id="facebook"
+                          value={settings.receipt.facebook}
+                          onChange={(e) => setSettings(prev => ({
+                            ...prev,
+                            receipt: { ...prev.receipt, facebook: e.target.value }
+                          }))}
+                          placeholder="@yourstore"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="instagram">Instagram</Label>
+                        <Input
+                          id="instagram"
+                          value={settings.receipt.instagram}
+                          onChange={(e) => setSettings(prev => ({
+                            ...prev,
+                            receipt: { ...prev.receipt, instagram: e.target.value }
+                          }))}
+                          placeholder="@yourstore"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="twitter">Twitter/X</Label>
+                        <Input
+                          id="twitter"
+                          value={settings.receipt.twitter}
+                          onChange={(e) => setSettings(prev => ({
+                            ...prev,
+                            receipt: { ...prev.receipt, twitter: e.target.value }
+                          }))}
+                          placeholder="@yourstore"
+                        />
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                <Separator />
+
+                {/* Color Customization for Digital Receipts */}
+                <div className="space-y-4">
+                  <Label className="text-base font-medium">Digital Receipt Colors</Label>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="bg-color">Background</Label>
+                      <Input
+                        id="bg-color"
+                        type="color"
+                        value={settings.receipt.backgroundColor}
+                        onChange={(e) => setSettings(prev => ({
+                          ...prev,
+                          receipt: { ...prev.receipt, backgroundColor: e.target.value }
+                        }))}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="text-color">Text Color</Label>
+                      <Input
+                        id="text-color"
+                        type="color"
+                        value={settings.receipt.textColor}
+                        onChange={(e) => setSettings(prev => ({
+                          ...prev,
+                          receipt: { ...prev.receipt, textColor: e.target.value }
+                        }))}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="header-color">Header Color</Label>
+                      <Input
+                        id="header-color"
+                        type="color"
+                        value={settings.receipt.headerColor}
+                        onChange={(e) => setSettings(prev => ({
+                          ...prev,
+                          receipt: { ...prev.receipt, headerColor: e.target.value }
+                        }))}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="border-color">Border Color</Label>
+                      <Input
+                        id="border-color"
+                        type="color"
+                        value={settings.receipt.borderColor}
+                        onChange={(e) => setSettings(prev => ({
+                          ...prev,
+                          receipt: { ...prev.receipt, borderColor: e.target.value }
+                        }))}
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex gap-2 pt-4">
+                  <Button onClick={() => handleSave('Receipt')}>
+                    <Save className="h-4 w-4 mr-2" />
+                    Save Receipt Settings
+                  </Button>
+                  <Button variant="outline" onClick={() => handleReset('Receipt')}>
+                    <RotateCcw className="h-4 w-4 mr-2" />
+                    Reset to Defaults
+                  </Button>
+                  <Button variant="outline" onClick={() => toast.info('Receipt preview coming soon!')}>
+                    <Eye className="h-4 w-4 mr-2" />
+                    Preview Receipt
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
         </TabsContent>
 
         {/* Notifications */}
