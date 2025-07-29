@@ -1,6 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { useSettings } from "@/contexts/SettingsContext";
 import { 
   BarChart3, 
   TrendingUp, 
@@ -19,11 +20,29 @@ interface DashboardProps {
 }
 
 const Dashboard = ({ onNavigate }: DashboardProps) => {
+  const { settings } = useSettings();
+  
   const todayStats = {
     sales: 12750.80,
     transactions: 156,
     customers: 89,
     aiInsights: 7
+  };
+
+  // Get currency symbol from settings or default to $
+  const currencySymbol = settings?.receipt.currencySymbol || settings?.company.currency || '$';
+  
+  // Format currency based on settings
+  const formatCurrency = (amount: number) => {
+    if (settings?.company.currency === 'EUR') {
+      return `€${amount.toLocaleString('de-DE', { minimumFractionDigits: 2 })}`;
+    } else if (settings?.company.currency === 'GBP') {
+      return `£${amount.toLocaleString('en-GB', { minimumFractionDigits: 2 })}`;
+    } else if (settings?.company.currency === 'CAD') {
+      return `CAD $${amount.toLocaleString('en-CA', { minimumFractionDigits: 2 })}`;
+    } else {
+      return `${currencySymbol}${amount.toLocaleString('en-US', { minimumFractionDigits: 2 })}`;
+    }
   };
 
   const aiAlerts = [
@@ -65,7 +84,7 @@ const Dashboard = ({ onNavigate }: DashboardProps) => {
             <DollarSign className="h-4 w-4 text-success" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-success">${todayStats.sales.toLocaleString()}</div>
+            <div className="text-2xl font-bold text-success">{formatCurrency(todayStats.sales)}</div>
             <p className="text-xs text-muted-foreground">
               <TrendingUp className="inline w-3 h-3 mr-1" />
               +12% from yesterday

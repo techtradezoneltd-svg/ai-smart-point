@@ -1,0 +1,233 @@
+import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
+
+export interface CompanySettings {
+  name: string;
+  address: string;
+  phone: string;
+  email: string;
+  taxId: string;
+  currency: string;
+  timezone: string;
+}
+
+export interface SystemSettings {
+  autoBackup: boolean;
+  lowStockAlert: boolean;
+  lowStockThreshold: number;
+  enableBarcode: boolean;
+  enableCustomerDisplay: boolean;
+  defaultPaymentMethod: string;
+  enableDiscounts: boolean;
+  maxDiscountPercent: number;
+}
+
+export interface ReceiptSettings {
+  header: string;
+  footer: string;
+  showLogo: boolean;
+  showTaxBreakdown: boolean;
+  printCustomerCopy: boolean;
+  enableEmail: boolean;
+  primaryLogo: string | null;
+  secondaryLogo: string | null;
+  primaryLogoSize: number;
+  secondaryLogoSize: number;
+  logoPosition: string;
+  receiptWidth: number;
+  fontSize: number;
+  fontFamily: string;
+  paperType: string;
+  showDateTime: boolean;
+  showOrderNumber: boolean;
+  showCashierName: boolean;
+  showQRCode: boolean;
+  qrCodeData: string;
+  showItemCodes: boolean;
+  showItemDescription: boolean;
+  showUnitPrice: boolean;
+  showSubtotal: boolean;
+  showDiscounts: boolean;
+  currencySymbol: string;
+  customFooterText: string;
+  showSocialMedia: boolean;
+  website: string;
+  facebook: string;
+  instagram: string;
+  twitter: string;
+  backgroundColor: string;
+  textColor: string;
+  headerColor: string;
+  borderColor: string;
+}
+
+export interface NotificationSettings {
+  lowStock: boolean;
+  dailySales: boolean;
+  systemUpdates: boolean;
+  email: boolean;
+  sound: boolean;
+}
+
+export interface AppearanceSettings {
+  theme: string;
+  primaryColor: string;
+  compactMode: boolean;
+  showAnimations: boolean;
+}
+
+export interface AllSettings {
+  company: CompanySettings;
+  system: SystemSettings;
+  receipt: ReceiptSettings;
+  notifications: NotificationSettings;
+  appearance: AppearanceSettings;
+}
+
+interface SettingsContextType {
+  settings: AllSettings | null;
+  loading: boolean;
+  updateCompanySettings: (settings: CompanySettings) => Promise<void>;
+  updateSystemSettings: (settings: SystemSettings) => Promise<void>;
+  updateReceiptSettings: (settings: ReceiptSettings) => Promise<void>;
+  updateNotificationSettings: (settings: NotificationSettings) => Promise<void>;
+  updateAppearanceSettings: (settings: AppearanceSettings) => Promise<void>;
+  refreshSettings: () => Promise<void>;
+}
+
+const SettingsContext = createContext<SettingsContextType | undefined>(undefined);
+
+export const useSettings = () => {
+  const context = useContext(SettingsContext);
+  if (context === undefined) {
+    throw new Error('useSettings must be used within a SettingsProvider');
+  }
+  return context;
+};
+
+export const SettingsProvider = ({ children }: { children: ReactNode }) => {
+  const [settings, setSettings] = useState<AllSettings | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  const loadSettings = async () => {
+    try {
+      setLoading(true);
+      const { data, error } = await supabase
+        .from('settings')
+        .select('key, value');
+
+      if (error) {
+        console.error('Error loading settings:', error);
+        toast.error('Failed to load settings');
+        return;
+      }
+
+      if (data) {
+        const settingsMap = data.reduce((acc, item) => {
+          acc[item.key] = item.value;
+          return acc;
+        }, {} as Record<string, any>);
+
+        setSettings({
+          company: settingsMap.company_info || {},
+          system: settingsMap.system_config || {},
+          receipt: settingsMap.receipt_config || {},
+          notifications: settingsMap.notifications || {},
+          appearance: settingsMap.appearance || {}
+        });
+      }
+    } catch (error) {
+      console.error('Error loading settings:', error);
+      toast.error('Failed to load settings');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const updateSetting = async (key: string, value: any) => {
+    try {
+      const { error } = await supabase
+        .from('settings')
+        .update({ value })
+        .eq('key', key);
+
+      if (error) {
+        console.error('Error updating setting:', error);
+        toast.error(`Failed to update ${key} settings`);
+        throw error;
+      }
+
+      await loadSettings(); // Refresh settings after update
+      toast.success('Settings updated successfully!');
+    } catch (error) {
+      console.error('Error updating setting:', error);
+      throw error;
+    }
+  };
+
+  const updateCompanySettings = async (companySettings: CompanySettings) => {
+    await updateSetting('company_info', companySettings);
+  };
+
+  const updateSystemSettings = async (systemSettings: SystemSettings) => {
+    await updateSetting('system_config', systemSettings);
+  };
+
+  const updateReceiptSettings = async (receiptSettings: ReceiptSettings) => {
+    await updateSetting('receipt_config', receiptSettings);
+  };
+
+  const updateNotificationSettings = async (notificationSettings: NotificationSettings) => {
+    await updateSetting('notifications', notificationSettings);
+  };
+
+  const updateAppearanceSettings = async (appearanceSettings: AppearanceSettings) => {
+    await updateSetting('appearance', appearanceSettings);
+  };
+
+  const refreshSettings = async () => {
+    await loadSettings();
+  };
+
+  useEffect(() => {
+    loadSettings();
+
+    // Subscribe to real-time changes
+    const channel = supabase
+      .channel('settings-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'settings'
+        },
+        () => {
+          loadSettings();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, []);
+
+  const value: SettingsContextType = {
+    settings,
+    loading,
+    updateCompanySettings,
+    updateSystemSettings,
+    updateReceiptSettings,
+    updateNotificationSettings,
+    updateAppearanceSettings,
+    refreshSettings
+  };
+
+  return (
+    <SettingsContext.Provider value={value}>
+      {children}
+    </SettingsContext.Provider>
+  );
+};
