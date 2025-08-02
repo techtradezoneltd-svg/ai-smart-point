@@ -130,11 +130,76 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
         }, {} as Record<string, any>);
 
         setSettings({
-          company: settingsMap.company_info || {},
-          system: settingsMap.system_config || {},
-          receipt: settingsMap.receipt_config || {},
-          notifications: settingsMap.notifications || {},
-          appearance: settingsMap.appearance || {}
+          company: settingsMap.company_info || {
+            name: '',
+            address: '',
+            phone: '',
+            email: '',
+            taxId: '',
+            currency: 'USD',
+            timezone: 'UTC'
+          },
+          system: settingsMap.system_config || {
+            autoBackup: true,
+            lowStockAlert: true,
+            lowStockThreshold: 10,
+            enableBarcode: false,
+            enableCustomerDisplay: false,
+            defaultPaymentMethod: 'cash',
+            enableDiscounts: true,
+            maxDiscountPercent: 20
+          },
+          receipt: settingsMap.receipt_config || {
+            header: 'Thank you for your business!',
+            footer: 'Visit us again!',
+            showLogo: true,
+            showTaxBreakdown: true,
+            printCustomerCopy: true,
+            enableEmail: false,
+            primaryLogo: null,
+            secondaryLogo: null,
+            primaryLogoSize: 100,
+            secondaryLogoSize: 60,
+            logoPosition: 'center',
+            receiptWidth: 80,
+            fontSize: 12,
+            fontFamily: 'monospace',
+            paperType: 'thermal',
+            showDateTime: true,
+            showOrderNumber: true,
+            showCashierName: true,
+            showQRCode: false,
+            qrCodeData: '',
+            showItemCodes: true,
+            showItemDescription: true,
+            showUnitPrice: true,
+            showSubtotal: true,
+            showDiscounts: true,
+            currencySymbol: '$',
+            customFooterText: '',
+            showSocialMedia: false,
+            website: '',
+            facebook: '',
+            instagram: '',
+            twitter: '',
+            backgroundColor: '#ffffff',
+            textColor: '#000000',
+            headerColor: '#333333',
+            borderColor: '#cccccc'
+          },
+          notifications: settingsMap.notifications || {
+            lowStock: true,
+            dailySales: true,
+            systemUpdates: true,
+            email: false,
+            sound: true
+          },
+          appearance: settingsMap.appearance || {
+            theme: 'dark',
+            primaryColor: '263 70% 60%',
+            compactMode: false,
+            showAnimations: true
+          }
         });
       }
     } catch (error) {
