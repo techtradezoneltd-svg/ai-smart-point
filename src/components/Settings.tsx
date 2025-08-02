@@ -103,39 +103,54 @@ const Settings = () => {
     if (!appearanceForm) return;
     setIsUpdating(true);
     try {
-      await updateAppearanceSettings(appearanceForm);
-      // Apply theme immediately
-      applyTheme(appearanceForm.theme, appearanceForm.primaryColor);
+      // Map theme names to the new system
+      const themeMapping: Record<string, string> = {
+        'default': 'default',
+        'ocean-blue': 'ocean-blue',
+        'forest-green': 'forest-green',
+        'sunset-orange': 'sunset-orange',
+        'ruby-red': 'ruby-red',
+        'royal-purple': 'royal-purple',
+        'midnight-blue': 'midnight-blue',
+        'emerald-teal': 'emerald-teal',
+        'rose-pink': 'rose-pink'
+      };
+
+      const appearance = {
+        theme: appearanceForm.theme,
+        primaryColor: themeMapping[appearanceForm.primaryColor] || 'default',
+        compactMode: appearanceForm.compactMode,
+        showAnimations: appearanceForm.showAnimations
+      };
+
+      await updateAppearanceSettings(appearance);
+      
+      // Apply theme immediately using the new theme system
+      if (typeof window !== 'undefined') {
+        // Import and use the new theme system
+        const { getThemeByName } = await import('@/lib/themes');
+        const selectedTheme = getThemeByName(appearance.primaryColor);
+        applyThemeToDOM(selectedTheme, appearance.theme);
+      }
     } finally {
       setIsUpdating(false);
     }
   };
 
-  const applyTheme = (theme: string, primaryColor: string) => {
+  const applyThemeToDOM = (theme: any, mode: string) => {
     const root = document.documentElement;
     
-    // Apply theme class
-    if (theme === 'dark') {
-      root.classList.add('dark');
-    } else {
-      root.classList.remove('dark');
-    }
-
-    // Apply custom primary color
-    if (primaryColor) {
-      root.style.setProperty('--primary', primaryColor);
-      root.style.setProperty('--primary-glow', adjustBrightness(primaryColor, 10));
-    }
-  };
-
-  const adjustBrightness = (hslColor: string, amount: number) => {
-    const match = hslColor.match(/(\d+)\s+(\d+)%\s+(\d+)%/);
-    if (match) {
-      const [, h, s, l] = match;
-      const newL = Math.min(100, Math.max(0, parseInt(l) + amount));
-      return `${h} ${s}% ${newL}%`;
-    }
-    return hslColor;
+    // Apply mode class
+    root.classList.remove('dark', 'light');
+    root.classList.add(mode === 'dark' ? 'dark' : 'light');
+    
+    // Apply theme colors
+    root.style.setProperty('--primary', theme.primary);
+    root.style.setProperty('--primary-glow', theme.primaryGlow);
+    root.style.setProperty('--accent', theme.accent);
+    root.style.setProperty('--accent-glow', theme.accentGlow);
+    root.style.setProperty('--ring', theme.primary);
+    root.style.setProperty('--sidebar-primary', theme.primary);
   };
 
   const handleLogoUpload = (type: 'primary' | 'secondary', event: React.ChangeEvent<HTMLInputElement>) => {
@@ -729,90 +744,115 @@ const Settings = () => {
 
         {/* Appearance Settings */}
         <TabsContent value="appearance">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Palette className="h-5 w-5" />
-                Professional Theme Settings
-              </CardTitle>
-              <CardDescription>
-                Customize the look and feel of your POS system
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                {/* Theme Selection */}
-                <div className="space-y-4">
-                  <Label className="text-base font-medium">Theme Mode</Label>
-                  <div className="grid grid-cols-2 gap-3">
+          <div className="space-y-6">
+            {/* Theme Mode Selection */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Palette className="h-5 w-5" />
+                  Display Mode
+                </CardTitle>
+                <CardDescription>
+                  Choose between light, dark, or system preference
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  {[
+                    { name: 'light', title: 'Light Mode', desc: 'Clean bright interface' },
+                    { name: 'dark', title: 'Dark Mode', desc: 'Modern dark interface' },
+                    { name: 'auto', title: 'System Default', desc: 'Follows system preference' }
+                  ].map((mode) => (
                     <button
-                      onClick={() => setAppearanceForm(prev => prev ? { ...prev, theme: 'light' } : null)}
-                      className={`p-4 border-2 rounded-lg transition-all ${
-                        appearanceForm.theme === 'light' 
+                      key={mode.name}
+                      onClick={() => setAppearanceForm(prev => prev ? { ...prev, theme: mode.name } : null)}
+                      className={`p-4 border-2 rounded-lg transition-all text-left ${
+                        appearanceForm.theme === mode.name 
                           ? 'border-primary bg-primary/5' 
                           : 'border-border hover:border-primary/50'
                       }`}
                     >
-                      <div className="bg-white border rounded-md p-2 mb-2">
-                        <div className="h-2 bg-gray-200 rounded mb-1"></div>
-                        <div className="h-2 bg-gray-100 rounded"></div>
+                      <div className={`h-12 rounded-md mb-3 flex items-center justify-center ${
+                        mode.name === 'light' ? 'bg-white border' :
+                        mode.name === 'dark' ? 'bg-gray-900' :
+                        'bg-gradient-to-r from-white via-gray-500 to-gray-900'
+                      }`}>
+                        <div className={`w-6 h-6 rounded ${
+                          mode.name === 'light' ? 'bg-gray-200' :
+                          mode.name === 'dark' ? 'bg-gray-700' :
+                          'bg-gradient-to-r from-gray-200 to-gray-700'
+                        }`} />
                       </div>
-                      <span className="text-sm font-medium">Light</span>
+                      <h3 className="font-medium">{mode.title}</h3>
+                      <p className="text-sm text-muted-foreground">{mode.desc}</p>
                     </button>
-                    
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Professional Color Themes */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Palette className="h-5 w-5" />
+                  Professional Color Themes
+                </CardTitle>
+                <CardDescription>
+                  Choose from our carefully crafted professional color schemes
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {[
+                    { name: 'default', title: 'Professional Purple', primary: 'hsl(263, 70%, 60%)', secondary: 'hsl(197, 100%, 55%)' },
+                    { name: 'ocean-blue', title: 'Ocean Blue', primary: 'hsl(221, 83%, 53%)', secondary: 'hsl(199, 89%, 48%)' },
+                    { name: 'forest-green', title: 'Forest Green', primary: 'hsl(142, 76%, 45%)', secondary: 'hsl(160, 84%, 39%)' },
+                    { name: 'sunset-orange', title: 'Sunset Orange', primary: 'hsl(25, 95%, 53%)', secondary: 'hsl(43, 96%, 56%)' },
+                    { name: 'ruby-red', title: 'Ruby Red', primary: 'hsl(0, 84%, 60%)', secondary: 'hsl(346, 77%, 49%)' },
+                    { name: 'royal-purple', title: 'Royal Purple', primary: 'hsl(262, 83%, 58%)', secondary: 'hsl(280, 100%, 70%)' },
+                    { name: 'midnight-blue', title: 'Midnight Blue', primary: 'hsl(237, 100%, 68%)', secondary: 'hsl(200, 100%, 70%)' },
+                    { name: 'emerald-teal', title: 'Emerald Teal', primary: 'hsl(173, 80%, 40%)', secondary: 'hsl(180, 100%, 35%)' },
+                    { name: 'rose-pink', title: 'Rose Pink', primary: 'hsl(326, 78%, 66%)', secondary: 'hsl(340, 82%, 52%)' }
+                  ].map((theme) => (
                     <button
-                      onClick={() => setAppearanceForm(prev => prev ? { ...prev, theme: 'dark' } : null)}
-                      className={`p-4 border-2 rounded-lg transition-all ${
-                        appearanceForm.theme === 'dark' 
+                      key={theme.name}
+                      onClick={() => setAppearanceForm(prev => prev ? { 
+                        ...prev, 
+                        primaryColor: theme.name 
+                      } : null)}
+                      className={`p-4 border-2 rounded-lg transition-all text-left ${
+                        appearanceForm.primaryColor === theme.name 
                           ? 'border-primary bg-primary/5' 
                           : 'border-border hover:border-primary/50'
                       }`}
                     >
-                      <div className="bg-gray-900 border rounded-md p-2 mb-2">
-                        <div className="h-2 bg-gray-700 rounded mb-1"></div>
-                        <div className="h-2 bg-gray-800 rounded"></div>
+                      <div className="flex gap-2 mb-3">
+                        <div 
+                          className="w-6 h-6 rounded"
+                          style={{ backgroundColor: theme.primary }}
+                        />
+                        <div 
+                          className="w-6 h-6 rounded"
+                          style={{ backgroundColor: theme.secondary }}
+                        />
                       </div>
-                      <span className="text-sm font-medium">Dark</span>
+                      <h3 className="font-medium text-sm">{theme.title}</h3>
                     </button>
-                  </div>
+                  ))}
                 </div>
+              </CardContent>
+            </Card>
 
-                {/* Primary Color Selection */}
-                <div className="space-y-4">
-                  <Label className="text-base font-medium">Primary Color</Label>
-                  <div className="grid grid-cols-4 gap-3">
-                    {[
-                      { name: 'Purple', value: '263 70% 60%', color: 'hsl(263, 70%, 60%)' },
-                      { name: 'Blue', value: '221 83% 53%', color: 'hsl(221, 83%, 53%)' },
-                      { name: 'Green', value: '142 76% 45%', color: 'hsl(142, 76%, 45%)' },
-                      { name: 'Orange', value: '25 95% 53%', color: 'hsl(25, 95%, 53%)' },
-                      { name: 'Red', value: '0 84% 60%', color: 'hsl(0, 84%, 60%)' },
-                      { name: 'Pink', value: '326 78% 66%', color: 'hsl(326, 78%, 66%)' },
-                      { name: 'Indigo', value: '262 83% 58%', color: 'hsl(262, 83%, 58%)' },
-                      { name: 'Teal', value: '173 80% 40%', color: 'hsl(173, 80%, 40%)' }
-                    ].map((colorOption) => (
-                      <button
-                        key={colorOption.name}
-                        onClick={() => setAppearanceForm(prev => prev ? { ...prev, primaryColor: colorOption.value } : null)}
-                        className={`w-12 h-12 rounded-lg border-2 transition-all ${
-                          appearanceForm.primaryColor === colorOption.value 
-                            ? 'border-white shadow-lg scale-110' 
-                            : 'border-transparent hover:scale-105'
-                        }`}
-                        style={{ backgroundColor: colorOption.color }}
-                        title={colorOption.name}
-                      />
-                    ))}
-                  </div>
-                </div>
-              </div>
-
-              <Separator />
-
-              {/* Advanced Options */}
-              <div className="space-y-4">
-                <Label className="text-base font-medium">Interface Options</Label>
-                
+            {/* Interface Preferences */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Interface Preferences</CardTitle>
+                <CardDescription>
+                  Customize the interface behavior and visual effects
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
                 <div className="flex items-center justify-between">
                   <div className="space-y-0.5">
                     <Label>Compact Mode</Label>
@@ -826,26 +866,44 @@ const Settings = () => {
 
                 <div className="flex items-center justify-between">
                   <div className="space-y-0.5">
-                    <Label>Animations</Label>
-                    <p className="text-sm text-muted-foreground">Enable smooth transitions and effects</p>
+                    <Label>Smooth Animations</Label>
+                    <p className="text-sm text-muted-foreground">Enable transitions and visual effects</p>
                   </div>
                   <Switch
                     checked={appearanceForm.showAnimations}
                     onCheckedChange={(checked) => setAppearanceForm(prev => prev ? { ...prev, showAnimations: checked } : null)}
                   />
                 </div>
-              </div>
+              </CardContent>
+            </Card>
 
-              {/* Theme Preview */}
-              <div className="space-y-4">
-                <Label className="text-base font-medium">Preview</Label>
-                <div className={`p-4 rounded-lg border transition-all ${
+            {/* Live Preview */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Live Preview</CardTitle>
+                <CardDescription>
+                  See how your theme will look
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className={`p-6 rounded-lg border transition-all ${
                   appearanceForm.theme === 'dark' ? 'bg-gray-900 border-gray-700' : 'bg-white border-gray-200'
                 }`}>
-                  <div className="flex items-center gap-3 mb-3">
+                  <div className="flex items-center gap-3 mb-4">
                     <div 
-                      className="w-4 h-4 rounded"
-                      style={{ backgroundColor: `hsl(${appearanceForm.primaryColor})` }}
+                      className="w-5 h-5 rounded"
+                      style={{ 
+                        backgroundColor: appearanceForm.primaryColor === 'default' ? 'hsl(263, 70%, 60%)' :
+                        appearanceForm.primaryColor === 'ocean-blue' ? 'hsl(221, 83%, 53%)' :
+                        appearanceForm.primaryColor === 'forest-green' ? 'hsl(142, 76%, 45%)' :
+                        appearanceForm.primaryColor === 'sunset-orange' ? 'hsl(25, 95%, 53%)' :
+                        appearanceForm.primaryColor === 'ruby-red' ? 'hsl(0, 84%, 60%)' :
+                        appearanceForm.primaryColor === 'royal-purple' ? 'hsl(262, 83%, 58%)' :
+                        appearanceForm.primaryColor === 'midnight-blue' ? 'hsl(237, 100%, 68%)' :
+                        appearanceForm.primaryColor === 'emerald-teal' ? 'hsl(173, 80%, 40%)' :
+                        appearanceForm.primaryColor === 'rose-pink' ? 'hsl(326, 78%, 66%)' :
+                        'hsl(263, 70%, 60%)'
+                      }}
                     />
                     <span className={`font-medium ${
                       appearanceForm.theme === 'dark' ? 'text-white' : 'text-gray-900'
@@ -853,42 +911,60 @@ const Settings = () => {
                       Sample POS Interface
                     </span>
                   </div>
-                  <div className={`space-y-2 ${
-                    appearanceForm.compactMode ? 'space-y-1' : 'space-y-2'
+                  <div className={`space-y-3 ${
+                    appearanceForm.compactMode ? 'space-y-2' : 'space-y-3'
                   }`}>
-                    <div className={`h-2 rounded ${
+                    <div className={`h-3 rounded ${
                       appearanceForm.theme === 'dark' ? 'bg-gray-700' : 'bg-gray-200'
                     }`} style={{ width: '80%' }} />
-                    <div className={`h-2 rounded ${
+                    <div className={`h-3 rounded ${
                       appearanceForm.theme === 'dark' ? 'bg-gray-700' : 'bg-gray-200'
                     }`} style={{ width: '60%' }} />
+                    <div className={`h-8 rounded flex items-center px-3 text-white font-medium`}
+                      style={{ 
+                        backgroundColor: appearanceForm.primaryColor === 'default' ? 'hsl(263, 70%, 60%)' :
+                        appearanceForm.primaryColor === 'ocean-blue' ? 'hsl(221, 83%, 53%)' :
+                        appearanceForm.primaryColor === 'forest-green' ? 'hsl(142, 76%, 45%)' :
+                        appearanceForm.primaryColor === 'sunset-orange' ? 'hsl(25, 95%, 53%)' :
+                        appearanceForm.primaryColor === 'ruby-red' ? 'hsl(0, 84%, 60%)' :
+                        appearanceForm.primaryColor === 'royal-purple' ? 'hsl(262, 83%, 58%)' :
+                        appearanceForm.primaryColor === 'midnight-blue' ? 'hsl(237, 100%, 68%)' :
+                        appearanceForm.primaryColor === 'emerald-teal' ? 'hsl(173, 80%, 40%)' :
+                        appearanceForm.primaryColor === 'rose-pink' ? 'hsl(326, 78%, 66%)' :
+                        'hsl(263, 70%, 60%)'
+                      }}
+                    >
+                      Sample Button
+                    </div>
                   </div>
                 </div>
-              </div>
+              </CardContent>
+            </Card>
 
-              <div className="flex gap-2 pt-4">
-                <Button onClick={handleSaveAppearance} disabled={isUpdating}>
-                  {isUpdating ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
-                  Apply Theme
-                </Button>
-                <Button 
-                  variant="outline" 
-                  onClick={() => {
-                    setAppearanceForm(prev => prev ? { 
-                      ...prev, 
-                      theme: 'dark', 
-                      primaryColor: '263 70% 60%',
-                      compactMode: false,
-                      showAnimations: true
-                    } : null);
-                  }}
-                >
-                  <RotateCcw className="h-4 w-4 mr-2" />
-                  Reset to Default
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
+            {/* Action Buttons */}
+            <div className="flex gap-3">
+              <Button onClick={handleSaveAppearance} disabled={isUpdating} size="lg">
+                {isUpdating ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
+                Apply Theme Settings
+              </Button>
+              <Button 
+                variant="outline" 
+                onClick={() => {
+                  setAppearanceForm(prev => prev ? { 
+                    ...prev, 
+                    theme: 'dark', 
+                    primaryColor: 'default',
+                    compactMode: false,
+                    showAnimations: true
+                  } : null);
+                }}
+                size="lg"
+              >
+                <RotateCcw className="h-4 w-4 mr-2" />
+                Reset to Default
+              </Button>
+            </div>
+          </div>
         </TabsContent>
       </Tabs>
     </div>

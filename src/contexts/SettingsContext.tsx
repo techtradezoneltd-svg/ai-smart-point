@@ -196,7 +196,7 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
           },
           appearance: settingsMap.appearance || {
             theme: 'dark',
-            primaryColor: '263 70% 60%',
+            primaryColor: 'default',
             compactMode: false,
             showAnimations: true
           }

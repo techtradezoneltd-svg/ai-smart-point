@@ -1,12 +1,3 @@
-import React, { useEffect } from 'react';
-import { useTheme } from '@/hooks/useTheme';
-
-interface ThemeProviderProps {
-  children: React.ReactNode;
-}
-
-export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
-  useTheme(); // Initialize theme management
-
-  return <>{children}</>;
-};
+// This file is now replaced by the ThemeContext
+// Keeping it for backward compatibility but redirecting to new system
+export { ThemeProvider } from '@/contexts/ThemeContext';
