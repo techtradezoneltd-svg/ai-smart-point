@@ -1,7 +1,11 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useSettings } from "@/contexts/SettingsContext";
+import { supabase } from "@/integrations/supabase/client";
+import { useState, useEffect } from "react";
+import { startOfDay, endOfDay, startOfWeek, endOfWeek, startOfMonth, endOfMonth, startOfYear, endOfYear, format } from "date-fns";
 import { 
   BarChart3, 
   TrendingUp, 
@@ -12,7 +16,9 @@ import {
   AlertTriangle,
   DollarSign,
   ShoppingCart,
-  Eye
+  Eye,
+  TrendingDown,
+  Calendar
 } from "lucide-react";
 
 interface DashboardProps {
@@ -21,6 +27,9 @@ interface DashboardProps {
 
 const Dashboard = ({ onNavigate }: DashboardProps) => {
   const { settings } = useSettings();
+  const [profitPeriod, setProfitPeriod] = useState<string>("today");
+  const [profitData, setProfitData] = useState({ profit: 0, sales: 0, change: 0 });
+  const [loading, setLoading] = useState(false);
   
   const todayStats = {
     sales: 12750.80,
@@ -42,6 +51,139 @@ const Dashboard = ({ onNavigate }: DashboardProps) => {
       return `CAD $${amount.toLocaleString('en-CA', { minimumFractionDigits: 2 })}`;
     } else {
       return `${currencySymbol}${amount.toLocaleString('en-US', { minimumFractionDigits: 2 })}`;
+    }
+  };
+
+  // Calculate profit for selected period
+  const calculateProfit = async (period: string) => {
+    setLoading(true);
+    
+    try {
+      const now = new Date();
+      let startDate: Date;
+      let endDate: Date;
+      
+      switch (period) {
+        case "today":
+          startDate = startOfDay(now);
+          endDate = endOfDay(now);
+          break;
+        case "week":
+          startDate = startOfWeek(now, { weekStartsOn: 1 });
+          endDate = endOfWeek(now, { weekStartsOn: 1 });
+          break;
+        case "month":
+          startDate = startOfMonth(now);
+          endDate = endOfMonth(now);
+          break;
+        case "year":
+          startDate = startOfYear(now);
+          endDate = endOfYear(now);
+          break;
+        default:
+          startDate = startOfDay(now);
+          endDate = endOfDay(now);
+      }
+
+      const { data: salesData, error } = await supabase
+        .from('sales')
+        .select(`
+          id,
+          total_amount,
+          created_at,
+          sale_items (
+            quantity,
+            unit_price,
+            product_id,
+            products (
+              cost_price
+            )
+          )
+        `)
+        .gte('created_at', startDate.toISOString())
+        .lte('created_at', endDate.toISOString());
+
+      if (error) {
+        console.error('Error fetching sales data:', error);
+        return;
+      }
+
+      let totalProfit = 0;
+      let totalSales = 0;
+
+      salesData?.forEach(sale => {
+        totalSales += Number(sale.total_amount);
+        
+        sale.sale_items?.forEach(item => {
+          const costPrice = Number(item.products?.cost_price || 0);
+          const sellingPrice = Number(item.unit_price);
+          const quantity = Number(item.quantity);
+          
+          const itemProfit = (sellingPrice - costPrice) * quantity;
+          totalProfit += itemProfit;
+        });
+      });
+
+      // Calculate previous period for comparison
+      let prevStartDate: Date;
+      let prevEndDate: Date;
+      
+      const periodDiff = endDate.getTime() - startDate.getTime();
+      prevEndDate = new Date(startDate.getTime() - 1);
+      prevStartDate = new Date(prevEndDate.getTime() - periodDiff);
+
+      const { data: prevSalesData } = await supabase
+        .from('sales')
+        .select(`
+          sale_items (
+            quantity,
+            unit_price,
+            products (
+              cost_price
+            )
+          )
+        `)
+        .gte('created_at', prevStartDate.toISOString())
+        .lte('created_at', prevEndDate.toISOString());
+
+      let prevProfit = 0;
+      prevSalesData?.forEach(sale => {
+        sale.sale_items?.forEach(item => {
+          const costPrice = Number(item.products?.cost_price || 0);
+          const sellingPrice = Number(item.unit_price);
+          const quantity = Number(item.quantity);
+          
+          const itemProfit = (sellingPrice - costPrice) * quantity;
+          prevProfit += itemProfit;
+        });
+      });
+
+      const change = prevProfit > 0 ? ((totalProfit - prevProfit) / prevProfit) * 100 : 0;
+
+      setProfitData({
+        profit: totalProfit,
+        sales: totalSales,
+        change: change
+      });
+
+    } catch (error) {
+      console.error('Error calculating profit:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    calculateProfit(profitPeriod);
+  }, [profitPeriod]);
+
+  const getPeriodLabel = (period: string) => {
+    switch (period) {
+      case "today": return "Today";
+      case "week": return "This Week";
+      case "month": return "This Month";
+      case "year": return "This Year";
+      default: return "Today";
     }
   };
 
@@ -77,7 +219,7 @@ const Dashboard = ({ onNavigate }: DashboardProps) => {
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
         <Card className="bg-gradient-card border-primary/20 hover:shadow-glow transition-all duration-300">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Today's Sales</CardTitle>
@@ -128,6 +270,52 @@ const Dashboard = ({ onNavigate }: DashboardProps) => {
           <CardContent>
             <div className="text-2xl font-bold text-warning">{todayStats.aiInsights}</div>
             <p className="text-xs text-muted-foreground">New recommendations</p>
+          </CardContent>
+        </Card>
+
+        {/* Profit Card */}
+        <Card className="bg-gradient-card border-success/20 hover:shadow-success-glow transition-all duration-300">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <div className="flex items-center gap-2">
+              <CardTitle className="text-sm font-medium">Profit</CardTitle>
+              <Select value={profitPeriod} onValueChange={setProfitPeriod}>
+                <SelectTrigger className="w-auto h-6 text-xs border-none bg-transparent p-1">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="today">Today</SelectItem>
+                  <SelectItem value="week">Week</SelectItem>
+                  <SelectItem value="month">Month</SelectItem>
+                  <SelectItem value="year">Year</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <TrendingUp className="h-4 w-4 text-success" />
+          </CardHeader>
+          <CardContent>
+            {loading ? (
+              <div className="text-2xl font-bold text-muted-foreground">...</div>
+            ) : (
+              <>
+                <div className="text-2xl font-bold text-success">
+                  {formatCurrency(profitData.profit)}
+                </div>
+                <p className="text-xs text-muted-foreground flex items-center gap-1">
+                  {profitData.change >= 0 ? (
+                    <TrendingUp className="inline w-3 h-3 text-success" />
+                  ) : (
+                    <TrendingDown className="inline w-3 h-3 text-destructive" />
+                  )}
+                  <span className={profitData.change >= 0 ? "text-success" : "text-destructive"}>
+                    {profitData.change >= 0 ? '+' : ''}{profitData.change.toFixed(1)}%
+                  </span>
+                  <span>vs prev {profitPeriod === 'today' ? 'day' : profitPeriod}</span>
+                </p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Sales: {formatCurrency(profitData.sales)}
+                </p>
+              </>
+            )}
           </CardContent>
         </Card>
       </div>
