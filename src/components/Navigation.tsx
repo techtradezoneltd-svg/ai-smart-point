@@ -28,79 +28,120 @@ const Navigation = ({ currentView, onNavigate }: NavigationProps) => {
       id: "dashboard", 
       label: "Dashboard", 
       icon: LayoutDashboard, 
-      badge: null 
+      badge: null,
+      category: "main"
     },
     { 
       id: "pos", 
       label: "Point of Sale", 
       icon: ShoppingCart, 
-      badge: "AI" 
+      badge: "AI",
+      category: "sales"
     },
     { 
       id: "inventory", 
       label: "Product Management", 
       icon: Package, 
-      badge: "NEW" 
+      badge: null,
+      category: "inventory"
     },
     { 
       id: "stock", 
       label: "Stock Movements", 
       icon: TrendingUp, 
-      badge: null 
-    },
-    { 
-      id: "expenses", 
-      label: "Expense Management", 
-      icon: DollarSign, 
-      badge: null 
-    },
-    { 
-      id: "staff", 
-      label: "Staff Management", 
-      icon: UserCheck, 
-      badge: null 
+      badge: null,
+      category: "inventory"
     },
     { 
       id: "categories", 
       label: "Category & Units", 
       icon: Tags, 
-      badge: null 
-    },
-    { 
-      id: "customers", 
-      label: "Customers", 
-      icon: Users, 
-      badge: null 
+      badge: null,
+      category: "inventory"
     },
     { 
       id: "saleshistory", 
       label: "Sales History", 
       icon: FileText, 
-      badge: null 
+      badge: null,
+      category: "sales"
+    },
+    { 
+      id: "customers", 
+      label: "Customers", 
+      icon: Users, 
+      badge: null,
+      category: "crm"
     },
     { 
       id: "suppliers", 
       label: "Suppliers", 
       icon: Truck, 
-      badge: null 
+      badge: null,
+      category: "crm"
+    },
+    { 
+      id: "expenses", 
+      label: "Expense Management", 
+      icon: DollarSign, 
+      badge: null,
+      category: "finance"
     },
     { 
       id: "reports", 
       label: "Reports", 
       icon: BarChart3, 
-      badge: null 
+      badge: null,
+      category: "reports"
+    },
+    { 
+      id: "reports-export", 
+      label: "Export Center", 
+      icon: FileText, 
+      badge: null,
+      category: "reports"
     },
     { 
       id: "analytics", 
       label: "Analytics", 
       icon: TrendingUp, 
-      badge: "AI" 
+      badge: "AI",
+      category: "reports"
+    },
+    { 
+      id: "ai-voice", 
+      label: "AI Assistant", 
+      icon: Brain, 
+      badge: "NEW",
+      category: "ai"
+    },
+    { 
+      id: "staff", 
+      label: "Staff Management", 
+      icon: UserCheck, 
+      badge: null,
+      category: "admin"
+    },
+    { 
+      id: "user-roles", 
+      label: "User Roles", 
+      icon: Users, 
+      badge: null,
+      category: "admin"
+    },
+    { 
+      id: "audit-logs", 
+      label: "Audit Logs", 
+      icon: FileText, 
+      badge: null,
+      category: "admin"
     },
     { 
       id: "settings", 
       label: "Settings", 
       icon: Settings, 
-      badge: null 
+      badge: null,
+      category: "admin"
     }
   ];
 

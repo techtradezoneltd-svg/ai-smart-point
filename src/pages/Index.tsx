@@ -1,5 +1,5 @@
 import { useState } from "react";
-import Navigation from "@/components/Navigation";
+import NavigationEnhanced from "@/components/NavigationEnhanced";
 import Dashboard from "@/components/Dashboard";
 import POSInterface from "@/components/POSInterface";
 import StockManagement from "@/components/StockManagement";
@@ -13,6 +13,11 @@ import StaffManagement from "@/components/StaffManagement";
 import CategoryUnitManagement from "@/components/CategoryUnitManagement";
 import Customers from "@/components/Customers";
 import Settings from "@/components/Settings";
+import AIVoiceAssistant from "@/components/AIVoiceAssistant";
+import UserRoles from "@/components/UserRoles";
+import AuditLogs from "@/components/AuditLogs";
+import ReportsExport from "@/components/ReportsExport";
+import NotificationCenter from "@/components/NotificationCenter";
 
 const Index = () => {
   const [currentView, setCurrentView] = useState("dashboard");
@@ -43,6 +48,14 @@ const Index = () => {
         return <Analytics />;
       case "settings":
         return <Settings />;
+      case "ai-voice":
+        return <AIVoiceAssistant />;
+      case "user-roles":
+        return <UserRoles />;
+      case "audit-logs":
+        return <AuditLogs />;
+      case "reports-export":
+        return <ReportsExport />;
       default:
         return <Dashboard onNavigate={setCurrentView} />;
     }
@@ -50,10 +63,11 @@ const Index = () => {
 
   return (
     <div className="flex min-h-screen bg-gradient-bg">
-      <Navigation currentView={currentView} onNavigate={setCurrentView} />
+      <NavigationEnhanced currentView={currentView} onNavigate={setCurrentView} />
       <div className="flex-1 p-6 overflow-auto">
         {renderCurrentView()}
       </div>
+      <NotificationCenter />
     </div>
   );
 };
