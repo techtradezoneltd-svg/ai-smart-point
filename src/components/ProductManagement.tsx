@@ -170,6 +170,19 @@ const ProductManagement = () => {
 
     setSubmitting(true);
     try {
+      // Get current user
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (!user) {
+        toast({
+          title: "Error",
+          description: "You must be logged in to create products",
+          variant: "destructive"
+        });
+        setSubmitting(false);
+        return;
+      }
+
       const productData = {
         name: formData.name,
         sku: formData.sku || null,
@@ -182,7 +195,8 @@ const ProductManagement = () => {
         category_id: formData.category_id || null,
         unit_id: formData.unit_id || null,
         barcode: formData.barcode || null,
-        is_active: formData.is_active
+        is_active: formData.is_active,
+        created_by: user.id
       };
 
       let error;
