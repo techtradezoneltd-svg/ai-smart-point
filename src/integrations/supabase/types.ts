@@ -499,6 +499,10 @@ export type Database = {
         Args: { user_id: string }
         Returns: boolean
       }
+      make_user_admin: {
+        Args: { user_email: string }
+        Returns: undefined
+      }
       update_setting: {
         Args: { setting_key: string; setting_value: Json }
         Returns: undefined
