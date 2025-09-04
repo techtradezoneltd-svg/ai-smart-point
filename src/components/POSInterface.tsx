@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { supabase } from "@/integrations/supabase/client";
+import { useCurrency } from "@/hooks/useCurrency";
 import { useToast } from "@/hooks/use-toast";
 import { 
   Scan, 
@@ -44,6 +45,7 @@ interface Product {
 
 const POSInterface = () => {
   const { toast } = useToast();
+  const { formatCurrency } = useCurrency();
   const [cart, setCart] = useState<CartItem[]>([]);
   const [barcode, setBarcode] = useState("");
   const [products, setProducts] = useState<Product[]>([]);
@@ -323,7 +325,7 @@ const POSInterface = () => {
                       </div>
                       <h3 className="font-medium text-sm mb-1 line-clamp-2">{product.name}</h3>
                       <p className="text-xs text-muted-foreground mb-1">SKU: {product.sku || 'N/A'}</p>
-                      <p className="text-lg font-bold text-primary">${product.selling_price}</p>
+                      <p className="text-lg font-bold text-primary">{formatCurrency(product.selling_price)}</p>
                       <div className="flex items-center justify-center gap-2 mt-1">
                         <Badge variant="secondary" className="text-xs">
                           {product.categories?.name || 'General'}
@@ -362,7 +364,7 @@ const POSInterface = () => {
                       <p className="text-sm text-accent">{rec.reason}</p>
                     </div>
                     <div className="flex items-center gap-2">
-                      <span className="font-bold text-accent">${rec.price}</span>
+                      <span className="font-bold text-accent">{formatCurrency(rec.price)}</span>
                       <Plus className="w-4 h-4 text-accent group-hover:scale-110 transition-transform" />
                     </div>
                   </div>
@@ -395,7 +397,7 @@ const POSInterface = () => {
                     <div className="flex items-center justify-between">
                       <div className="flex-1">
                         <p className="font-medium text-sm">{item.name}</p>
-                        <p className="text-xs text-muted-foreground">${item.price} each</p>
+                        <p className="text-xs text-muted-foreground">{formatCurrency(item.price)} each</p>
                       </div>
                       <Button
                         size="sm"
@@ -423,7 +425,7 @@ const POSInterface = () => {
                           <Plus className="w-3 h-3" />
                         </Button>
                       </div>
-                      <span className="font-bold">${(item.price * item.quantity).toFixed(2)}</span>
+                      <span className="font-bold">{formatCurrency(item.price * item.quantity)}</span>
                     </div>
                     <Separator />
                   </div>
@@ -444,16 +446,16 @@ const POSInterface = () => {
               <div className="space-y-2 text-sm">
                 <div className="flex justify-between">
                   <span>Subtotal:</span>
-                  <span>${subtotal.toFixed(2)}</span>
+                  <span>{formatCurrency(subtotal)}</span>
                 </div>
                 <div className="flex justify-between">
                   <span>Tax (8%):</span>
-                  <span>${tax.toFixed(2)}</span>
+                  <span>{formatCurrency(tax)}</span>
                 </div>
                 <Separator />
                 <div className="flex justify-between font-bold text-lg">
                   <span>Total:</span>
-                  <span className="text-success">${total.toFixed(2)}</span>
+                  <span className="text-success">{formatCurrency(total)}</span>
                 </div>
               </div>
 

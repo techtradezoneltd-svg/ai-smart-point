@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { getCurrencySymbol } from '@/lib/currency';
 import { toast } from 'sonner';
 
 export interface CompanySettings {
@@ -129,16 +130,18 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
           return acc;
         }, {} as Record<string, any>);
 
+        const companySettings = settingsMap.company_info || {
+          name: '',
+          address: '',
+          phone: '',
+          email: '',
+          taxId: '',
+          currency: 'USD',
+          timezone: 'UTC'
+        };
+
         setSettings({
-          company: settingsMap.company_info || {
-            name: '',
-            address: '',
-            phone: '',
-            email: '',
-            taxId: '',
-            currency: 'USD',
-            timezone: 'UTC'
-          },
+          company: companySettings,
           system: settingsMap.system_config || {
             autoBackup: true,
             lowStockAlert: true,
@@ -175,7 +178,7 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
             showUnitPrice: true,
             showSubtotal: true,
             showDiscounts: true,
-            currencySymbol: '$',
+            currencySymbol: getCurrencySymbol(companySettings.currency),
             customFooterText: '',
             showSocialMedia: false,
             website: '',

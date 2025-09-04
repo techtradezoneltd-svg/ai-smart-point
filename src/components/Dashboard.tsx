@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useSettings } from "@/contexts/SettingsContext";
+import { formatCurrency as formatCurrencyUtil } from "@/lib/currency";
 import { supabase } from "@/integrations/supabase/client";
 import { useState, useEffect } from "react";
 import { startOfDay, endOfDay, startOfWeek, endOfWeek, startOfMonth, endOfMonth, startOfYear, endOfYear, format } from "date-fns";
@@ -38,20 +39,12 @@ const Dashboard = ({ onNavigate }: DashboardProps) => {
     aiInsights: 7
   };
 
-  // Get currency symbol from settings or default to $
-  const currencySymbol = settings?.receipt.currencySymbol || settings?.company.currency || '$';
+  // Get currency from settings
+  const currentCurrency = settings?.company.currency || 'USD';
   
-  // Format currency based on settings
+  // Format currency using the centralized utility
   const formatCurrency = (amount: number) => {
-    if (settings?.company.currency === 'EUR') {
-      return `€${amount.toLocaleString('de-DE', { minimumFractionDigits: 2 })}`;
-    } else if (settings?.company.currency === 'GBP') {
-      return `£${amount.toLocaleString('en-GB', { minimumFractionDigits: 2 })}`;
-    } else if (settings?.company.currency === 'CAD') {
-      return `CAD $${amount.toLocaleString('en-CA', { minimumFractionDigits: 2 })}`;
-    } else {
-      return `${currencySymbol}${amount.toLocaleString('en-US', { minimumFractionDigits: 2 })}`;
-    }
+    return formatCurrencyUtil(amount, currentCurrency);
   };
 
   // Calculate profit for selected period

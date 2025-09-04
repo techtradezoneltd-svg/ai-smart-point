@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { useCurrency } from "@/hooks/useCurrency";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { 
   Users, 
@@ -34,6 +35,7 @@ interface Customer {
 }
 
 const Customers = () => {
+  const { formatCurrency } = useCurrency();
   const [searchTerm, setSearchTerm] = useState("");
 
   const customersData: Customer[] = [
@@ -173,7 +175,7 @@ const Customers = () => {
             <TrendingUp className="h-4 w-4 text-success" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-success">${totalRevenue.toLocaleString()}</div>
+            <div className="text-2xl font-bold text-success">{formatCurrency(totalRevenue)}</div>
             <p className="text-xs text-muted-foreground">From all customers</p>
           </CardContent>
         </Card>
@@ -184,7 +186,7 @@ const Customers = () => {
             <ShoppingBag className="h-4 w-4 text-accent" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-accent">${avgSpendPerCustomer.toFixed(0)}</div>
+            <div className="text-2xl font-bold text-accent">{formatCurrency(avgSpendPerCustomer)}</div>
             <p className="text-xs text-muted-foreground">Per customer</p>
           </CardContent>
         </Card>
@@ -296,11 +298,11 @@ const Customers = () => {
                     <div className="space-y-2">
                       <div>
                         <p className="text-sm text-muted-foreground">Total Spent</p>
-                        <p className="text-xl font-bold text-success">${customer.totalSpent.toLocaleString()}</p>
+                        <p className="text-xl font-bold text-success">{formatCurrency(customer.totalSpent)}</p>
                       </div>
                       <div>
                         <p className="text-sm text-muted-foreground">Predicted Value</p>
-                        <p className="text-lg font-semibold text-accent">${customer.predictedValue.toLocaleString()}</p>
+                        <p className="text-lg font-semibold text-accent">{formatCurrency(customer.predictedValue)}</p>
                       </div>
                       <div>
                         <p className="text-sm text-muted-foreground">Loyalty Points</p>

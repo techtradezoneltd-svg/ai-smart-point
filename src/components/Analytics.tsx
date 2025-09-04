@@ -1,6 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { useCurrency } from "@/hooks/useCurrency";
 import { 
   BarChart3, 
   TrendingUp, 
@@ -17,6 +18,7 @@ import {
 } from "lucide-react";
 
 const Analytics = () => {
+  const { formatCurrency } = useCurrency();
   // Sample data for charts (in a real app, this would come from your analytics service)
   const salesData = [
     { day: "Mon", sales: 12500, transactions: 45 },
@@ -160,7 +162,7 @@ const Analytics = () => {
             <div className="grid grid-cols-4 gap-4 pt-4 border-t">
               <div className="text-center">
                 <p className="text-2xl font-bold text-success">
-                  ${salesData.reduce((sum, d) => sum + d.sales, 0).toLocaleString()}
+                  {formatCurrency(salesData.reduce((sum, d) => sum + d.sales, 0))}
                 </p>
                 <p className="text-sm text-muted-foreground">Total Sales</p>
               </div>
@@ -172,7 +174,7 @@ const Analytics = () => {
               </div>
               <div className="text-center">
                 <p className="text-2xl font-bold text-accent">
-                  ${(salesData.reduce((sum, d) => sum + d.sales, 0) / salesData.reduce((sum, d) => sum + d.transactions, 0)).toFixed(0)}
+                  {formatCurrency(salesData.reduce((sum, d) => sum + d.sales, 0) / salesData.reduce((sum, d) => sum + d.transactions, 0))}
                 </p>
                 <p className="text-sm text-muted-foreground">Avg Order</p>
               </div>
@@ -210,7 +212,7 @@ const Analytics = () => {
                     </div>
                   </div>
                   <div className="text-right">
-                    <p className="font-bold text-success">${product.revenue.toLocaleString()}</p>
+                    <p className="font-bold text-success">{formatCurrency(product.revenue)}</p>
                     <div className="flex items-center gap-1">
                       <TrendingUp className="w-3 h-3 text-success" />
                       <span className="text-sm text-success">{product.trend}</span>
@@ -245,7 +247,7 @@ const Analytics = () => {
                         style={{ width: `${segment.percentage}%` }}
                       ></div>
                     </div>
-                    <span className="font-bold text-success">${segment.revenue.toLocaleString()}</span>
+                    <span className="font-bold text-success">{formatCurrency(segment.revenue)}</span>
                   </div>
                   <p className="text-xs text-muted-foreground">{segment.percentage}% of total revenue</p>
                 </div>
