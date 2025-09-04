@@ -212,15 +212,30 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
 
   const updateSetting = async (key: string, value: any) => {
     try {
-      const { error } = await supabase
+      // First try to update existing setting
+      const { error: updateError } = await supabase
         .from('settings')
-        .update({ value })
+        .update({ value, updated_at: new Date().toISOString() })
         .eq('key', key);
 
-      if (error) {
-        console.error('Error updating setting:', error);
-        toast.error(`Failed to update ${key} settings`);
-        throw error;
+      // If update fails, try to insert
+      if (updateError) {
+        const { error: insertError } = await supabase
+          .from('settings')
+          .insert({ 
+            key, 
+            value, 
+            category: key.includes('company') ? 'company' : 
+                     key.includes('system') ? 'system' : 
+                     key.includes('receipt') ? 'receipt' : 
+                     key.includes('notification') ? 'notifications' : 'general'
+          });
+
+        if (insertError) {
+          console.error('Error inserting setting:', insertError);
+          toast.error(`Failed to save ${key} settings`);
+          throw insertError;
+        }
       }
 
       await loadSettings(); // Refresh settings after update
