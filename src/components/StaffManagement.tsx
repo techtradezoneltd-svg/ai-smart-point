@@ -95,19 +95,48 @@ const StaffManagement = () => {
         .eq('id', editingStaff.id);
       error = updateError;
     } else {
-      // Note: In a real app, you'd create the auth user first
-      toast({ 
-        title: "Info", 
-        description: "In production, this would create a new auth user and profile", 
-        variant: "default" 
+      // For creating new staff, we'll first sign them up and then update their profile
+      const { data: authData, error: signUpError } = await supabase.auth.signUp({
+        email: email,
+        password: 'TempPass123!', // Temporary password - user should reset
+        options: {
+          data: {
+            full_name: fullName
+          },
+          emailRedirectTo: `${window.location.origin}/`
+        }
       });
-      return;
+
+      if (signUpError) {
+        toast({ title: "Error", description: signUpError.message, variant: "destructive" });
+        return;
+      }
+
+      if (authData.user) {
+        // Update the profile with the correct role
+        const { error: profileError } = await supabase
+          .from('profiles')
+          .upsert({
+            id: authData.user.id,
+            full_name: fullName,
+            email: email,
+            role: role as any,
+            is_active: isActive
+          });
+        
+        error = profileError;
+      }
     }
 
     if (error) {
       toast({ title: "Error", description: "Failed to save staff member", variant: "destructive" });
     } else {
-      toast({ title: "Success", description: `Staff member ${editingStaff ? 'updated' : 'created'} successfully` });
+      toast({ 
+        title: "Success", 
+        description: editingStaff 
+          ? 'Staff member updated successfully' 
+          : 'Staff member created successfully. They will receive an email to set their password.'
+      });
       setIsDialogOpen(false);
       resetForm();
       fetchStaff();
