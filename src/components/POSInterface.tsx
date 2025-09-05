@@ -7,6 +7,7 @@ import { Separator } from "@/components/ui/separator";
 import { supabase } from "@/integrations/supabase/client";
 import { useCurrency } from "@/hooks/useCurrency";
 import { useToast } from "@/hooks/use-toast";
+import ReceiptPreview from "./ReceiptPreview";
 import { 
   Scan, 
   Plus, 
@@ -18,7 +19,8 @@ import {
   Brain,
   Sparkles,
   Percent,
-  Package
+  Package,
+  Receipt
 } from "lucide-react";
 
 interface CartItem {
@@ -52,6 +54,8 @@ const POSInterface = () => {
   const [loading, setLoading] = useState(true);
   const [processing, setProcessing] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
+  const [showReceiptPreview, setShowReceiptPreview] = useState(false);
+  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState("");
 
   useEffect(() => {
     fetchProducts();
@@ -193,7 +197,12 @@ const POSInterface = () => {
     }
   };
 
-  const completeSale = async (paymentMethod: string) => {
+  const showReceiptAndCompleteSale = (paymentMethod: string) => {
+    setSelectedPaymentMethod(paymentMethod);
+    setShowReceiptPreview(true);
+  };
+
+  const completeSale = async () => {
     if (cart.length === 0) return;
     
     setProcessing(true);
@@ -212,7 +221,7 @@ const POSInterface = () => {
           tax_amount: tax,
           discount_amount: 0,
           total_amount: total,
-          payment_method: paymentMethod,
+          payment_method: selectedPaymentMethod,
           created_by: (await supabase.auth.getUser()).data.user?.id
         })
         .select()
@@ -245,6 +254,8 @@ const POSInterface = () => {
 
       // Clear cart and refresh products
       setCart([]);
+      setShowReceiptPreview(false);
+      setSelectedPaymentMethod("");
       fetchProducts();
       
     } catch (error: any) {
@@ -496,25 +507,40 @@ const POSInterface = () => {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-2">
+              <div className="space-y-3">
                 <Button 
-                  className="bg-gradient-primary text-sm font-semibold py-4"
-                  onClick={() => completeSale('cash')}
+                  className="w-full bg-gradient-to-r from-primary to-secondary text-white py-3 text-sm font-semibold"
+                  onClick={() => showReceiptAndCompleteSale('cash')}
                   disabled={processing}
                 >
-                  {processing ? 'Processing...' : 'Cash Sale'}
+                  <Receipt className="w-4 h-4 mr-2" />
+                  Preview & Pay Cash
                 </Button>
                 <Button 
-                  className="bg-gradient-primary text-sm font-semibold py-4"
-                  onClick={() => completeSale('card')}
+                  className="w-full bg-gradient-to-r from-primary to-secondary text-white py-3 text-sm font-semibold"
+                  onClick={() => showReceiptAndCompleteSale('card')}
                   disabled={processing}
                 >
-                  {processing ? 'Processing...' : 'Card Sale'}
+                  <Receipt className="w-4 h-4 mr-2" />
+                  Preview & Pay Card
                 </Button>
               </div>
             </CardContent>
           </Card>
         )}
+
+        {/* Receipt Preview Dialog */}
+        <ReceiptPreview
+          isOpen={showReceiptPreview}
+          onClose={() => setShowReceiptPreview(false)}
+          cart={cart}
+          subtotal={subtotal}
+          tax={tax}
+          total={total}
+          paymentMethod={selectedPaymentMethod}
+          onConfirmSale={completeSale}
+          processing={processing}
+        />
       </div>
     </div>
   );
