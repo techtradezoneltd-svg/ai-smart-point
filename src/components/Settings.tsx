@@ -781,7 +781,7 @@ const Settings = () => {
               </div>
             </CardContent>
           </Card>
-
+        </TabsContent>
 
         {/* Appearance Settings */}
         <TabsContent value="appearance">
@@ -1002,14 +1002,15 @@ const Settings = () => {
                  size="lg"
                >
                  <RotateCcw className="h-4 w-4 mr-2" />
-                  Reset to Default
-                 </Button>
-               </div>
-             </Card>
-           </div>
-         </TabsContent>
-       </Tabs>
-     </div>
+                   Reset to Default
+                  </Button>
+                </div>
+              </div>
+            </Card>
+          </div>
+        </TabsContent>
+      </Tabs>
+    </div>
   );
 };
 
