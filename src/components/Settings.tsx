@@ -213,54 +213,54 @@ const Settings = () => {
   }
 
   return (
-    <div className="h-full animate-fade-in">
-      <div className="flex items-center gap-3 mb-6">
-        <div className="p-2 bg-primary/10 rounded-lg">
+    <div className="h-full animate-fade-in max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div className="flex items-center gap-3 mb-8 p-6 border border-border rounded-lg bg-card">
+        <div className="p-3 bg-primary/10 rounded-lg border border-primary/20">
           <SettingsIcon className="h-6 w-6 text-primary" />
         </div>
         <div>
-          <h1 className="text-2xl font-bold text-foreground">System Settings</h1>
-          <p className="text-muted-foreground">Manage all aspects of your POS system</p>
+          <h1 className="text-3xl font-medium text-foreground">System Settings</h1>
+          <p className="text-muted-foreground font-medium">Manage all aspects of your POS system</p>
         </div>
       </div>
 
-      <Tabs defaultValue="company" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-2 lg:grid-cols-5 h-auto">
-          <TabsTrigger value="company" className="flex items-center gap-2 py-2">
+      <Tabs defaultValue="company" className="space-y-8 border border-border rounded-lg p-6 bg-card">
+        <TabsList className="grid w-full grid-cols-2 lg:grid-cols-5 h-auto border border-border bg-muted/50 p-2 rounded-lg">
+          <TabsTrigger value="company" className="flex items-center gap-2 py-3 px-4 font-medium border border-transparent data-[state=active]:border-primary data-[state=active]:bg-background">
             <Building2 className="h-4 w-4" />
             <span className="hidden sm:inline">Company</span>
           </TabsTrigger>
-          <TabsTrigger value="system" className="flex items-center gap-2 py-2">
+          <TabsTrigger value="system" className="flex items-center gap-2 py-3 px-4 font-medium border border-transparent data-[state=active]:border-primary data-[state=active]:bg-background">
             <SettingsIcon className="h-4 w-4" />
             <span className="hidden sm:inline">System</span>
           </TabsTrigger>
-          <TabsTrigger value="receipt" className="flex items-center gap-2 py-2">
+          <TabsTrigger value="receipt" className="flex items-center gap-2 py-3 px-4 font-medium border border-transparent data-[state=active]:border-primary data-[state=active]:bg-background">
             <Receipt className="h-4 w-4" />
             <span className="hidden sm:inline">Receipt</span>
           </TabsTrigger>
-          <TabsTrigger value="notifications" className="flex items-center gap-2 py-2">
+          <TabsTrigger value="notifications" className="flex items-center gap-2 py-3 px-4 font-medium border border-transparent data-[state=active]:border-primary data-[state=active]:bg-background">
             <Bell className="h-4 w-4" />
             <span className="hidden sm:inline">Alerts</span>
           </TabsTrigger>
-          <TabsTrigger value="appearance" className="flex items-center gap-2 py-2">
+          <TabsTrigger value="appearance" className="flex items-center gap-2 py-3 px-4 font-medium border border-transparent data-[state=active]:border-primary data-[state=active]:bg-background">
             <Palette className="h-4 w-4" />
             <span className="hidden sm:inline">Theme</span>
           </TabsTrigger>
         </TabsList>
 
         {/* Company Settings */}
-        <TabsContent value="company">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
+        <TabsContent value="company" className="mt-6">
+          <Card className="border-2 border-border">
+            <CardHeader className="px-6 py-6 border-b border-border">
+              <CardTitle className="flex items-center gap-2 text-xl font-medium">
                 <Building2 className="h-5 w-5" />
                 Company Information
               </CardTitle>
-              <CardDescription>
+              <CardDescription className="font-medium">
                 Configure your business details and contact information
               </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-6">
+            <CardContent className="space-y-6 p-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="company-name">Company Name</Label>
