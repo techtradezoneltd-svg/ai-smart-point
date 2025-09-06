@@ -36,6 +36,8 @@ interface ReceiptPreviewProps {
   paymentMethod: string;
   onConfirmSale: () => void;
   processing: boolean;
+  previewMode?: boolean;
+  settings?: any;
 }
 
 const ReceiptPreview: React.FC<ReceiptPreviewProps> = ({
@@ -47,7 +49,9 @@ const ReceiptPreview: React.FC<ReceiptPreviewProps> = ({
   total,
   paymentMethod,
   onConfirmSale,
-  processing
+  processing,
+  previewMode = false,
+  settings
 }) => {
   const { formatCurrency } = useCurrency();
   const saleNumber = `SALE-${Date.now()}`;
@@ -90,48 +94,86 @@ const ReceiptPreview: React.FC<ReceiptPreviewProps> = ({
     }
   };
 
-  return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <Receipt className="w-5 h-5 text-primary" />
-            Receipt Preview
-          </DialogTitle>
-        </DialogHeader>
+  // Use settings if provided, otherwise use defaults
+  const receiptSettings = settings || {
+    header: "Smart POS System",
+    showLogo: true,
+    primaryLogo: null,
+    logoPosition: "center",
+    fontSize: 12,
+    fontFamily: "Courier New",
+    showDateTime: true,
+    showOrderNumber: true,
+    showCashierName: true,
+    showItemCodes: true,
+    showTaxBreakdown: true,
+    footer: "Thank you for your business!",
+    customFooterText: "Please keep this receipt for your records\nReturn policy: 30 days with receipt",
+    backgroundColor: "#ffffff",
+    textColor: "#000000",
+    headerColor: "#000000",
+    borderColor: "#cccccc"
+  };
 
-        {/* Receipt Content */}
-        <div id="receipt-content" className="space-y-4 bg-white p-6 rounded-lg border">
-          {/* Store Header */}
-          <div className="text-center space-y-2">
-            <div className="w-16 h-16 bg-gradient-to-r from-primary to-secondary rounded-full mx-auto flex items-center justify-center">
-              <span className="text-white font-bold text-xl">POS</span>
-            </div>
-            <h1 className="text-xl font-bold">Smart POS System</h1>
-            <div className="text-sm text-muted-foreground space-y-1">
-              <div className="flex items-center justify-center gap-1">
-                <MapPin className="w-3 h-3" />
-                <span>123 Business Street, City, State 12345</span>
-              </div>
-              <div className="flex items-center justify-center gap-1">
-                <Phone className="w-3 h-3" />
-                <span>(555) 123-4567</span>
-              </div>
-              <div className="flex items-center justify-center gap-1">
-                <Mail className="w-3 h-3" />
-                <span>info@smartpos.com</span>
-              </div>
-            </div>
+  const receiptContent = (
+    <div 
+      id="receipt-content" 
+      className="space-y-4 p-6 rounded-lg border max-w-sm mx-auto"
+      style={{
+        backgroundColor: receiptSettings.backgroundColor,
+        color: receiptSettings.textColor,
+        fontFamily: receiptSettings.fontFamily,
+        fontSize: receiptSettings.fontSize + 'px',
+        width: previewMode ? '100%' : undefined
+      }}
+    >
+      {/* Store Header */}
+      <div className="text-center space-y-2">
+        {receiptSettings.showLogo && receiptSettings.primaryLogo && (
+          <div className="flex justify-center mb-4">
+            <img 
+              src={receiptSettings.primaryLogo} 
+              alt="Logo" 
+              className="max-w-16 h-auto"
+            />
           </div>
+        )}
+        {!receiptSettings.primaryLogo && receiptSettings.showLogo && (
+          <div className="w-16 h-16 bg-gradient-to-r from-primary to-secondary rounded-full mx-auto flex items-center justify-center">
+            <span className="text-white font-bold text-xl">POS</span>
+          </div>
+        )}
+        <h1 className="text-xl font-bold" style={{ color: receiptSettings.headerColor }}>
+          {receiptSettings.header}
+        </h1>
+        <div className="text-sm space-y-1" style={{ opacity: 0.8 }}>
+          <div className="flex items-center justify-center gap-1">
+            <MapPin className="w-3 h-3" />
+            <span>123 Business Street, City, State 12345</span>
+          </div>
+          <div className="flex items-center justify-center gap-1">
+            <Phone className="w-3 h-3" />
+            <span>(555) 123-4567</span>
+          </div>
+          <div className="flex items-center justify-center gap-1">
+            <Mail className="w-3 h-3" />
+            <span>info@smartpos.com</span>
+          </div>
+        </div>
+      </div>
 
           <Separator />
 
-          {/* Sale Information */}
-          <div className="space-y-2 text-sm">
-            <div className="flex justify-between">
-              <span className="font-medium">Receipt #:</span>
-              <span className="font-mono">{saleNumber}</span>
-            </div>
+      {/* Sale Information */}
+      <div className="space-y-2 text-sm">
+        {receiptSettings.showOrderNumber && (
+          <div className="flex justify-between">
+            <span className="font-medium">Receipt #:</span>
+            <span className="font-mono">{saleNumber}</span>
+          </div>
+        )}
+        {receiptSettings.showDateTime && (
+          <>
             <div className="flex justify-between">
               <span className="font-medium">Date:</span>
               <span>{currentDate}</span>
@@ -140,18 +182,22 @@ const ReceiptPreview: React.FC<ReceiptPreviewProps> = ({
               <span className="font-medium">Time:</span>
               <span>{currentTime}</span>
             </div>
-            <div className="flex justify-between">
-              <span className="font-medium">Cashier:</span>
-              <span>Admin User</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="font-medium">Payment:</span>
-              <div className="flex items-center gap-1">
-                <CreditCard className="w-3 h-3" />
-                <span className="capitalize">{paymentMethod}</span>
-              </div>
-            </div>
+          </>
+        )}
+        {receiptSettings.showCashierName && (
+          <div className="flex justify-between">
+            <span className="font-medium">Cashier:</span>
+            <span>Admin User</span>
           </div>
+        )}
+        <div className="flex justify-between">
+          <span className="font-medium">Payment:</span>
+          <div className="flex items-center gap-1">
+            <CreditCard className="w-3 h-3" />
+            <span className="capitalize">{paymentMethod}</span>
+          </div>
+        </div>
+      </div>
 
           <Separator />
 
@@ -163,7 +209,9 @@ const ReceiptPreview: React.FC<ReceiptPreviewProps> = ({
                 <div className="flex justify-between items-start">
                   <div className="flex-1">
                     <div className="font-medium text-sm">{item.name}</div>
-                    <div className="text-xs text-muted-foreground">SKU: {item.sku}</div>
+                    {receiptSettings.showItemCodes && (
+                      <div className="text-xs opacity-75">SKU: {item.sku}</div>
+                    )}
                   </div>
                 </div>
                 <div className="flex justify-between text-sm">
@@ -196,17 +244,38 @@ const ReceiptPreview: React.FC<ReceiptPreviewProps> = ({
 
           <Separator />
 
-          {/* Footer */}
-          <div className="text-center space-y-2 text-xs text-muted-foreground">
-            <p className="font-semibold">Thank you for your business!</p>
-            <p>Please keep this receipt for your records</p>
-            <p>Return policy: 30 days with receipt</p>
-            <div className="flex items-center justify-center gap-1 mt-4">
-              <Clock className="w-3 h-3" />
-              <span>Processed at {currentTime}</span>
-            </div>
+      {/* Footer */}
+      <div className="text-center space-y-2 text-xs" style={{ opacity: 0.8 }}>
+        <p className="font-semibold">{receiptSettings.footer}</p>
+        {receiptSettings.customFooterText && (
+          <div className="whitespace-pre-line">
+            {receiptSettings.customFooterText}
           </div>
+        )}
+        <div className="flex items-center justify-center gap-1 mt-4">
+          <Clock className="w-3 h-3" />
+          <span>Processed at {currentTime}</span>
         </div>
+      </div>
+    </div>
+  );
+
+  // If preview mode, just return the content without dialog
+  if (previewMode) {
+    return receiptContent;
+  }
+
+  return (
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Receipt className="w-5 h-5 text-primary" />
+            Receipt Preview
+          </DialogTitle>
+        </DialogHeader>
+
+        {receiptContent}
 
         {/* Action Buttons */}
         <div className="flex gap-2 pt-4">

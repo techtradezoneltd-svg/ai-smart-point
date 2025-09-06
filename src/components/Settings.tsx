@@ -11,6 +11,7 @@ import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 import { useSettings, CompanySettings, SystemSettings, ReceiptSettings } from '@/contexts/SettingsContext';
+import ReceiptPreview from '@/components/ReceiptPreview';
 import {
   Building2,
   Settings as SettingsIcon,
@@ -491,16 +492,18 @@ const Settings = () => {
 
         {/* Receipt Settings */}
         <TabsContent value="receipt">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Receipt className="h-5 w-5" />
-                Receipt Configuration
-              </CardTitle>
-              <CardDescription>
-                Customize receipt appearance and content
-              </CardDescription>
-            </CardHeader>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Receipt Settings Form */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Receipt className="h-5 w-5" />
+                  Receipt Configuration
+                </CardTitle>
+                <CardDescription>
+                  Customize receipt appearance and content
+                </CardDescription>
+              </CardHeader>
             <CardContent className="space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
@@ -661,13 +664,41 @@ const Settings = () => {
                   {isUpdating ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
                   Save Receipt Settings
                 </Button>
-                <Button variant="outline" onClick={() => toast.info('Receipt preview coming soon!')}>
-                  <Eye className="h-4 w-4 mr-2" />
-                  Preview Receipt
-                </Button>
               </div>
             </CardContent>
           </Card>
+
+          {/* Receipt Preview */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Eye className="h-5 w-5" />
+                Live Preview
+              </CardTitle>
+              <CardDescription>
+                See how your receipt will look
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <ReceiptPreview 
+                isOpen={false} 
+                onClose={() => {}} 
+                cart={[
+                  { id: '1', name: 'Sample Product', price: 29.99, quantity: 2, category: 'Electronics', stock: 100, sku: 'SKU001' },
+                  { id: '2', name: 'Another Item', price: 15.50, quantity: 1, category: 'Accessories', stock: 50, sku: 'SKU002' }
+                ]} 
+                subtotal={75.48} 
+                tax={6.04} 
+                total={81.52} 
+                paymentMethod="Credit Card" 
+                onConfirmSale={() => {}} 
+                processing={false}
+                previewMode={true}
+                settings={receiptForm}
+              />
+            </CardContent>
+          </Card>
+        </div>
         </TabsContent>
 
         {/* Notifications Settings */}
@@ -750,7 +781,7 @@ const Settings = () => {
               </div>
             </CardContent>
           </Card>
-        </TabsContent>
+
 
         {/* Appearance Settings */}
         <TabsContent value="appearance">
@@ -957,27 +988,28 @@ const Settings = () => {
                 {isUpdating ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
                 Apply Theme Settings
               </Button>
-              <Button 
-                variant="outline" 
-                onClick={() => {
-                  setAppearanceForm(prev => prev ? { 
-                    ...prev, 
-                    theme: 'dark', 
-                    primaryColor: 'default',
-                    compactMode: false,
-                    showAnimations: true
-                  } : null);
-                }}
-                size="lg"
-              >
-                <RotateCcw className="h-4 w-4 mr-2" />
-                Reset to Default
-              </Button>
-            </div>
-          </div>
-        </TabsContent>
-      </Tabs>
-    </div>
+               <Button 
+                 variant="outline" 
+                 onClick={() => {
+                   setAppearanceForm(prev => prev ? { 
+                     ...prev, 
+                     theme: 'dark', 
+                     primaryColor: 'default',
+                     compactMode: false,
+                     showAnimations: true
+                   } : null);
+                 }}
+                 size="lg"
+               >
+                 <RotateCcw className="h-4 w-4 mr-2" />
+                  Reset to Default
+                 </Button>
+               </div>
+             </Card>
+           </div>
+         </TabsContent>
+       </Tabs>
+     </div>
   );
 };
 
