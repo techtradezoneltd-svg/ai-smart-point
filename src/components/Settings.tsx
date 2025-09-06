@@ -1001,17 +1001,15 @@ const Settings = () => {
                  }}
                  size="lg"
                >
-                 <RotateCcw className="h-4 w-4 mr-2" />
-                   Reset to Default
-                  </Button>
-                </div>
+                  <RotateCcw className="h-4 w-4 mr-2" />
+                  Reset to Default
+                </Button>
               </div>
-            </Card>
-          </div>
-        </TabsContent>
-      </Tabs>
-    </div>
-  );
-};
+            </div>
+          </TabsContent>
+        </Tabs>
+      </div>
+    );
+  };
 
 export default Settings;
