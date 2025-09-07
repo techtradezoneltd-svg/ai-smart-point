@@ -63,8 +63,10 @@ const Index = () => {
 
   return (
     <div className="flex min-h-screen bg-gradient-bg">
-      <NavigationEnhanced currentView={currentView} onNavigate={setCurrentView} />
-      <div className="flex-1 p-2 sm:p-4 md:p-6 overflow-auto">
+      {currentView !== "pos" && (
+        <NavigationEnhanced currentView={currentView} onNavigate={setCurrentView} />
+      )}
+      <div className={`flex-1 overflow-auto ${currentView === "pos" ? "p-4" : "p-2 sm:p-4 md:p-6"}`}>
         {renderCurrentView()}
       </div>
       <NotificationCenter />
