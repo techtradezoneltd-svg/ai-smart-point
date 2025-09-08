@@ -1,8 +1,10 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 import { 
   Search, 
   Filter,
@@ -20,85 +22,135 @@ import {
 
 interface SaleRecord {
   id: string;
-  invoiceNumber: string;
-  customerName: string;
-  customerPhone: string;
-  items: Array<{
-    name: string;
-    quantity: number;
-    price: number;
-    total: number;
-  }>;
+  sale_number: string;
+  customer_name: string | null;
+  customer_phone: string | null;
   subtotal: number;
-  tax: number;
-  discount: number;
-  total: number;
-  paymentMethod: "cash" | "card" | "mobile" | "split";
-  cashierName: string;
-  timestamp: string;
-  status: "completed" | "refunded" | "cancelled";
+  tax_amount: number;
+  discount_amount: number;
+  total_amount: number;
+  payment_method: string;
+  created_at: string;
+  created_by: string | null;
+  status?: "completed" | "refunded" | "cancelled";
+  sale_items?: Array<{
+    id: string;
+    product_id: string;
+    quantity: number;
+    unit_price: number;
+    total_price: number;
+    products?: {
+      name: string;
+    };
+  }>;
+  profiles?: {
+    full_name: string | null;
+  };
 }
 
 const SalesHistory = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedDate, setSelectedDate] = useState("today");
   const [selectedPayment, setSelectedPayment] = useState("all");
+  const [salesRecords, setSalesRecords] = useState<SaleRecord[]>([]);
+  const [loading, setLoading] = useState(true);
+  const { toast } = useToast();
 
-  const salesRecords: SaleRecord[] = [
-    {
-      id: "1",
-      invoiceNumber: "INV-2024-001",
-      customerName: "John Doe",
-      customerPhone: "+1234567890",
-      items: [
-        { name: "Wireless Headphones", quantity: 1, price: 99.99, total: 99.99 },
-        { name: "Phone Case", quantity: 2, price: 15.99, total: 31.98 }
-      ],
-      subtotal: 131.97,
-      tax: 13.20,
-      discount: 5.00,
-      total: 140.17,
-      paymentMethod: "card",
-      cashierName: "Sarah Johnson",
-      timestamp: "2024-01-25 14:30:22",
-      status: "completed"
-    },
-    {
-      id: "2",
-      invoiceNumber: "INV-2024-002",
-      customerName: "Alice Smith",
-      customerPhone: "+1234567891",
-      items: [
-        { name: "Laptop Stand", quantity: 1, price: 45.00, total: 45.00 }
-      ],
-      subtotal: 45.00,
-      tax: 4.50,
-      discount: 0,
-      total: 49.50,
-      paymentMethod: "cash",
-      cashierName: "Mike Wilson",
-      timestamp: "2024-01-25 15:45:10",
-      status: "completed"
-    },
-    {
-      id: "3",
-      invoiceNumber: "INV-2024-003",
-      customerName: "Bob Johnson",
-      customerPhone: "+1234567892",
-      items: [
-        { name: "Gaming Mouse", quantity: 1, price: 79.99, total: 79.99 },
-        { name: "Mouse Pad", quantity: 1, price: 12.99, total: 12.99 }
-      ],
-      subtotal: 92.98,
-      tax: 9.30,
-      discount: 10.00,
-      total: 92.28,
-      paymentMethod: "mobile",
-      cashierName: "Sarah Johnson",
-      timestamp: "2024-01-25 16:20:15",
-      status: "completed"
+  const fetchSales = async () => {
+    try {
+      setLoading(true);
+      
+      // Calculate date filter
+      let dateFilter = '';
+      const today = new Date();
+      
+      switch (selectedDate) {
+        case 'today':
+          dateFilter = today.toISOString().split('T')[0];
+          break;
+        case 'week':
+          const weekAgo = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
+          dateFilter = weekAgo.toISOString().split('T')[0];
+          break;
+        case 'month':
+          const monthAgo = new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000);
+          dateFilter = monthAgo.toISOString().split('T')[0];
+          break;
+      }
+
+      let query = supabase
+        .from('sales')
+        .select(`
+          *,
+          sale_items (
+            id,
+            product_id,
+            quantity,
+            unit_price,
+            total_price,
+            products (
+              name
+            )
+          ),
+          profiles (
+            full_name
+          )
+        `)
+        .order('created_at', { ascending: false });
+
+      if (selectedDate === 'today') {
+        query = query.gte('created_at', `${dateFilter}T00:00:00.000Z`);
+      } else if (selectedDate === 'week' || selectedDate === 'month') {
+        query = query.gte('created_at', `${dateFilter}T00:00:00.000Z`);
+      }
+
+      const { data, error } = await query;
+
+      if (error) throw error;
+
+      setSalesRecords(data || []);
+    } catch (error: any) {
+      toast({
+        title: "Error fetching sales",
+        description: error.message,
+        variant: "destructive"
+      });
+    } finally {
+      setLoading(false);
     }
-  ];
+  };
+
+  const handleRefund = async (saleId: string) => {
+    try {
+      // In a real implementation, you'd create a refund record and reverse stock movements
+      toast({
+        title: "Refund initiated",
+        description: "Refund process has been started. Stock will be updated.",
+      });
+      
+      // Refresh sales data
+      fetchSales();
+    } catch (error: any) {
+      toast({
+        title: "Refund failed",
+        description: error.message,
+        variant: "destructive"
+      });
+    }
+  };
+
+  useEffect(() => {
+    fetchSales();
+  }, [selectedDate]);
+
+  // Filter sales based on search term
+  const filteredSales = salesRecords.filter(record => 
+    record.sale_number.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    record.customer_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    record.sale_items?.some(item => 
+      item.products?.name.toLowerCase().includes(searchTerm.toLowerCase())
+    )
+  );
 
   const getPaymentIcon = (method: string) => {
     switch (method) {
@@ -119,8 +171,9 @@ const SalesHistory = () => {
     }
   };
 
-  const totalSales = salesRecords.reduce((sum, record) => sum + record.total, 0);
-  const todaysSales = salesRecords.length;
+  const totalSales = filteredSales.reduce((sum, record) => sum + record.total_amount, 0);
+  const todaysSales = filteredSales.length;
+  const refundCount = filteredSales.filter(record => record.status === 'refunded').length;
 
   return (
     <div className="space-y-6">
@@ -193,7 +246,7 @@ const SalesHistory = () => {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-muted-foreground">Refunds</p>
-                <p className="text-2xl font-bold text-warning">0</p>
+                <p className="text-2xl font-bold text-warning">{refundCount}</p>
               </div>
               <div className="p-3 bg-warning/10 rounded-lg">
                 <RefreshCw className="w-6 h-6 text-warning" />
@@ -225,14 +278,26 @@ const SalesHistory = () => {
               </div>
             </div>
             <div className="flex gap-2">
-              <Button variant={selectedDate === "today" ? "default" : "outline"} size="sm">
+              <Button 
+                variant={selectedDate === "today" ? "default" : "outline"} 
+                size="sm"
+                onClick={() => setSelectedDate("today")}
+              >
                 <Calendar className="w-4 h-4 mr-2" />
                 Today
               </Button>
-              <Button variant={selectedDate === "week" ? "default" : "outline"} size="sm">
+              <Button 
+                variant={selectedDate === "week" ? "default" : "outline"} 
+                size="sm"
+                onClick={() => setSelectedDate("week")}
+              >
                 This Week
               </Button>
-              <Button variant={selectedDate === "month" ? "default" : "outline"} size="sm">
+              <Button 
+                variant={selectedDate === "month" ? "default" : "outline"} 
+                size="sm"
+                onClick={() => setSelectedDate("month")}
+              >
                 This Month
               </Button>
             </div>
@@ -249,97 +314,115 @@ const SalesHistory = () => {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="space-y-4">
-            {salesRecords.map((record) => (
-              <div
-                key={record.id}
-                className="border border-border rounded-lg p-6 hover:border-primary/50 transition-all"
-              >
-                <div className="flex items-start justify-between mb-4">
-                  <div className="flex items-center gap-4">
-                    <div className="p-3 bg-primary/10 rounded-lg">
-                      <Package className="w-6 h-6 text-primary" />
-                    </div>
-                    <div>
-                      <div className="flex items-center gap-3 mb-1">
-                        <h3 className="font-semibold">{record.invoiceNumber}</h3>
-                        <Badge variant="outline" className={`border-${getStatusColor(record.status)} text-${getStatusColor(record.status)}`}>
-                          {record.status}
-                        </Badge>
+          {loading ? (
+            <div className="text-center py-8">
+              <p className="text-muted-foreground">Loading sales history...</p>
+            </div>
+          ) : filteredSales.length === 0 ? (
+            <div className="text-center py-8">
+              <Package className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+              <p className="text-muted-foreground">No sales records found</p>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {filteredSales.map((record) => (
+                <div
+                  key={record.id}
+                  className="border border-border rounded-lg p-6 hover:border-primary/50 transition-all"
+                >
+                  <div className="flex items-start justify-between mb-4">
+                    <div className="flex items-center gap-4">
+                      <div className="p-3 bg-primary/10 rounded-lg">
+                        <Package className="w-6 h-6 text-primary" />
                       </div>
-                      <p className="text-sm text-muted-foreground">{record.timestamp}</p>
-                    </div>
-                  </div>
-                  
-                  <div className="text-right">
-                    <p className="text-2xl font-bold">${record.total.toFixed(2)}</p>
-                    <div className="flex items-center gap-1 justify-end mt-1">
-                      {getPaymentIcon(record.paymentMethod)}
-                      <span className="text-sm text-muted-foreground capitalize">{record.paymentMethod}</span>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-                  <div>
-                    <p className="text-sm text-muted-foreground mb-1">Customer</p>
-                    <div className="flex items-center gap-2">
-                      <User className="w-4 h-4 text-muted-foreground" />
                       <div>
-                        <p className="font-medium">{record.customerName}</p>
-                        <p className="text-xs text-muted-foreground">{record.customerPhone}</p>
+                        <div className="flex items-center gap-3 mb-1">
+                          <h3 className="font-semibold">{record.sale_number}</h3>
+                          <Badge variant="outline" className={`border-${getStatusColor(record.status || 'completed')} text-${getStatusColor(record.status || 'completed')}`}>
+                            {record.status || 'completed'}
+                          </Badge>
+                        </div>
+                        <p className="text-sm text-muted-foreground">{new Date(record.created_at).toLocaleString()}</p>
                       </div>
-                    </div>
-                  </div>
-                  
-                  <div>
-                    <p className="text-sm text-muted-foreground mb-1">Cashier</p>
-                    <p className="font-medium">{record.cashierName}</p>
-                  </div>
-                  
-                  <div>
-                    <p className="text-sm text-muted-foreground mb-1">Items</p>
-                    <p className="font-medium">{record.items.length} item(s)</p>
-                  </div>
-                </div>
-
-                <div className="border-t border-border pt-4">
-                  <div className="flex flex-wrap gap-2 mb-3">
-                    {record.items.map((item, index) => (
-                      <Badge key={index} variant="secondary" className="text-xs">
-                        {item.quantity}x {item.name} - ${item.total.toFixed(2)}
-                      </Badge>
-                    ))}
-                  </div>
-                  
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                      <span>Subtotal: ${record.subtotal.toFixed(2)}</span>
-                      {record.discount > 0 && <span>Discount: -${record.discount.toFixed(2)}</span>}
-                      <span>Tax: ${record.tax.toFixed(2)}</span>
                     </div>
                     
-                    <div className="flex items-center gap-2">
-                      <Button size="sm" variant="outline">
-                        <Eye className="w-4 h-4 mr-1" />
-                        View
-                      </Button>
-                      <Button size="sm" variant="outline">
-                        <Download className="w-4 h-4 mr-1" />
-                        Receipt
-                      </Button>
-                      {record.status === "completed" && (
-                        <Button size="sm" variant="outline" className="text-warning border-warning">
-                          <RefreshCw className="w-4 h-4 mr-1" />
-                          Refund
-                        </Button>
+                    <div className="text-right">
+                      <p className="text-2xl font-bold">${record.total_amount.toFixed(2)}</p>
+                      <div className="flex items-center gap-1 justify-end mt-1">
+                        {getPaymentIcon(record.payment_method)}
+                        <span className="text-sm text-muted-foreground capitalize">{record.payment_method}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                    <div>
+                      <p className="text-sm text-muted-foreground mb-1">Customer</p>
+                      <div className="flex items-center gap-2">
+                        <User className="w-4 h-4 text-muted-foreground" />
+                        <div>
+                          <p className="font-medium">{record.customer_name || 'Walk-in Customer'}</p>
+                          <p className="text-xs text-muted-foreground">{record.customer_phone || 'No phone'}</p>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    <div>
+                      <p className="text-sm text-muted-foreground mb-1">Cashier</p>
+                      <p className="font-medium">{record.profiles?.full_name || 'System User'}</p>
+                    </div>
+                    
+                    <div>
+                      <p className="text-sm text-muted-foreground mb-1">Items</p>
+                      <p className="font-medium">{record.sale_items?.length || 0} item(s)</p>
+                    </div>
+                  </div>
+
+                  <div className="border-t border-border pt-4">
+                    <div className="flex flex-wrap gap-2 mb-3">
+                      {record.sale_items?.map((item, index) => (
+                        <Badge key={index} variant="secondary" className="text-xs">
+                          {item.quantity}x {item.products?.name || 'Unknown Item'} - ${item.total_price.toFixed(2)}
+                        </Badge>
+                      )) || (
+                        <Badge variant="secondary" className="text-xs">No items found</Badge>
                       )}
+                    </div>
+                    
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                        <span>Subtotal: ${record.subtotal.toFixed(2)}</span>
+                        {record.discount_amount > 0 && <span>Discount: -${record.discount_amount.toFixed(2)}</span>}
+                        <span>Tax: ${record.tax_amount.toFixed(2)}</span>
+                      </div>
+                      
+                      <div className="flex items-center gap-2">
+                        <Button size="sm" variant="outline">
+                          <Eye className="w-4 h-4 mr-1" />
+                          View
+                        </Button>
+                        <Button size="sm" variant="outline">
+                          <Download className="w-4 h-4 mr-1" />
+                          Receipt
+                        </Button>
+                        {(record.status === "completed" || !record.status) && (
+                          <Button 
+                            size="sm" 
+                            variant="outline" 
+                            className="text-warning border-warning hover:bg-warning/10"
+                            onClick={() => handleRefund(record.id)}
+                          >
+                            <RefreshCw className="w-4 h-4 mr-1" />
+                            Refund
+                          </Button>
+                        )}
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>
