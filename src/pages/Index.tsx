@@ -7,6 +7,7 @@ import ProductManagement from "@/components/ProductManagement";
 import Analytics from "@/components/Analytics";
 import SalesHistory from "@/components/SalesHistory";
 import Reports from "@/components/Reports";
+import AIReportingSystem from "@/components/AIReportingSystem";
 import Suppliers from "@/components/Suppliers";
 import ExpenseManagement from "@/components/ExpenseManagement";
 import StaffManagement from "@/components/StaffManagement";
@@ -44,6 +45,8 @@ const Index = () => {
         return <Suppliers />;
       case "reports":
         return <Reports />;
+      case "ai-reporting":
+        return <AIReportingSystem />;
       case "analytics":
         return <Analytics />;
       case "settings":

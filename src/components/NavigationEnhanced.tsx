@@ -12,6 +12,7 @@ import {
   BarChart3, 
   Settings,
   Brain,
+  Bot,
   Zap,
   FileText,
   Truck,
@@ -148,6 +149,12 @@ const NavigationEnhanced = ({ currentView, onNavigate }: NavigationProps) => {
           label: "Analytics", 
           icon: TrendingUp, 
           badge: "AI" 
+        },
+        { 
+          id: "ai-reporting", 
+          label: "AI Reporting", 
+          icon: Bot, 
+          badge: "NEW" 
         }
       ]
     },
