@@ -18,6 +18,7 @@ import {
   Truck,
   TrendingUp,
   DollarSign,
+  CreditCard,
   UserCheck,
   Tags,
   ChevronDown,
@@ -161,6 +162,12 @@ const NavigationEnhanced = ({ currentView, onNavigate }: NavigationProps) => {
           label: "AI Reporting", 
           icon: Bot, 
           badge: "NEW" 
+        },
+        { 
+          id: "loan-reports", 
+          label: "Loan Reports", 
+          icon: CreditCard, 
+          badge: "AI" 
         }
       ]
     },

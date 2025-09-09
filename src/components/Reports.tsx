@@ -16,7 +16,8 @@ import {
   Target,
   FileText,
   PieChart,
-  Activity
+  Activity,
+  CreditCard
 } from "lucide-react";
 
 const Reports = () => {
