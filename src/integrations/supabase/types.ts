@@ -743,6 +743,20 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: Database["public"]["Enums"]["user_role"]
       }
+      get_loans_needing_reminders: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          customer_name: string
+          customer_phone: string
+          due_date: string
+          loan_id: string
+          remaining_balance: number
+          reminder_status: string
+          reminders_sent_today: number
+          status: Database["public"]["Enums"]["loan_status"]
+          total_amount: number
+        }[]
+      }
       get_setting: {
         Args: { setting_key: string }
         Returns: Json

@@ -19,6 +19,7 @@ import {
   TrendingUp,
   DollarSign,
   CreditCard,
+  MessageSquare,
   UserCheck,
   Tags,
   ChevronDown,
@@ -168,6 +169,12 @@ const NavigationEnhanced = ({ currentView, onNavigate }: NavigationProps) => {
           label: "Loan Reports", 
           icon: CreditCard, 
           badge: "AI" 
+        },
+        { 
+          id: "loan-tester", 
+          label: "Reminder Tester", 
+          icon: MessageSquare, 
+          badge: "TEST" 
         }
       ]
     },

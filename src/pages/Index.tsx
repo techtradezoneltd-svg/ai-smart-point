@@ -15,6 +15,7 @@ import CategoryUnitManagement from "@/components/CategoryUnitManagement";
 import Customers from "@/components/Customers";
 import LoanManagement from "@/components/LoanManagement";
 import LoanReports from "@/components/LoanReports";
+import LoanReminderTester from "@/components/LoanReminderTester";
 import Settings from "@/components/Settings";
 import AIVoiceAssistant from "@/components/AIVoiceAssistant";
 import UserRoles from "@/components/UserRoles";
@@ -53,6 +54,8 @@ const Index = () => {
         return <AIReportingSystem />;
       case "loan-reports":
         return <LoanReports />;
+      case "loan-tester":
+        return <LoanReminderTester />;
       case "analytics":
         return <Analytics />;
       case "settings":
