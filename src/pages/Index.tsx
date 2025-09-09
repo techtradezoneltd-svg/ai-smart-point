@@ -29,7 +29,7 @@ const Index = () => {
   const renderCurrentView = () => {
     switch (currentView) {
       case "pos":
-        return <EnhancedPOSInterface />;
+        return <EnhancedPOSInterface onNavigate={setCurrentView} />;
       case "inventory":
         return <ProductManagement />;
       case "stock":

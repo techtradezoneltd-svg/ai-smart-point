@@ -24,7 +24,9 @@ import {
   Smartphone,
   User,
   Calendar,
-  AlertCircle
+  AlertCircle,
+  ArrowLeft,
+  Home
 } from "lucide-react";
 
 interface CartItem {
@@ -56,7 +58,11 @@ interface Customer {
   email?: string;
 }
 
-const EnhancedPOSInterface: React.FC = () => {
+interface EnhancedPOSInterfaceProps {
+  onNavigate?: (view: string) => void;
+}
+
+const EnhancedPOSInterface: React.FC<EnhancedPOSInterfaceProps> = ({ onNavigate }) => {
   const { toast } = useToast();
   const { formatCurrency } = useCurrency();
 
@@ -388,6 +394,17 @@ const EnhancedPOSInterface: React.FC = () => {
       <div className="bg-card/95 backdrop-blur border-b border-border p-4 mb-6">
         <div className="flex items-center justify-between max-w-7xl mx-auto">
           <div className="flex items-center gap-3">
+            {onNavigate && (
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={() => onNavigate('dashboard')}
+                className="flex items-center gap-2 hover:bg-primary hover:text-white transition-colors"
+              >
+                <ArrowLeft className="w-4 h-4" />
+                Back
+              </Button>
+            )}
             <div className="w-10 h-10 bg-gradient-primary rounded-lg flex items-center justify-center">
               <Receipt className="w-6 h-6 text-white" />
             </div>
@@ -396,6 +413,17 @@ const EnhancedPOSInterface: React.FC = () => {
               <p className="text-sm text-muted-foreground">Professional Sales Terminal with Loan Management</p>
             </div>
           </div>
+          {onNavigate && (
+            <Button 
+              variant="secondary"
+              size="sm"
+              onClick={() => onNavigate('dashboard')}
+              className="flex items-center gap-2"
+            >
+              <Home className="w-4 h-4" />
+              Dashboard
+            </Button>
+          )}
         </div>
       </div>
       
