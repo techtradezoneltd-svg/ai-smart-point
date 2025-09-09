@@ -207,6 +207,13 @@ export type Database = {
             foreignKeyName: "loan_payments_loan_id_fkey"
             columns: ["loan_id"]
             isOneToOne: false
+            referencedRelation: "loan_reminder_summary"
+            referencedColumns: ["loan_id"]
+          },
+          {
+            foreignKeyName: "loan_payments_loan_id_fkey"
+            columns: ["loan_id"]
+            isOneToOne: false
             referencedRelation: "loans"
             referencedColumns: ["id"]
           },
@@ -250,6 +257,13 @@ export type Database = {
           whatsapp_message_id?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "loan_reminders_loan_id_fkey"
+            columns: ["loan_id"]
+            isOneToOne: false
+            referencedRelation: "loan_reminder_summary"
+            referencedColumns: ["loan_id"]
+          },
           {
             foreignKeyName: "loan_reminders_loan_id_fkey"
             columns: ["loan_id"]
@@ -582,6 +596,13 @@ export type Database = {
             foreignKeyName: "sales_loan_id_fkey"
             columns: ["loan_id"]
             isOneToOne: false
+            referencedRelation: "loan_reminder_summary"
+            referencedColumns: ["loan_id"]
+          },
+          {
+            foreignKeyName: "sales_loan_id_fkey"
+            columns: ["loan_id"]
+            isOneToOne: false
             referencedRelation: "loans"
             referencedColumns: ["id"]
           },
@@ -694,7 +715,20 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      loan_reminder_summary: {
+        Row: {
+          customer_name: string | null
+          customer_phone: string | null
+          due_date: string | null
+          loan_id: string | null
+          remaining_balance: number | null
+          reminder_status: string | null
+          reminders_sent_today: number | null
+          status: Database["public"]["Enums"]["loan_status"] | null
+          total_amount: number | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       generate_ai_recommendations: {
@@ -724,6 +758,10 @@ export type Database = {
       make_user_admin: {
         Args: { user_email: string }
         Returns: undefined
+      }
+      trigger_loan_reminders: {
+        Args: Record<PropertyKey, never>
+        Returns: Json
       }
       update_setting: {
         Args: { setting_key: string; setting_value: Json }
