@@ -1,7 +1,7 @@
 import { useState } from "react";
 import NavigationEnhanced from "@/components/NavigationEnhanced";
 import Dashboard from "@/components/Dashboard";
-import POSInterface from "@/components/POSInterface";
+import EnhancedPOSInterface from "@/components/EnhancedPOSInterface";
 import StockManagement from "@/components/StockManagement";
 import ProductManagement from "@/components/ProductManagement";
 import Analytics from "@/components/Analytics";
@@ -13,6 +13,7 @@ import ExpenseManagement from "@/components/ExpenseManagement";
 import StaffManagement from "@/components/StaffManagement";
 import CategoryUnitManagement from "@/components/CategoryUnitManagement";
 import Customers from "@/components/Customers";
+import LoanManagement from "@/components/LoanManagement";
 import Settings from "@/components/Settings";
 import AIVoiceAssistant from "@/components/AIVoiceAssistant";
 import UserRoles from "@/components/UserRoles";
@@ -26,7 +27,7 @@ const Index = () => {
   const renderCurrentView = () => {
     switch (currentView) {
       case "pos":
-        return <POSInterface />;
+        return <EnhancedPOSInterface />;
       case "inventory":
         return <ProductManagement />;
       case "stock":
@@ -39,6 +40,8 @@ const Index = () => {
         return <CategoryUnitManagement />;
       case "customers":
         return <Customers />;
+      case "loans":
+        return <LoanManagement />;
       case "saleshistory":
         return <SalesHistory />;
       case "suppliers":

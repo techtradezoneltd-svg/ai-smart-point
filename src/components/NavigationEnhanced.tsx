@@ -58,7 +58,7 @@ const NavigationEnhanced = ({ currentView, onNavigate }: NavigationProps) => {
       items: [
         { 
           id: "pos", 
-          label: "Point of Sale", 
+          label: "Enhanced POS", 
           icon: ShoppingCart, 
           badge: "AI" 
         },
@@ -105,6 +105,12 @@ const NavigationEnhanced = ({ currentView, onNavigate }: NavigationProps) => {
           label: "Customers", 
           icon: Users, 
           badge: null 
+        },
+        { 
+          id: "loans", 
+          label: "Loan Management", 
+          icon: Users, 
+          badge: "NEW" 
         },
         { 
           id: "suppliers", 

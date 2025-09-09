@@ -88,6 +88,42 @@ export type Database = {
         }
         Relationships: []
       }
+      customers: {
+        Row: {
+          address: string | null
+          created_at: string | null
+          email: string | null
+          id: string
+          is_active: boolean | null
+          name: string
+          phone: string
+          repayment_behavior: Json | null
+          updated_at: string | null
+        }
+        Insert: {
+          address?: string | null
+          created_at?: string | null
+          email?: string | null
+          id?: string
+          is_active?: boolean | null
+          name: string
+          phone: string
+          repayment_behavior?: Json | null
+          updated_at?: string | null
+        }
+        Update: {
+          address?: string | null
+          created_at?: string | null
+          email?: string | null
+          id?: string
+          is_active?: boolean | null
+          name?: string
+          phone?: string
+          repayment_behavior?: Json | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       expenses: {
         Row: {
           amount: number
@@ -131,6 +167,157 @@ export type Database = {
             columns: ["created_by"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      loan_payments: {
+        Row: {
+          amount: number
+          created_at: string | null
+          created_by: string | null
+          id: string
+          loan_id: string
+          notes: string | null
+          payment_date: string | null
+          payment_method: string | null
+        }
+        Insert: {
+          amount: number
+          created_at?: string | null
+          created_by?: string | null
+          id?: string
+          loan_id: string
+          notes?: string | null
+          payment_date?: string | null
+          payment_method?: string | null
+        }
+        Update: {
+          amount?: number
+          created_at?: string | null
+          created_by?: string | null
+          id?: string
+          loan_id?: string
+          notes?: string | null
+          payment_date?: string | null
+          payment_method?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "loan_payments_loan_id_fkey"
+            columns: ["loan_id"]
+            isOneToOne: false
+            referencedRelation: "loans"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      loan_reminders: {
+        Row: {
+          ai_personalization: Json | null
+          created_at: string | null
+          id: string
+          is_sent: boolean | null
+          loan_id: string
+          message_content: string
+          reminder_type: Database["public"]["Enums"]["reminder_type"]
+          scheduled_date: string
+          sent_date: string | null
+          whatsapp_message_id: string | null
+        }
+        Insert: {
+          ai_personalization?: Json | null
+          created_at?: string | null
+          id?: string
+          is_sent?: boolean | null
+          loan_id: string
+          message_content: string
+          reminder_type: Database["public"]["Enums"]["reminder_type"]
+          scheduled_date: string
+          sent_date?: string | null
+          whatsapp_message_id?: string | null
+        }
+        Update: {
+          ai_personalization?: Json | null
+          created_at?: string | null
+          id?: string
+          is_sent?: boolean | null
+          loan_id?: string
+          message_content?: string
+          reminder_type?: Database["public"]["Enums"]["reminder_type"]
+          scheduled_date?: string
+          sent_date?: string | null
+          whatsapp_message_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "loan_reminders_loan_id_fkey"
+            columns: ["loan_id"]
+            isOneToOne: false
+            referencedRelation: "loans"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      loans: {
+        Row: {
+          agreement_terms: string | null
+          ai_risk_assessment: Json | null
+          created_at: string | null
+          created_by: string | null
+          customer_id: string
+          due_date: string
+          id: string
+          paid_amount: number | null
+          remaining_balance: number
+          sale_id: string | null
+          status: Database["public"]["Enums"]["loan_status"] | null
+          total_amount: number
+          updated_at: string | null
+        }
+        Insert: {
+          agreement_terms?: string | null
+          ai_risk_assessment?: Json | null
+          created_at?: string | null
+          created_by?: string | null
+          customer_id: string
+          due_date: string
+          id?: string
+          paid_amount?: number | null
+          remaining_balance: number
+          sale_id?: string | null
+          status?: Database["public"]["Enums"]["loan_status"] | null
+          total_amount: number
+          updated_at?: string | null
+        }
+        Update: {
+          agreement_terms?: string | null
+          ai_risk_assessment?: Json | null
+          created_at?: string | null
+          created_by?: string | null
+          customer_id?: string
+          due_date?: string
+          id?: string
+          paid_amount?: number | null
+          remaining_balance?: number
+          sale_id?: string | null
+          status?: Database["public"]["Enums"]["loan_status"] | null
+          total_amount?: number
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "loans_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "loans_sale_id_fkey"
+            columns: ["sale_id"]
+            isOneToOne: false
+            referencedRelation: "sales"
             referencedColumns: ["id"]
           },
         ]
@@ -331,11 +518,14 @@ export type Database = {
         Row: {
           created_at: string | null
           created_by: string | null
+          customer_id: string | null
           customer_name: string | null
           customer_phone: string | null
           discount_amount: number
           id: string
+          loan_id: string | null
           payment_method: string | null
+          payment_type: Database["public"]["Enums"]["payment_type"] | null
           sale_number: string
           subtotal: number
           tax_amount: number
@@ -344,11 +534,14 @@ export type Database = {
         Insert: {
           created_at?: string | null
           created_by?: string | null
+          customer_id?: string | null
           customer_name?: string | null
           customer_phone?: string | null
           discount_amount?: number
           id?: string
+          loan_id?: string | null
           payment_method?: string | null
+          payment_type?: Database["public"]["Enums"]["payment_type"] | null
           sale_number: string
           subtotal?: number
           tax_amount?: number
@@ -357,11 +550,14 @@ export type Database = {
         Update: {
           created_at?: string | null
           created_by?: string | null
+          customer_id?: string | null
           customer_name?: string | null
           customer_phone?: string | null
           discount_amount?: number
           id?: string
+          loan_id?: string | null
           payment_method?: string | null
+          payment_type?: Database["public"]["Enums"]["payment_type"] | null
           sale_number?: string
           subtotal?: number
           tax_amount?: number
@@ -373,6 +569,20 @@ export type Database = {
             columns: ["created_by"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sales_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sales_loan_id_fkey"
+            columns: ["loan_id"]
+            isOneToOne: false
+            referencedRelation: "loans"
             referencedColumns: ["id"]
           },
         ]
@@ -491,6 +701,10 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: undefined
       }
+      generate_loan_reminders: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
       get_current_user_role: {
         Args: Record<PropertyKey, never>
         Returns: Database["public"]["Enums"]["user_role"]
@@ -525,6 +739,9 @@ export type Database = {
         | "marketing"
         | "salaries"
         | "other"
+      loan_status: "active" | "paid" | "overdue" | "defaulted"
+      payment_type: "full" | "partial" | "loan_only"
+      reminder_type: "before_due" | "on_due" | "overdue" | "escalation"
       stock_movement_type: "in" | "out" | "damage" | "return" | "adjustment"
       unit_type:
         | "kg"
@@ -672,6 +889,9 @@ export const Constants = {
         "salaries",
         "other",
       ],
+      loan_status: ["active", "paid", "overdue", "defaulted"],
+      payment_type: ["full", "partial", "loan_only"],
+      reminder_type: ["before_due", "on_due", "overdue", "escalation"],
       stock_movement_type: ["in", "out", "damage", "return", "adjustment"],
       unit_type: [
         "kg",

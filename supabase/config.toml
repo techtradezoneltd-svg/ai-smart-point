@@ -28,3 +28,6 @@ verify_jwt = false
 
 [functions.whatsapp-query-handler]
 verify_jwt = false
+
+[functions.loan-reminder-scheduler]
+verify_jwt = false
