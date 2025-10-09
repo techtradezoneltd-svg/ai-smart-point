@@ -49,6 +49,7 @@ interface Product {
   units: { name: string };
   barcode?: string;
   is_active: boolean;
+  image_url?: string | null;
 }
 
 interface Customer {
@@ -467,10 +468,19 @@ const EnhancedPOSInterface: React.FC<EnhancedPOSInterfaceProps> = ({ onNavigate 
                       <div
                         key={product.id}
                         onClick={() => addToCart(product)}
-                        className="border rounded-lg p-4 hover:shadow-md transition-all cursor-pointer bg-card hover:bg-accent"
+                        className="border rounded-lg p-3 hover:shadow-md transition-all cursor-pointer bg-card hover:bg-accent group"
                       >
+                        {product.image_url && (
+                          <div className="w-full h-24 mb-2 rounded overflow-hidden bg-muted">
+                            <img 
+                              src={product.image_url} 
+                              alt={product.name}
+                              className="w-full h-full object-cover group-hover:scale-105 transition-transform"
+                            />
+                          </div>
+                        )}
                         <h3 className="font-medium text-sm mb-1 truncate">{product.name}</h3>
-                        <p className="text-xs text-muted-foreground mb-2">SKU: {product.sku}</p>
+                        <p className="text-xs text-muted-foreground mb-2">{product.categories?.name || 'Uncategorized'}</p>
                         <div className="flex justify-between items-center">
                           <span className="font-bold text-primary">{formatCurrency(product.selling_price)}</span>
                           <Badge variant={product.current_stock > 10 ? "secondary" : "destructive"}>

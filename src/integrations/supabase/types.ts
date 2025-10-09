@@ -346,6 +346,7 @@ export type Database = {
           current_stock: number | null
           description: string | null
           id: string
+          image_url: string | null
           is_active: boolean | null
           max_stock_level: number | null
           min_stock_level: number | null
@@ -364,6 +365,7 @@ export type Database = {
           current_stock?: number | null
           description?: string | null
           id?: string
+          image_url?: string | null
           is_active?: boolean | null
           max_stock_level?: number | null
           min_stock_level?: number | null
@@ -382,6 +384,7 @@ export type Database = {
           current_stock?: number | null
           description?: string | null
           id?: string
+          image_url?: string | null
           is_active?: boolean | null
           max_stock_level?: number | null
           min_stock_level?: number | null

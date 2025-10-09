@@ -42,6 +42,7 @@ interface Product {
   unit_id: string | null;
   barcode: string | null;
   is_active: boolean;
+  image_url: string | null;
   created_at: string;
   categories?: { name: string };
   units?: { name: string; symbol: string };
@@ -95,6 +96,8 @@ const ProductManagement = () => {
     barcode: "",
     is_active: true
   });
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
 
   // Fetch data
   const fetchProducts = async () => {
@@ -157,6 +160,39 @@ const ProductManagement = () => {
     loadData();
   }, []);
 
+  // Handle image upload
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setImageFile(file);
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setImagePreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const uploadImage = async (productId: string) => {
+    if (!imageFile) return null;
+
+    const fileExt = imageFile.name.split('.').pop();
+    const fileName = `${productId}-${Date.now()}.${fileExt}`;
+    const filePath = `${fileName}`;
+
+    const { error: uploadError } = await supabase.storage
+      .from('product-images')
+      .upload(filePath, imageFile);
+
+    if (uploadError) throw uploadError;
+
+    const { data: { publicUrl } } = supabase.storage
+      .from('product-images')
+      .getPublicUrl(filePath);
+
+    return publicUrl;
+  };
+
   // Handle form submission
   const handleSubmit = async () => {
     if (!formData.name || !formData.cost_price || !formData.selling_price) {
@@ -183,6 +219,8 @@ const ProductManagement = () => {
         return;
       }
 
+      let imageUrl = selectedProduct?.image_url || null;
+      
       const productData = {
         name: formData.name,
         sku: formData.sku || null,
@@ -196,12 +234,19 @@ const ProductManagement = () => {
         unit_id: formData.unit_id || null,
         barcode: formData.barcode || null,
         is_active: formData.is_active,
-        created_by: user.id
+        created_by: user.id,
+        image_url: imageUrl
       };
 
       let error;
+      let productId = selectedProduct?.id;
+
       if (selectedProduct) {
         // Update existing product
+        if (imageFile) {
+          imageUrl = await uploadImage(selectedProduct.id);
+          productData.image_url = imageUrl;
+        }
         const { error: updateError } = await supabase
           .from('products')
           .update(productData)
@@ -209,10 +254,22 @@ const ProductManagement = () => {
         error = updateError;
       } else {
         // Create new product
-        const { error: insertError } = await supabase
+        const { data: newProduct, error: insertError } = await supabase
           .from('products')
-          .insert([productData]);
+          .insert([productData])
+          .select()
+          .single();
         error = insertError;
+        productId = newProduct?.id;
+        
+        // Upload image after product creation
+        if (!error && productId && imageFile) {
+          imageUrl = await uploadImage(productId);
+          await supabase
+            .from('products')
+            .update({ image_url: imageUrl })
+            .eq('id', productId);
+        }
       }
 
       if (error) throw error;
@@ -287,6 +344,8 @@ const ProductManagement = () => {
       is_active: true
     });
     setSelectedProduct(null);
+    setImageFile(null);
+    setImagePreview(null);
   };
 
   // Open edit dialog
@@ -306,6 +365,8 @@ const ProductManagement = () => {
       barcode: product.barcode || "",
       is_active: product.is_active
     });
+    setImagePreview(product.image_url);
+    setImageFile(null);
     setIsDialogOpen(true);
   };
 
@@ -762,6 +823,26 @@ const ProductManagement = () => {
                   ))}
                 </SelectContent>
               </Select>
+            </div>
+
+            <div className="md:col-span-2 space-y-2">
+              <Label htmlFor="product-image">Product Image</Label>
+              <div className="flex items-center gap-4">
+                <Input
+                  id="product-image"
+                  type="file"
+                  accept="image/*"
+                  onChange={handleImageChange}
+                  className="flex-1"
+                />
+                {imagePreview && (
+                  <img 
+                    src={imagePreview} 
+                    alt="Product preview" 
+                    className="w-20 h-20 object-cover rounded border"
+                  />
+                )}
+              </div>
             </div>
 
             <div className="md:col-span-2 space-y-2">
