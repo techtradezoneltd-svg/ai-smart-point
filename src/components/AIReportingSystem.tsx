@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
+import { useCurrency } from "@/hooks/useCurrency";
 import { supabase } from "@/integrations/supabase/client";
 import { 
   Bot, 
@@ -47,6 +48,7 @@ interface ShopActivity {
 
 const AIReportingSystem = () => {
   const { toast } = useToast();
+  const { formatCurrency } = useCurrency();
   const [settings, setSettings] = useState<WhatsAppSettings>({
     ownerPhone: '',
     businessHours: { open: '09:00', close: '18:00' },
@@ -224,7 +226,7 @@ const AIReportingSystem = () => {
   const handleNewSale = async (sale: any) => {
     // Check for unusual activity
     if (Number(sale.total_amount) > 1000) {
-      sendAlert('Large Sale Alert', `High-value transaction: $${sale.total_amount} - Sale #${sale.sale_number}`);
+      sendAlert('Large Sale Alert', `High-value transaction: ${formatCurrency(sale.total_amount)} - Sale #${sale.sale_number}`);
     }
     
     loadDailyReport();
@@ -234,7 +236,7 @@ const AIReportingSystem = () => {
   const handleNewExpense = async (expense: any) => {
     // Check for unusual expenses
     if (Number(expense.amount) > 500) {
-      sendAlert('Large Expense Alert', `High expense recorded: $${expense.amount} - ${expense.title}`);
+      sendAlert('Large Expense Alert', `High expense recorded: ${formatCurrency(expense.amount)} - ${expense.title}`);
     }
     
     loadDailyReport();
@@ -477,12 +479,12 @@ const AIReportingSystem = () => {
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                   <div className="text-center p-3 border border-border rounded-lg">
                     <DollarSign className="w-6 h-6 text-success mx-auto mb-2" />
-                    <div className="text-2xl font-bold">${dailyReport.totalSales}</div>
+                    <div className="text-2xl font-bold">{formatCurrency(dailyReport.totalSales)}</div>
                     <div className="text-sm text-muted-foreground">Total Sales</div>
                   </div>
                   <div className="text-center p-3 border border-border rounded-lg">
                     <TrendingUp className="w-6 h-6 text-primary mx-auto mb-2" />
-                    <div className="text-2xl font-bold">${dailyReport.netProfit}</div>
+                    <div className="text-2xl font-bold">{formatCurrency(dailyReport.netProfit)}</div>
                     <div className="text-sm text-muted-foreground">Net Profit</div>
                   </div>
                   <div className="text-center p-3 border border-border rounded-lg">
@@ -523,8 +525,8 @@ const AIReportingSystem = () => {
                     </div>
                     <div className="flex-1">
                       <div className="font-medium">
-                        {activity.type === 'sale' && `Sale: $${activity.data.total_amount}`}
-                        {activity.type === 'expense' && `Expense: $${activity.data.amount}`}
+                        {activity.type === 'sale' && `Sale: ${formatCurrency(activity.data.total_amount)}`}
+                        {activity.type === 'expense' && `Expense: ${formatCurrency(activity.data.amount)}`}
                         {activity.type === 'stock_low' && `Low Stock Alert`}
                       </div>
                       <div className="text-sm text-muted-foreground">

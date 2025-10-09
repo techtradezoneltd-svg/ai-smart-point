@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
+import { useCurrency } from "@/hooks/useCurrency";
 import { supabase } from "@/integrations/supabase/client";
 import { 
   Search, 
@@ -49,12 +50,13 @@ interface SaleRecord {
 }
 
 const SalesHistory = () => {
+  const { toast } = useToast();
+  const { formatCurrency } = useCurrency();
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedDate, setSelectedDate] = useState("today");
   const [selectedPayment, setSelectedPayment] = useState("all");
   const [salesRecords, setSalesRecords] = useState<SaleRecord[]>([]);
   const [loading, setLoading] = useState(true);
-  const { toast } = useToast();
 
   const fetchSales = async () => {
     try {
@@ -218,7 +220,7 @@ const SalesHistory = () => {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-muted-foreground">Total Revenue</p>
-                <p className="text-2xl font-bold text-primary">${totalSales.toFixed(2)}</p>
+                <p className="text-2xl font-bold text-primary">{formatCurrency(totalSales)}</p>
               </div>
               <div className="p-3 bg-primary/10 rounded-lg">
                 <DollarSign className="w-6 h-6 text-primary" />
@@ -232,7 +234,7 @@ const SalesHistory = () => {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-muted-foreground">Avg Transaction</p>
-                <p className="text-2xl font-bold text-accent">${(totalSales / todaysSales).toFixed(2)}</p>
+                <p className="text-2xl font-bold text-accent">{formatCurrency(totalSales / todaysSales)}</p>
               </div>
               <div className="p-3 bg-accent/10 rounded-lg">
                 <CreditCard className="w-6 h-6 text-accent" />
@@ -347,7 +349,7 @@ const SalesHistory = () => {
                     </div>
                     
                     <div className="text-right">
-                      <p className="text-2xl font-bold">${record.total_amount.toFixed(2)}</p>
+                      <p className="text-2xl font-bold">{formatCurrency(record.total_amount)}</p>
                       <div className="flex items-center gap-1 justify-end mt-1">
                         {getPaymentIcon(record.payment_method)}
                         <span className="text-sm text-muted-foreground capitalize">{record.payment_method}</span>
@@ -382,7 +384,7 @@ const SalesHistory = () => {
                     <div className="flex flex-wrap gap-2 mb-3">
                       {record.sale_items?.map((item, index) => (
                         <Badge key={index} variant="secondary" className="text-xs">
-                          {item.quantity}x {item.products?.name || 'Unknown Item'} - ${item.total_price.toFixed(2)}
+                          {item.quantity}x {item.products?.name || 'Unknown Item'} - {formatCurrency(item.total_price)}
                         </Badge>
                       )) || (
                         <Badge variant="secondary" className="text-xs">No items found</Badge>
@@ -391,9 +393,9 @@ const SalesHistory = () => {
                     
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                        <span>Subtotal: ${record.subtotal.toFixed(2)}</span>
-                        {record.discount_amount > 0 && <span>Discount: -${record.discount_amount.toFixed(2)}</span>}
-                        <span>Tax: ${record.tax_amount.toFixed(2)}</span>
+                        <span>Subtotal: {formatCurrency(record.subtotal)}</span>
+                        {record.discount_amount > 0 && <span>Discount: -{formatCurrency(record.discount_amount)}</span>}
+                        <span>Tax: {formatCurrency(record.tax_amount)}</span>
                       </div>
                       
                       <div className="flex items-center gap-2">

@@ -11,6 +11,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { useCurrency } from "@/hooks/useCurrency";
 import { format } from "date-fns";
 import { 
   Receipt, 
@@ -36,6 +37,7 @@ interface Expense {
 }
 
 const ExpenseManagement = () => {
+  const { formatCurrency } = useCurrency();
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date>();
@@ -271,7 +273,7 @@ const ExpenseManagement = () => {
             <DollarSign className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">${getTotalExpenses().toFixed(2)}</div>
+            <div className="text-2xl font-bold">{formatCurrency(getTotalExpenses())}</div>
             <p className="text-xs text-muted-foreground">
               {format(new Date(parseInt(filterYear), parseInt(filterMonth)), 'MMMM yyyy')}
             </p>
@@ -298,7 +300,7 @@ const ExpenseManagement = () => {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              ${(getTotalExpenses() / new Date(parseInt(filterYear), parseInt(filterMonth) + 1, 0).getDate()).toFixed(2)}
+              {formatCurrency(getTotalExpenses() / new Date(parseInt(filterYear), parseInt(filterMonth) + 1, 0).getDate())}
             </div>
             <p className="text-xs text-muted-foreground">
               Daily average
@@ -370,7 +372,7 @@ const ExpenseManagement = () => {
                     <div className={`w-3 h-3 rounded-full ${cat.color}`}></div>
                     <span className="text-sm font-medium">{cat.label}</span>
                   </div>
-                  <div className="text-lg font-bold">${total.toFixed(2)}</div>
+                  <div className="text-lg font-bold">{formatCurrency(total)}</div>
                   <div className="text-xs text-muted-foreground">{percentage.toFixed(1)}%</div>
                 </div>
               );
@@ -412,7 +414,7 @@ const ExpenseManagement = () => {
                     </div>
                   </div>
                   <div className="text-right">
-                    <div className="text-lg font-bold">${expense.amount.toFixed(2)}</div>
+                    <div className="text-lg font-bold">{formatCurrency(expense.amount)}</div>
                   </div>
                 </div>
               );
