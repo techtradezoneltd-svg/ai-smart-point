@@ -38,6 +38,15 @@ interface Customer {
   is_active: boolean;
 }
 
+interface LoanPayment {
+  id: string;
+  amount: number;
+  payment_date: string;
+  payment_method: string;
+  notes: string | null;
+  created_at: string;
+}
+
 interface Loan {
   id: string;
   customer_id: string;
@@ -48,6 +57,7 @@ interface Loan {
   status: 'active' | 'paid' | 'overdue' | 'defaulted';
   ai_risk_assessment: any;
   customers: Customer;
+  loan_payments?: LoanPayment[];
 }
 
 const LoanManagement: React.FC = () => {
@@ -58,6 +68,7 @@ const LoanManagement: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [showAddCustomer, setShowAddCustomer] = useState(false);
   const [showPaymentDialog, setShowPaymentDialog] = useState(false);
+  const [showHistoryDialog, setShowHistoryDialog] = useState(false);
   const [selectedLoan, setSelectedLoan] = useState<Loan | null>(null);
   const [newCustomer, setNewCustomer] = useState({
     name: '',
@@ -79,7 +90,15 @@ const LoanManagement: React.FC = () => {
           .from('loans')
           .select(`
             *,
-            customers (*)
+            customers (*),
+            loan_payments (
+              id,
+              amount,
+              payment_date,
+              payment_method,
+              notes,
+              created_at
+            )
           `)
           .order('created_at', { ascending: false }),
         supabase
@@ -449,9 +468,16 @@ const LoanManagement: React.FC = () => {
                           Payment
                         </Button>
                       )}
-                      <Button variant="outline" size="sm">
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={() => {
+                          setSelectedLoan(loan);
+                          setShowHistoryDialog(true);
+                        }}
+                      >
                         <Eye className="w-4 h-4 mr-1" />
-                        View
+                        History
                       </Button>
                     </div>
                   </div>
@@ -504,6 +530,102 @@ const LoanManagement: React.FC = () => {
                 </Button>
                 <Button onClick={recordPayment} className="flex-1">
                   Record Payment
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Payment History Dialog */}
+      <Dialog open={showHistoryDialog} onOpenChange={setShowHistoryDialog}>
+        <DialogContent className="max-w-3xl">
+          <DialogHeader>
+            <DialogTitle>Payment History</DialogTitle>
+          </DialogHeader>
+          {selectedLoan && (
+            <div className="space-y-4">
+              <div className="bg-gray-50/50 p-4 rounded-lg">
+                <h3 className="font-semibold text-lg">{selectedLoan.customers.name}</h3>
+                <div className="grid grid-cols-3 gap-4 mt-2 text-sm">
+                  <div>
+                    <p className="text-muted-foreground">Total Loan</p>
+                    <p className="font-medium">{formatCurrency(selectedLoan.total_amount)}</p>
+                  </div>
+                  <div>
+                    <p className="text-muted-foreground">Total Paid</p>
+                    <p className="font-medium text-green-600">{formatCurrency(selectedLoan.paid_amount)}</p>
+                  </div>
+                  <div>
+                    <p className="text-muted-foreground">Remaining</p>
+                    <p className="font-medium text-red-600">{formatCurrency(selectedLoan.remaining_balance)}</p>
+                  </div>
+                </div>
+              </div>
+
+              <Separator />
+
+              <div className="space-y-3 max-h-96 overflow-y-auto">
+                <h4 className="font-semibold">Payment History</h4>
+                {selectedLoan.loan_payments && selectedLoan.loan_payments.length > 0 ? (
+                  selectedLoan.loan_payments
+                    .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+                    .map((payment, index) => {
+                      // Calculate remaining balance after this payment
+                      const paymentsAfter = selectedLoan.loan_payments!
+                        .filter(p => new Date(p.created_at) <= new Date(payment.created_at))
+                        .reduce((sum, p) => sum + p.amount, 0);
+                      const remainingAfterPayment = selectedLoan.total_amount - paymentsAfter;
+
+                      return (
+                        <div key={payment.id} className="border rounded-lg p-4 hover:bg-gray-50/50 transition-colors">
+                          <div className="flex items-start justify-between">
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2 mb-2">
+                                <Badge variant="outline" className="bg-green-500/10 text-green-700 border-green-200">
+                                  Payment #{selectedLoan.loan_payments!.length - index}
+                                </Badge>
+                                <Badge variant="outline">{payment.payment_method}</Badge>
+                              </div>
+                              
+                              <div className="grid grid-cols-2 gap-4 text-sm">
+                                <div>
+                                  <p className="text-muted-foreground">Date & Time</p>
+                                  <p className="font-medium">
+                                    {new Date(payment.payment_date).toLocaleDateString()} {new Date(payment.payment_date).toLocaleTimeString()}
+                                  </p>
+                                </div>
+                                <div>
+                                  <p className="text-muted-foreground">Amount Paid</p>
+                                  <p className="font-medium text-green-600">{formatCurrency(payment.amount)}</p>
+                                </div>
+                                <div>
+                                  <p className="text-muted-foreground">Remaining After</p>
+                                  <p className="font-medium text-red-600">{formatCurrency(remainingAfterPayment)}</p>
+                                </div>
+                                {payment.notes && (
+                                  <div className="col-span-2">
+                                    <p className="text-muted-foreground">Notes</p>
+                                    <p className="font-medium text-sm">{payment.notes}</p>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })
+                ) : (
+                  <div className="text-center py-8 text-muted-foreground">
+                    <Clock className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                    <p>No payment history yet</p>
+                  </div>
+                )}
+              </div>
+
+              <div className="flex justify-end">
+                <Button variant="outline" onClick={() => setShowHistoryDialog(false)}>
+                  Close
                 </Button>
               </div>
             </div>
