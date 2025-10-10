@@ -33,7 +33,7 @@ interface SaleRecord {
   payment_method: string;
   created_at: string;
   created_by: string | null;
-  status?: "completed" | "refunded" | "cancelled";
+  status: string | null;
   sale_items?: Array<{
     id: string;
     product_id: string;
@@ -175,6 +175,7 @@ const SalesHistory = () => {
 
   const totalSales = filteredSales.reduce((sum, record) => sum + record.total_amount, 0);
   const todaysSales = filteredSales.length;
+  const avgTransaction = todaysSales > 0 ? totalSales / todaysSales : 0;
   const refundCount = filteredSales.filter(record => record.status === 'refunded').length;
 
   return (
@@ -234,7 +235,7 @@ const SalesHistory = () => {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-muted-foreground">Avg Transaction</p>
-                <p className="text-2xl font-bold text-accent">{formatCurrency(totalSales / todaysSales)}</p>
+                <p className="text-2xl font-bold text-accent">{formatCurrency(avgTransaction)}</p>
               </div>
               <div className="p-3 bg-accent/10 rounded-lg">
                 <CreditCard className="w-6 h-6 text-accent" />
