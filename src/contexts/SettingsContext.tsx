@@ -36,6 +36,7 @@ export interface ReceiptSettings {
   primaryLogoSize: number;
   secondaryLogoSize: number;
   logoPosition: string;
+  secondaryLogoPosition: string;
   receiptWidth: number;
   fontSize: number;
   fontFamily: string;
@@ -164,6 +165,7 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
             primaryLogoSize: 100,
             secondaryLogoSize: 60,
             logoPosition: 'center',
+            secondaryLogoPosition: 'bottom-center',
             receiptWidth: 80,
             fontSize: 12,
             fontFamily: 'monospace',

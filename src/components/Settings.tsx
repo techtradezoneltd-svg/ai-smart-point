@@ -681,6 +681,28 @@ const Settings = () => {
                         className="w-full"
                       />
                     </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="secondary-logo-position">Position on Receipt</Label>
+                      <Select
+                        value={receiptForm.secondaryLogoPosition || 'bottom-center'}
+                        onValueChange={(value) => setReceiptForm(prev => prev ? { ...prev, secondaryLogoPosition: value } : null)}
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="top-left">Top Left</SelectItem>
+                          <SelectItem value="top-center">Top Center</SelectItem>
+                          <SelectItem value="top-right">Top Right</SelectItem>
+                          <SelectItem value="bottom-left">Bottom Left</SelectItem>
+                          <SelectItem value="bottom-center">Bottom Center</SelectItem>
+                          <SelectItem value="bottom-right">Bottom Right</SelectItem>
+                          <SelectItem value="header">With Header</SelectItem>
+                          <SelectItem value="footer">With Footer</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
                   </div>
                 </div>
               </div>

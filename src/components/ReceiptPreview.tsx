@@ -141,7 +141,7 @@ const ReceiptPreview: React.FC<ReceiptPreviewProps> = ({
   const receiptContent = (
     <div 
       id="receipt-content" 
-      className="space-y-4 p-6 rounded-lg border max-w-sm mx-auto"
+      className="space-y-4 p-6 rounded-lg border max-w-sm mx-auto relative"
       style={{
         backgroundColor: receiptSettings.backgroundColor,
         color: receiptSettings.textColor,
@@ -150,6 +150,25 @@ const ReceiptPreview: React.FC<ReceiptPreviewProps> = ({
         width: previewMode ? '100%' : undefined
       }}
     >
+      {/* Secondary Logo - Positioned */}
+      {receiptSettings.secondaryLogo && receiptSettings.secondaryLogoPosition && 
+       !['header', 'footer'].includes(receiptSettings.secondaryLogoPosition) && (
+        <img 
+          src={receiptSettings.secondaryLogo} 
+          alt="Secondary Logo" 
+          className="absolute"
+          style={{ 
+            width: `${receiptSettings.secondaryLogoSize || 60}px`,
+            ...(receiptSettings.secondaryLogoPosition === 'top-left' && { top: '10px', left: '10px' }),
+            ...(receiptSettings.secondaryLogoPosition === 'top-center' && { top: '10px', left: '50%', transform: 'translateX(-50%)' }),
+            ...(receiptSettings.secondaryLogoPosition === 'top-right' && { top: '10px', right: '10px' }),
+            ...(receiptSettings.secondaryLogoPosition === 'bottom-left' && { bottom: '10px', left: '10px' }),
+            ...(receiptSettings.secondaryLogoPosition === 'bottom-center' && { bottom: '10px', left: '50%', transform: 'translateX(-50%)' }),
+            ...(receiptSettings.secondaryLogoPosition === 'bottom-right' && { bottom: '10px', right: '10px' })
+          }}
+        />
+      )}
+
       {/* Store Header */}
       <div className="text-center space-y-2">
         {receiptSettings.showLogo && receiptSettings.primaryLogo && (
@@ -166,6 +185,18 @@ const ReceiptPreview: React.FC<ReceiptPreviewProps> = ({
             <span className="text-white font-bold text-xl">POS</span>
           </div>
         )}
+        
+        {/* Secondary logo in header position */}
+        {receiptSettings.secondaryLogo && receiptSettings.secondaryLogoPosition === 'header' && (
+          <div className="flex justify-center mb-2">
+            <img 
+              src={receiptSettings.secondaryLogo} 
+              alt="Secondary Logo" 
+              style={{ width: `${receiptSettings.secondaryLogoSize || 60}px` }}
+            />
+          </div>
+        )}
+        
         <h1 className="text-xl font-bold" style={{ color: receiptSettings.headerColor }}>
           {receiptSettings.header || companyInfo.name}
         </h1>
@@ -271,6 +302,17 @@ const ReceiptPreview: React.FC<ReceiptPreviewProps> = ({
 
       {/* Footer */}
       <div className="text-center space-y-2 text-xs" style={{ opacity: 0.8 }}>
+        {/* Secondary logo in footer position */}
+        {receiptSettings.secondaryLogo && receiptSettings.secondaryLogoPosition === 'footer' && (
+          <div className="flex justify-center mb-2">
+            <img 
+              src={receiptSettings.secondaryLogo} 
+              alt="Secondary Logo" 
+              style={{ width: `${receiptSettings.secondaryLogoSize || 60}px` }}
+            />
+          </div>
+        )}
+        
         <p className="font-semibold">{receiptSettings.footer}</p>
         {receiptSettings.customFooterText && (
           <div className="whitespace-pre-line">
