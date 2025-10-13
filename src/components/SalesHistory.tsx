@@ -189,6 +189,10 @@ const SalesHistory = () => {
           <p className="text-muted-foreground">Complete transaction records and sales analytics</p>
         </div>
         <div className="flex items-center gap-3">
+          <Button variant="outline" onClick={fetchSales}>
+            <RefreshCw className="w-4 h-4 mr-2" />
+            Refresh
+          </Button>
           <Button variant="outline">
             <Download className="w-4 h-4 mr-2" />
             Export
