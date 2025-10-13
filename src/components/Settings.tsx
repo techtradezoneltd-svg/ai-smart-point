@@ -524,15 +524,41 @@ const Settings = () => {
                 </div>
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="currency-symbol">Currency Symbol</Label>
-                <Input
-                  id="currency-symbol"
-                  value={receiptForm.currencySymbol}
-                  onChange={(e) => setReceiptForm(prev => prev ? { ...prev, currencySymbol: e.target.value } : null)}
-                  className="w-32"
-                  maxLength={3}
-                />
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="currency-symbol">Currency Symbol</Label>
+                  <Input
+                    id="currency-symbol"
+                    value={receiptForm.currencySymbol}
+                    onChange={(e) => setReceiptForm(prev => prev ? { ...prev, currencySymbol: e.target.value } : null)}
+                    className="w-32"
+                    maxLength={3}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="receipt-font-size">Receipt Font Size (px)</Label>
+                  <div className="flex items-center gap-4">
+                    <Input
+                      id="receipt-font-size"
+                      type="number"
+                      min="8"
+                      max="20"
+                      value={receiptForm.fontSize || 12}
+                      onChange={(e) => setReceiptForm(prev => prev ? { ...prev, fontSize: parseInt(e.target.value) || 12 } : null)}
+                      className="w-24"
+                    />
+                    <input
+                      type="range"
+                      min="8"
+                      max="20"
+                      value={receiptForm.fontSize || 12}
+                      onChange={(e) => setReceiptForm(prev => prev ? { ...prev, fontSize: parseInt(e.target.value) } : null)}
+                      className="flex-1"
+                    />
+                    <span className="text-sm text-muted-foreground w-12">{receiptForm.fontSize || 12}px</span>
+                  </div>
+                </div>
               </div>
 
               {/* Logo Upload Section */}
