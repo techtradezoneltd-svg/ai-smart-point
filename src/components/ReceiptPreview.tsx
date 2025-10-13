@@ -1,9 +1,10 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Separator } from "@/components/ui/separator";
 import { useCurrency } from "@/hooks/useCurrency";
+import { useSettings } from "@/contexts/SettingsContext";
 import { 
   Receipt, 
   Printer, 
@@ -51,12 +52,55 @@ const ReceiptPreview: React.FC<ReceiptPreviewProps> = ({
   onConfirmSale,
   processing,
   previewMode = false,
-  settings
+  settings: propsSettings
 }) => {
   const { formatCurrency } = useCurrency();
+  const { settings: contextSettings } = useSettings();
+  const [receiptSettings, setReceiptSettings] = useState<any>(null);
   const saleNumber = `SALE-${Date.now()}`;
   const currentDate = new Date().toLocaleDateString();
   const currentTime = new Date().toLocaleTimeString();
+
+  // Use settings from props if provided, otherwise from context
+  useEffect(() => {
+    if (propsSettings) {
+      setReceiptSettings(propsSettings);
+    } else if (contextSettings?.receipt) {
+      setReceiptSettings(contextSettings.receipt);
+    } else {
+      // Fallback defaults
+      setReceiptSettings({
+        header: "Smart POS System",
+        showLogo: true,
+        primaryLogo: null,
+        logoPosition: "center",
+        fontSize: 12,
+        fontFamily: "Courier New",
+        showDateTime: true,
+        showOrderNumber: true,
+        showCashierName: true,
+        showItemCodes: true,
+        showTaxBreakdown: true,
+        footer: "Thank you for your business!",
+        customFooterText: "Please keep this receipt for your records\nReturn policy: 30 days with receipt",
+        backgroundColor: "#ffffff",
+        textColor: "#000000",
+        headerColor: "#000000",
+        borderColor: "#cccccc"
+      });
+    }
+  }, [propsSettings, contextSettings]);
+
+  if (!receiptSettings) {
+    return null;
+  }
+
+  const companyInfo = contextSettings?.company || {
+    name: "Smart POS System",
+    address: "123 Business Street, City, State 12345",
+    phone: "(555) 123-4567",
+    email: "info@smartpos.com"
+  };
 
   const handlePrint = () => {
     const printContent = document.getElementById('receipt-content');
@@ -94,27 +138,6 @@ const ReceiptPreview: React.FC<ReceiptPreviewProps> = ({
     }
   };
 
-  // Use settings if provided, otherwise use defaults
-  const receiptSettings = settings || {
-    header: "Smart POS System",
-    showLogo: true,
-    primaryLogo: null,
-    logoPosition: "center",
-    fontSize: 12,
-    fontFamily: "Courier New",
-    showDateTime: true,
-    showOrderNumber: true,
-    showCashierName: true,
-    showItemCodes: true,
-    showTaxBreakdown: true,
-    footer: "Thank you for your business!",
-    customFooterText: "Please keep this receipt for your records\nReturn policy: 30 days with receipt",
-    backgroundColor: "#ffffff",
-    textColor: "#000000",
-    headerColor: "#000000",
-    borderColor: "#cccccc"
-  };
-
   const receiptContent = (
     <div 
       id="receipt-content" 
@@ -144,20 +167,20 @@ const ReceiptPreview: React.FC<ReceiptPreviewProps> = ({
           </div>
         )}
         <h1 className="text-xl font-bold" style={{ color: receiptSettings.headerColor }}>
-          {receiptSettings.header}
+          {receiptSettings.header || companyInfo.name}
         </h1>
         <div className="text-sm space-y-1" style={{ opacity: 0.8 }}>
           <div className="flex items-center justify-center gap-1">
             <MapPin className="w-3 h-3" />
-            <span>123 Business Street, City, State 12345</span>
+            <span>{companyInfo.address}</span>
           </div>
           <div className="flex items-center justify-center gap-1">
             <Phone className="w-3 h-3" />
-            <span>(555) 123-4567</span>
+            <span>{companyInfo.phone}</span>
           </div>
           <div className="flex items-center justify-center gap-1">
             <Mail className="w-3 h-3" />
-            <span>info@smartpos.com</span>
+            <span>{companyInfo.email}</span>
           </div>
         </div>
       </div>
@@ -231,10 +254,12 @@ const ReceiptPreview: React.FC<ReceiptPreviewProps> = ({
               <span>Subtotal:</span>
               <span>{formatCurrency(subtotal)}</span>
             </div>
-            <div className="flex justify-between">
-              <span>Tax (8%):</span>
-              <span>{formatCurrency(tax)}</span>
-            </div>
+            {receiptSettings.showTaxBreakdown && (
+              <div className="flex justify-between">
+                <span>Tax (8%):</span>
+                <span>{formatCurrency(tax)}</span>
+              </div>
+            )}
             <Separator />
             <div className="flex justify-between font-bold text-lg">
               <span>TOTAL:</span>
