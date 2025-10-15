@@ -10,7 +10,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
-import { useSettings, CompanySettings, SystemSettings, ReceiptSettings } from '@/contexts/SettingsContext';
+import { useSettings, CompanySettings, SystemSettings, ReceiptSettings, IntegrationSettings } from '@/contexts/SettingsContext';
 import ReceiptPreview from '@/components/ReceiptPreview';
 import {
   Building2,
@@ -26,7 +26,8 @@ import {
   ImageIcon,
   Trash2,
   Eye,
-  Loader2
+  Loader2,
+  MessageSquare
 } from 'lucide-react';
 
 const Settings = () => {
@@ -37,7 +38,8 @@ const Settings = () => {
     updateSystemSettings, 
     updateReceiptSettings, 
     updateNotificationSettings, 
-    updateAppearanceSettings 
+    updateAppearanceSettings,
+    updateIntegrationSettings
   } = useSettings();
 
   const [isUpdating, setIsUpdating] = useState(false);
@@ -48,6 +50,7 @@ const Settings = () => {
   const [receiptForm, setReceiptForm] = useState<ReceiptSettings | null>(null);
   const [notificationForm, setNotificationForm] = useState<any>(null);
   const [appearanceForm, setAppearanceForm] = useState<any>(null);
+  const [integrationForm, setIntegrationForm] = useState<IntegrationSettings | null>(null);
 
   // Initialize form state when settings load
   React.useEffect(() => {
@@ -57,6 +60,7 @@ const Settings = () => {
       setReceiptForm(settings.receipt);
       setNotificationForm(settings.notifications);
       setAppearanceForm(settings.appearance);
+      setIntegrationForm(settings.integrations);
     }
   }, [settings]);
 
@@ -95,6 +99,16 @@ const Settings = () => {
     setIsUpdating(true);
     try {
       await updateNotificationSettings(notificationForm);
+    } finally {
+      setIsUpdating(false);
+    }
+  };
+
+  const handleSaveIntegrations = async () => {
+    if (!integrationForm) return;
+    setIsUpdating(true);
+    try {
+      await updateIntegrationSettings(integrationForm);
     } finally {
       setIsUpdating(false);
     }
@@ -202,7 +216,7 @@ const Settings = () => {
     );
   }
 
-  if (!settings || !companyForm || !systemForm || !receiptForm || !notificationForm || !appearanceForm) {
+  if (!settings || !companyForm || !systemForm || !receiptForm || !notificationForm || !appearanceForm || !integrationForm) {
     return (
       <div className="h-full flex items-center justify-center">
         <div className="text-center">
@@ -225,7 +239,7 @@ const Settings = () => {
       </div>
 
       <Tabs defaultValue="company" className="space-y-8 border border-border rounded-lg p-6 bg-card">
-        <TabsList className="grid w-full grid-cols-2 lg:grid-cols-5 h-auto border border-border bg-muted/50 p-2 rounded-lg">
+        <TabsList className="grid w-full grid-cols-2 lg:grid-cols-6 h-auto border border-border bg-muted/50 p-2 rounded-lg">
           <TabsTrigger value="company" className="flex items-center gap-2 py-3 px-4 font-medium border border-transparent data-[state=active]:border-primary data-[state=active]:bg-background">
             <Building2 className="h-4 w-4" />
             <span className="hidden sm:inline">Company</span>
@@ -241,6 +255,10 @@ const Settings = () => {
           <TabsTrigger value="notifications" className="flex items-center gap-2 py-3 px-4 font-medium border border-transparent data-[state=active]:border-primary data-[state=active]:bg-background">
             <Bell className="h-4 w-4" />
             <span className="hidden sm:inline">Alerts</span>
+          </TabsTrigger>
+          <TabsTrigger value="integrations" className="flex items-center gap-2 py-3 px-4 font-medium border border-transparent data-[state=active]:border-primary data-[state=active]:bg-background">
+            <MessageSquare className="h-4 w-4" />
+            <span className="hidden sm:inline">Integrations</span>
           </TabsTrigger>
           <TabsTrigger value="appearance" className="flex items-center gap-2 py-3 px-4 font-medium border border-transparent data-[state=active]:border-primary data-[state=active]:bg-background">
             <Palette className="h-4 w-4" />
@@ -1050,6 +1068,87 @@ const Settings = () => {
                  size="lg"
                >
                   <RotateCcw className="h-4 w-4 mr-2" />
+                  Reset to Default
+               </Button>
+            </div>
+          </div>
+        </TabsContent>
+
+        {/* Integrations Tab */}
+        <TabsContent value="integrations" className="space-y-6">
+          <div className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <MessageSquare className="h-5 w-5" />
+                  WhatsApp Integration
+                </CardTitle>
+                <CardDescription>
+                  Configure WhatsApp Business API for sending notifications and reminders
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="whatsappApiToken">WhatsApp API Token</Label>
+                  <Input
+                    id="whatsappApiToken"
+                    type="password"
+                    placeholder="Enter your WhatsApp API token"
+                    value={integrationForm.whatsappApiToken}
+                    onChange={(e) => setIntegrationForm(prev => prev ? { ...prev, whatsappApiToken: e.target.value } : null)}
+                  />
+                  <p className="text-sm text-muted-foreground">
+                    Get your API token from WhatsApp Business API, Twilio, or other WhatsApp providers
+                  </p>
+                </div>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="whatsappPhoneNumberId">Phone Number ID (Optional)</Label>
+                  <Input
+                    id="whatsappPhoneNumberId"
+                    type="text"
+                    placeholder="Enter your WhatsApp phone number ID"
+                    value={integrationForm.whatsappPhoneNumberId}
+                    onChange={(e) => setIntegrationForm(prev => prev ? { ...prev, whatsappPhoneNumberId: e.target.value } : null)}
+                  />
+                  <p className="text-sm text-muted-foreground">
+                    Required for WhatsApp Cloud API integrations
+                  </p>
+                </div>
+
+                <div className="rounded-lg border border-border bg-muted/50 p-4 space-y-2">
+                  <p className="text-sm font-medium">How to get your credentials:</p>
+                  <ul className="text-sm text-muted-foreground space-y-1 list-disc list-inside">
+                    <li>Sign up at <a href="https://www.twilio.com" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">Twilio</a> or WhatsApp Cloud API</li>
+                    <li>Create a WhatsApp Business account</li>
+                    <li>Generate an API token from your dashboard</li>
+                    <li>Save the token here to enable WhatsApp features</li>
+                  </ul>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Action Buttons */}
+            <div className="flex gap-3">
+              <Button onClick={handleSaveIntegrations} disabled={isUpdating} size="lg">
+                {isUpdating ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
+                Save Integration Settings
+              </Button>
+            </div>
+          </div>
+        </TabsContent>
+
+        {/* Keep the original appearance tab closing */}
+        <TabsContent value="_placeholder_for_appearance_closing" className="hidden">
+          <div className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>Placeholder</CardTitle>
+              </CardHeader>
+            </Card>
+            {/* Dummy content to maintain structure */}
+            <div className="flex gap-3">
+              <Button size="lg">
                   Reset to Default
                 </Button>
               </div>

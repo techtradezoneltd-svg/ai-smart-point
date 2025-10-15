@@ -79,12 +79,18 @@ export interface AppearanceSettings {
   showAnimations: boolean;
 }
 
+export interface IntegrationSettings {
+  whatsappApiToken: string;
+  whatsappPhoneNumberId: string;
+}
+
 export interface AllSettings {
   company: CompanySettings;
   system: SystemSettings;
   receipt: ReceiptSettings;
   notifications: NotificationSettings;
   appearance: AppearanceSettings;
+  integrations: IntegrationSettings;
 }
 
 interface SettingsContextType {
@@ -95,6 +101,7 @@ interface SettingsContextType {
   updateReceiptSettings: (settings: ReceiptSettings) => Promise<void>;
   updateNotificationSettings: (settings: NotificationSettings) => Promise<void>;
   updateAppearanceSettings: (settings: AppearanceSettings) => Promise<void>;
+  updateIntegrationSettings: (settings: IntegrationSettings) => Promise<void>;
   refreshSettings: () => Promise<void>;
 }
 
@@ -204,6 +211,10 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
             primaryColor: 'default',
             compactMode: false,
             showAnimations: true
+          },
+          integrations: settingsMap.integrations || {
+            whatsappApiToken: '',
+            whatsappPhoneNumberId: ''
           }
         });
       }
@@ -271,6 +282,10 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
     await updateSetting('appearance', appearanceSettings);
   };
 
+  const updateIntegrationSettings = async (integrationSettings: IntegrationSettings) => {
+    await updateSetting('integrations', integrationSettings);
+  };
+
   const refreshSettings = async () => {
     await loadSettings();
   };
@@ -307,6 +322,7 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
     updateReceiptSettings,
     updateNotificationSettings,
     updateAppearanceSettings,
+    updateIntegrationSettings,
     refreshSettings
   };
 

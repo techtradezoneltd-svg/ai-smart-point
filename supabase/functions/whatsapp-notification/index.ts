@@ -1,5 +1,6 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.3';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -22,10 +23,29 @@ serve(async (req) => {
 
   try {
     const { phone, title, message, type, reportUrl }: WhatsAppMessage = await req.json();
-    const whatsappToken = Deno.env.get('WHATSAPP_API_TOKEN');
+    
+    // Initialize Supabase client
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    const supabase = createClient(supabaseUrl, supabaseKey);
+
+    // Get WhatsApp settings from database
+    const { data: settingsData, error: settingsError } = await supabase
+      .from('settings')
+      .select('value')
+      .eq('key', 'integrations')
+      .single();
+
+    if (settingsError) {
+      console.error('Error fetching integration settings:', settingsError);
+    }
+
+    const integrationSettings = settingsData?.value || {};
+    const whatsappToken = integrationSettings.whatsappApiToken || Deno.env.get('WHATSAPP_API_TOKEN');
+    const phoneNumberId = integrationSettings.whatsappPhoneNumberId || 'YOUR_PHONE_NUMBER_ID';
 
     if (!whatsappToken) {
-      throw new Error('WhatsApp API token not configured');
+      throw new Error('WhatsApp API token not configured. Please add it in Settings > Integrations.');
     }
 
     console.log('Sending WhatsApp notification:', { phone, title, type });
@@ -55,7 +75,7 @@ serve(async (req) => {
     }
 
     // Send WhatsApp message using Business API
-    const whatsappResponse = await fetch(`https://graph.facebook.com/v17.0/YOUR_PHONE_NUMBER_ID/messages`, {
+    const whatsappResponse = await fetch(`https://graph.facebook.com/v17.0/${phoneNumberId}/messages`, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${whatsappToken}`,
