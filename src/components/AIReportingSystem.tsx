@@ -111,16 +111,18 @@ const AIReportingSystem = () => {
   const loadDailyReport = async () => {
     try {
       const today = new Date().toISOString().split('T')[0];
+      const startOfDay = `${today}T00:00:00`;
+      const endOfDay = `${today}T23:59:59`;
       
       // Get today's sales
       const { data: sales } = await supabase
         .from('sales')
         .select(`
           *,
-          sale_items (*)
+          sale_items (*, products (cost_price))
         `)
-        .gte('created_at', `${today}T00:00:00`)
-        .lt('created_at', `${today}T23:59:59`);
+        .gte('created_at', startOfDay)
+        .lt('created_at', endOfDay);
 
       // Get today's expenses
       const { data: expenses } = await supabase
@@ -132,18 +134,72 @@ const AIReportingSystem = () => {
       const { data: lowStock } = await supabase
         .from('products')
         .select('*')
-        .lt('current_stock', 'min_stock_level')
+        .filter('current_stock', 'lt', 'min_stock_level')
         .eq('is_active', true);
 
+      // Get stock movements
+      const { data: stockMovements } = await supabase
+        .from('stock_movements')
+        .select('*')
+        .gte('created_at', startOfDay)
+        .lt('created_at', endOfDay);
+
+      // Get loans data
+      const { data: newLoans } = await supabase
+        .from('loans')
+        .select('*')
+        .gte('created_at', startOfDay)
+        .lt('created_at', endOfDay);
+
+      const { data: loanPayments } = await supabase
+        .from('loan_payments')
+        .select('*')
+        .gte('payment_date', startOfDay)
+        .lt('payment_date', endOfDay);
+
+      const { data: activeLoans } = await supabase
+        .from('loans')
+        .select('*')
+        .in('status', ['active', 'overdue']);
+
+      // Get products for inventory value
+      const { data: allProducts } = await supabase
+        .from('products')
+        .select('*')
+        .eq('is_active', true);
+
+      // Get staff count
+      const { data: activeStaff } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('is_active', true);
+
+      // Calculate metrics
       const totalSales = sales?.reduce((sum, sale) => sum + Number(sale.total_amount), 0) || 0;
       const totalProfit = sales?.reduce((sum, sale) => {
         const saleItems = sale.sale_items || [];
         const profit = saleItems.reduce((itemSum: number, item: any) => {
-          return itemSum + ((Number(item.unit_price) - Number(item.cost_price || 0)) * Number(item.quantity));
+          const costPrice = item.products?.cost_price || 0;
+          return itemSum + ((Number(item.unit_price) - Number(costPrice)) * Number(item.quantity));
         }, 0);
         return sum + profit;
       }, 0) || 0;
       const totalExpenses = expenses?.reduce((sum, expense) => sum + Number(expense.amount), 0) || 0;
+      
+      const inventoryValue = allProducts?.reduce((sum, product) => {
+        return sum + (Number(product.current_stock) * Number(product.cost_price || 0));
+      }, 0) || 0;
+
+      const stockIn = stockMovements?.filter(m => m.type === 'in' || m.type === 'return')
+        .reduce((sum, m) => sum + Number(m.quantity), 0) || 0;
+      const stockOut = stockMovements?.filter(m => m.type === 'out')
+        .reduce((sum, m) => sum + Number(m.quantity), 0) || 0;
+      const stockAdjustments = stockMovements?.filter(m => m.type === 'damage' || m.type === 'adjustment')
+        .reduce((sum, m) => sum + Number(m.quantity), 0) || 0;
+
+      const newLoanAmount = newLoans?.reduce((sum, loan) => sum + Number(loan.total_amount), 0) || 0;
+      const loanPaymentsAmount = loanPayments?.reduce((sum, payment) => sum + Number(payment.amount), 0) || 0;
+      const totalOutstanding = activeLoans?.reduce((sum, loan) => sum + Number(loan.remaining_balance), 0) || 0;
 
       setDailyReport({
         date: today,
@@ -153,7 +209,27 @@ const AIReportingSystem = () => {
         netProfit: totalProfit - totalExpenses,
         transactionCount: sales?.length || 0,
         lowStockCount: lowStock?.length || 0,
-        lowStockItems: lowStock || []
+        lowStockItems: lowStock || [],
+        
+        // Loan metrics
+        newLoansCount: newLoans?.length || 0,
+        newLoanAmount,
+        loanPaymentsCount: loanPayments?.length || 0,
+        loanPaymentsAmount,
+        activeLoanCount: activeLoans?.length || 0,
+        totalOutstanding,
+        
+        // Inventory metrics
+        inventoryValue,
+        stockMovementsCount: stockMovements?.length || 0,
+        stockIn,
+        stockOut,
+        stockAdjustments,
+        
+        // Staff & customer metrics
+        activeStaffCount: activeStaff?.length || 0,
+        customerInteractions: sales?.length || 0,
+        newCustomers: 0 // Will be enhanced later with actual new customer tracking
       });
     } catch (error) {
       console.error('Error loading daily report:', error);

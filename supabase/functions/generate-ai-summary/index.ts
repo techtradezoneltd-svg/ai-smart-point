@@ -32,24 +32,50 @@ serve(async (req) => {
 
     console.log('Generating AI summary for date:', reportData.date);
 
-    // Create prompt for AI summary
-    const prompt = `Analyze this daily business report and create a concise WhatsApp message summary:
+    // Create prompt for AI summary with comprehensive data
+    const prompt = `Analyze this comprehensive daily business report and create a detailed WhatsApp message summary:
 
+📊 FINANCIAL OVERVIEW:
 Date: ${reportData.date}
-Total Sales: $${reportData.totalSales}
-Total Profit: $${reportData.totalProfit}
-Total Expenses: $${reportData.totalExpenses}
-Net Profit: $${reportData.netProfit}
-Transactions: ${reportData.transactionCount}
-Low Stock Items: ${reportData.lowStockCount}
+Total Sales: $${reportData.totalSales || 0}
+Total Profit: $${reportData.totalProfit || 0}
+Total Expenses: $${reportData.totalExpenses || 0}
+Net Profit: $${reportData.netProfit || 0}
 
-Create a short, professional summary (max 200 words) highlighting:
-1. Key performance metrics
-2. Notable trends or concerns
-3. Action items if any
-4. Overall business health
+📈 SALES & TRANSACTIONS:
+Total Transactions: ${reportData.transactionCount || 0}
+Average Transaction Value: $${reportData.transactionCount > 0 ? (reportData.totalSales / reportData.transactionCount).toFixed(2) : 0}
 
-Use emojis and keep it conversational but professional for a business owner.`;
+💰 LOANS & CREDIT:
+New Loans Issued: ${reportData.newLoansCount || 0} (${reportData.newLoanAmount || 0})
+Loan Payments Received: ${reportData.loanPaymentsCount || 0} ($${reportData.loanPaymentsAmount || 0})
+Outstanding Loans: ${reportData.activeLoanCount || 0} ($${reportData.totalOutstanding || 0})
+
+📦 INVENTORY:
+Low Stock Items: ${reportData.lowStockCount || 0}
+Stock Movements: ${reportData.stockMovementsCount || 0}
+Inventory Value: $${reportData.inventoryValue || 0}
+
+👥 STAFF & CUSTOMERS:
+Active Staff: ${reportData.activeStaffCount || 0}
+Customer Interactions: ${reportData.customerInteractions || 0}
+New Customers: ${reportData.newCustomers || 0}
+
+🔄 OPERATIONAL ACTIVITY:
+Stock In: ${reportData.stockIn || 0} units
+Stock Out: ${reportData.stockOut || 0} units
+Returns/Damages: ${reportData.stockAdjustments || 0} units
+
+Create a comprehensive but concise summary (max 300 words) that:
+1. Highlights key performance metrics with context
+2. Identifies trends and patterns in sales, inventory, and loans
+3. Points out concerns or unusual activities
+4. Provides actionable recommendations
+5. Assesses overall business health
+6. Notes staff performance highlights
+7. Flags financial risks or opportunities
+
+Use emojis strategically and maintain a professional yet conversational tone suitable for a business owner receiving critical daily insights.`;
 
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
