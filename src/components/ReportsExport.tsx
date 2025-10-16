@@ -286,11 +286,6 @@ const ReportsExport = () => {
     const { startDate, endDate } = getDateRange();
 
     try {
-      toast({
-        title: "Generating Report",
-        description: "Please wait while we prepare your report...",
-      });
-
       const template = reportTemplates.find(t => t.id === reportId);
       
       switch (template?.category) {
@@ -314,11 +309,6 @@ const ReportsExport = () => {
           }
           break;
       }
-
-      toast({
-        title: "Success",
-        description: "Report generated successfully!",
-      });
     } catch (error) {
       console.error("Export error:", error);
       toast({
@@ -349,11 +339,6 @@ const ReportsExport = () => {
           await exportSalesReport(startDate, endDate);
           break;
       }
-      
-      toast({
-        title: "Success",
-        description: "Quick report generated successfully!",
-      });
     } catch (error) {
       console.error("Export error:", error);
       toast({
