@@ -228,21 +228,54 @@ const ReportsExport = () => {
   };
 
   const exportData = async (data: any[], filename: string) => {
-    if (selectedFormat === "Excel") {
-      exportToExcel(data, filename);
-    } else if (selectedFormat === "CSV") {
-      exportToCSV(data, filename);
-    } else if (selectedFormat === "JSON") {
-      const json = JSON.stringify(data, null, 2);
-      const blob = new Blob([json], { type: 'application/json' });
-      const link = document.createElement('a');
-      link.href = URL.createObjectURL(blob);
-      link.download = `${filename}.json`;
-      link.click();
-    } else {
+    try {
+      if (!data || data.length === 0) {
+        toast({
+          title: "No Data",
+          description: "No data available to export for the selected date range.",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      if (selectedFormat === "Excel") {
+        exportToExcel(data, filename);
+        toast({
+          title: "Success",
+          description: `Excel file "${filename}.xlsx" downloaded successfully!`,
+        });
+      } else if (selectedFormat === "CSV") {
+        exportToCSV(data, filename);
+        toast({
+          title: "Success",
+          description: `CSV file "${filename}.csv" downloaded successfully!`,
+        });
+      } else if (selectedFormat === "JSON") {
+        const json = JSON.stringify(data, null, 2);
+        const blob = new Blob([json], { type: 'application/json' });
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(blob);
+        link.download = `${filename}.json`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(link.href);
+        toast({
+          title: "Success",
+          description: `JSON file "${filename}.json" downloaded successfully!`,
+        });
+      } else {
+        toast({
+          title: "PDF Export",
+          description: "PDF export will be available soon. Please use Excel or CSV format.",
+          variant: "destructive"
+        });
+      }
+    } catch (error) {
+      console.error("Export error:", error);
       toast({
-        title: "PDF Export",
-        description: "PDF export will be available soon. Please use Excel or CSV format.",
+        title: "Export Failed",
+        description: "Failed to download file. Please try again.",
         variant: "destructive"
       });
     }
@@ -591,7 +624,6 @@ const ReportsExport = () => {
               <div
                 key={index}
                 className="p-4 border border-border rounded-lg hover:border-primary/50 transition-all cursor-pointer group"
-                onClick={() => handleQuickReport(report.action)}
               >
                 <div className="text-center">
                   <div className="w-12 h-12 mx-auto mb-3 flex items-center justify-center rounded-lg bg-gradient-primary/10 group-hover:bg-gradient-primary/20 transition-all">
@@ -599,9 +631,17 @@ const ReportsExport = () => {
                   </div>
                   <h3 className="font-medium text-sm mb-1">{report.name}</h3>
                   <p className="text-xs text-muted-foreground">{report.description}</p>
-                  <Button size="sm" className="mt-3 w-full bg-gradient-primary">
+                  <Button 
+                    size="sm" 
+                    className="mt-3 w-full bg-gradient-primary"
+                    disabled={isExporting}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleQuickReport(report.action);
+                    }}
+                  >
                     <FileDown className="w-3 h-3 mr-1" />
-                    Export
+                    {isExporting ? "Exporting..." : "Export"}
                   </Button>
                 </div>
               </div>
