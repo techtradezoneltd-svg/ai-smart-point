@@ -3,6 +3,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
+import { exportToExcel, exportToCSV, formatForExport } from "@/lib/exportImport";
 import { 
   FileDown, 
   Calendar, 
@@ -33,8 +36,12 @@ interface ReportTemplate {
 }
 
 const ReportsExport = () => {
+  const { toast } = useToast();
   const [selectedDateRange, setSelectedDateRange] = useState("last_7_days");
-  const [selectedFormat, setSelectedFormat] = useState("PDF");
+  const [selectedFormat, setSelectedFormat] = useState<"Excel" | "CSV" | "PDF" | "JSON">("Excel");
+  const [customStartDate, setCustomStartDate] = useState("");
+  const [customEndDate, setCustomEndDate] = useState("");
+  const [isExporting, setIsExporting] = useState(false);
 
   const reportTemplates: ReportTemplate[] = [
     {
@@ -176,14 +183,310 @@ const ReportsExport = () => {
 
   const formats = ["PDF", "Excel", "CSV", "JSON"];
 
-  const handleGenerateReport = (reportId: string) => {
-    console.log(`Generating report ${reportId} for ${selectedDateRange} in ${selectedFormat} format`);
-    // In a real app, this would trigger the report generation API
+  const getDateRange = () => {
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    let startDate = new Date();
+    let endDate = new Date();
+
+    switch (selectedDateRange) {
+      case "today":
+        startDate = today;
+        endDate = now;
+        break;
+      case "yesterday":
+        startDate = new Date(today);
+        startDate.setDate(startDate.getDate() - 1);
+        endDate = new Date(today);
+        endDate.setSeconds(endDate.getSeconds() - 1);
+        break;
+      case "last_7_days":
+        startDate = new Date(today);
+        startDate.setDate(startDate.getDate() - 7);
+        endDate = now;
+        break;
+      case "last_30_days":
+        startDate = new Date(today);
+        startDate.setDate(startDate.getDate() - 30);
+        endDate = now;
+        break;
+      case "this_month":
+        startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+        endDate = now;
+        break;
+      case "last_month":
+        startDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+        endDate = new Date(now.getFullYear(), now.getMonth(), 0);
+        break;
+      case "custom":
+        startDate = customStartDate ? new Date(customStartDate) : today;
+        endDate = customEndDate ? new Date(customEndDate) : now;
+        break;
+    }
+
+    return { startDate, endDate };
   };
 
-  const handleQuickReport = (action: string) => {
-    console.log(`Generating quick report: ${action}`);
-    // In a real app, this would trigger the quick report generation
+  const exportData = async (data: any[], filename: string) => {
+    if (selectedFormat === "Excel") {
+      exportToExcel(data, filename);
+    } else if (selectedFormat === "CSV") {
+      exportToCSV(data, filename);
+    } else if (selectedFormat === "JSON") {
+      const json = JSON.stringify(data, null, 2);
+      const blob = new Blob([json], { type: 'application/json' });
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.download = `${filename}.json`;
+      link.click();
+    } else {
+      toast({
+        title: "PDF Export",
+        description: "PDF export will be available soon. Please use Excel or CSV format.",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const handleGenerateReport = async (reportId: string) => {
+    setIsExporting(true);
+    const { startDate, endDate } = getDateRange();
+
+    try {
+      toast({
+        title: "Generating Report",
+        description: "Please wait while we prepare your report...",
+      });
+
+      const template = reportTemplates.find(t => t.id === reportId);
+      
+      switch (template?.category) {
+        case "sales":
+          await exportSalesReport(startDate, endDate);
+          break;
+        case "inventory":
+          await exportInventoryReport();
+          break;
+        case "customer":
+          await exportCustomerReport();
+          break;
+        case "financial":
+          await exportFinancialReport(startDate, endDate);
+          break;
+        case "analytics":
+          if (template.name.includes("Product")) {
+            await exportProductAnalytics(startDate, endDate);
+          } else {
+            await exportStaffPerformance(startDate, endDate);
+          }
+          break;
+      }
+
+      toast({
+        title: "Success",
+        description: "Report generated successfully!",
+      });
+    } catch (error) {
+      console.error("Export error:", error);
+      toast({
+        title: "Export Failed",
+        description: "Failed to generate report. Please try again.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
+  const handleQuickReport = async (action: string) => {
+    setIsExporting(true);
+    try {
+      switch (action) {
+        case "generate_today_sales":
+          await exportTodaySales();
+          break;
+        case "generate_low_stock":
+          await exportLowStock();
+          break;
+        case "export_customers":
+          await exportCustomerReport();
+          break;
+        case "export_transactions":
+          const { startDate, endDate } = getDateRange();
+          await exportSalesReport(startDate, endDate);
+          break;
+      }
+      
+      toast({
+        title: "Success",
+        description: "Quick report generated successfully!",
+      });
+    } catch (error) {
+      console.error("Export error:", error);
+      toast({
+        title: "Export Failed",
+        description: "Failed to generate quick report.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
+  const exportTodaySales = async () => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    const { data, error } = await supabase
+      .from('sales')
+      .select(`
+        *,
+        sale_items (
+          quantity,
+          unit_price,
+          total_price,
+          products (name)
+        )
+      `)
+      .gte('created_at', today.toISOString());
+
+    if (error) throw error;
+
+    const formattedData = formatForExport(data || [], ['id', 'created_by', 'loan_id']);
+    await exportData(formattedData, `Today_Sales_${new Date().toISOString().split('T')[0]}`);
+  };
+
+  const exportSalesReport = async (startDate: Date, endDate: Date) => {
+    const { data, error } = await supabase
+      .from('sales')
+      .select(`
+        *,
+        sale_items (
+          quantity,
+          unit_price,
+          total_price,
+          products (name, category_id, categories (name))
+        ),
+        profiles (full_name)
+      `)
+      .gte('created_at', startDate.toISOString())
+      .lte('created_at', endDate.toISOString());
+
+    if (error) throw error;
+
+    const formattedData = formatForExport(data || [], ['id', 'created_by', 'loan_id']);
+    await exportData(formattedData, `Sales_Report_${startDate.toISOString().split('T')[0]}_to_${endDate.toISOString().split('T')[0]}`);
+  };
+
+  const exportLowStock = async () => {
+    const { data, error } = await supabase
+      .from('products')
+      .select('*, categories (name), units (name)')
+      .order('current_stock', { ascending: true });
+
+    if (error) throw error;
+
+    const lowStockProducts = (data || []).filter(p => p.current_stock <= p.min_stock_level);
+    const formattedData = formatForExport(lowStockProducts, ['id', 'created_by', 'category_id', 'unit_id']);
+    await exportData(formattedData, `Low_Stock_Alert_${new Date().toISOString().split('T')[0]}`);
+  };
+
+  const exportInventoryReport = async () => {
+    const { data, error } = await supabase
+      .from('products')
+      .select('*, categories (name), units (name, symbol)')
+      .eq('is_active', true)
+      .order('name');
+
+    if (error) throw error;
+
+    const formattedData = formatForExport(data || [], ['id', 'created_by', 'category_id', 'unit_id']);
+    await exportData(formattedData, `Inventory_Report_${new Date().toISOString().split('T')[0]}`);
+  };
+
+  const exportCustomerReport = async () => {
+    const { data, error } = await supabase
+      .from('customers')
+      .select('*')
+      .eq('is_active', true)
+      .order('name');
+
+    if (error) throw error;
+
+    const formattedData = formatForExport(data || [], ['id', 'repayment_behavior']);
+    await exportData(formattedData, `Customer_List_${new Date().toISOString().split('T')[0]}`);
+  };
+
+  const exportFinancialReport = async (startDate: Date, endDate: Date) => {
+    const [salesData, expensesData, loansData] = await Promise.all([
+      supabase.from('sales').select('*').gte('created_at', startDate.toISOString()).lte('created_at', endDate.toISOString()),
+      supabase.from('expenses').select('*').gte('created_at', startDate.toISOString()).lte('created_at', endDate.toISOString()),
+      supabase.from('loans').select('*, loan_payments (*)').gte('created_at', startDate.toISOString()).lte('created_at', endDate.toISOString())
+    ]);
+
+    const financialSummary = [
+      {
+        metric: 'Total Sales',
+        value: salesData.data?.reduce((sum, sale) => sum + Number(sale.total_amount), 0) || 0
+      },
+      {
+        metric: 'Total Expenses',
+        value: expensesData.data?.reduce((sum, exp) => sum + Number(exp.amount), 0) || 0
+      },
+      {
+        metric: 'Loans Issued',
+        value: loansData.data?.reduce((sum, loan) => sum + Number(loan.total_amount), 0) || 0
+      },
+      {
+        metric: 'Loan Repayments',
+        value: loansData.data?.reduce((sum, loan) => sum + Number(loan.paid_amount), 0) || 0
+      }
+    ];
+
+    await exportData(financialSummary, `Financial_Report_${startDate.toISOString().split('T')[0]}_to_${endDate.toISOString().split('T')[0]}`);
+  };
+
+  const exportProductAnalytics = async (startDate: Date, endDate: Date) => {
+    const { data, error } = await supabase
+      .from('products_daily_stats')
+      .select('*, products (name, categories (name))')
+      .gte('date', startDate.toISOString().split('T')[0])
+      .lte('date', endDate.toISOString().split('T')[0])
+      .order('revenue', { ascending: false });
+
+    if (error) throw error;
+
+    const formattedData = formatForExport(data || [], ['id', 'product_id']);
+    await exportData(formattedData, `Product_Analytics_${startDate.toISOString().split('T')[0]}_to_${endDate.toISOString().split('T')[0]}`);
+  };
+
+  const exportStaffPerformance = async (startDate: Date, endDate: Date) => {
+    const { data, error } = await supabase
+      .from('sales')
+      .select('created_by, total_amount, profiles (full_name, role)')
+      .gte('created_at', startDate.toISOString())
+      .lte('created_at', endDate.toISOString());
+
+    if (error) throw error;
+
+    const staffStats = (data || []).reduce((acc: any[], sale) => {
+      const existing = acc.find(s => s.staff_id === sale.created_by);
+      if (existing) {
+        existing.total_sales += Number(sale.total_amount);
+        existing.transaction_count += 1;
+      } else {
+        acc.push({
+          staff_id: sale.created_by,
+          staff_name: sale.profiles?.full_name || 'Unknown',
+          role: sale.profiles?.role || 'Unknown',
+          total_sales: Number(sale.total_amount),
+          transaction_count: 1
+        });
+      }
+      return acc;
+    }, []);
+
+    await exportData(staffStats, `Staff_Performance_${startDate.toISOString().split('T')[0]}_to_${endDate.toISOString().split('T')[0]}`);
   };
 
   return (
@@ -241,7 +544,7 @@ const ReportsExport = () => {
                     variant={selectedFormat === format ? "default" : "outline"}
                     size="sm"
                     className="w-full justify-start"
-                    onClick={() => setSelectedFormat(format)}
+                    onClick={() => setSelectedFormat(format as "Excel" | "CSV" | "PDF" | "JSON")}
                   >
                     {getFormatIcon(format)}
                     <span className="ml-2">{format}</span>
@@ -255,8 +558,18 @@ const ReportsExport = () => {
               <div>
                 <label className="text-sm font-medium mb-2 block">Custom Range</label>
                 <div className="space-y-2">
-                  <Input type="date" placeholder="Start date" />
-                  <Input type="date" placeholder="End date" />
+                  <Input 
+                    type="date" 
+                    placeholder="Start date"
+                    value={customStartDate}
+                    onChange={(e) => setCustomStartDate(e.target.value)}
+                  />
+                  <Input 
+                    type="date" 
+                    placeholder="End date"
+                    value={customEndDate}
+                    onChange={(e) => setCustomEndDate(e.target.value)}
+                  />
                 </div>
               </div>
             )}
@@ -353,9 +666,10 @@ const ReportsExport = () => {
                     size="sm"
                     onClick={() => handleGenerateReport(template.id)}
                     className="bg-gradient-primary"
+                    disabled={isExporting}
                   >
                     <FileDown className="w-4 h-4 mr-2" />
-                    Generate
+                    {isExporting ? "Exporting..." : "Generate"}
                   </Button>
                   
                   <Button size="sm" variant="outline">
