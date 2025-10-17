@@ -31,3 +31,6 @@ verify_jwt = false
 
 [functions.loan-reminder-scheduler]
 verify_jwt = false
+
+[functions.voice-chat]
+verify_jwt = false

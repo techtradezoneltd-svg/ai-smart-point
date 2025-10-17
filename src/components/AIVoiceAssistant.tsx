@@ -2,6 +2,8 @@ import { useState, useRef, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 import { 
   Mic, 
   MicOff, 
@@ -12,7 +14,8 @@ import {
   MessageSquare,
   Settings,
   Play,
-  Pause
+  Pause,
+  Loader2
 } from "lucide-react";
 
 interface VoiceCommand {
@@ -28,29 +31,9 @@ const AIVoiceAssistant = () => {
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [isEnabled, setIsEnabled] = useState(true);
   const [currentCommand, setCurrentCommand] = useState("");
-  const [commandHistory, setCommandHistory] = useState<VoiceCommand[]>([
-    {
-      id: "1",
-      command: "Add iPhone 15 Pro to cart",
-      response: "Added iPhone 15 Pro ($999.99) to cart successfully",
-      timestamp: "14:32:15",
-      confidence: 95
-    },
-    {
-      id: "2", 
-      command: "Show today's sales report",
-      response: "Today's sales: $12,750.80 from 156 transactions",
-      timestamp: "14:15:22",
-      confidence: 92
-    },
-    {
-      id: "3",
-      command: "Check inventory for Samsung Galaxy",
-      response: "Samsung Galaxy S24: 8 units in stock - below minimum threshold",
-      timestamp: "13:45:11",
-      confidence: 98
-    }
-  ]);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [commandHistory, setCommandHistory] = useState<VoiceCommand[]>([]);
+  const { toast } = useToast();
 
   const recognitionRef = useRef<any>(null);
   const synthRef = useRef<any>(null);
@@ -90,39 +73,40 @@ const AIVoiceAssistant = () => {
     };
   }, []);
 
-  const handleVoiceCommand = (command: string, confidence: number) => {
+  const handleVoiceCommand = async (command: string, confidence: number) => {
     setCurrentCommand(command);
+    setIsProcessing(true);
     
-    // AI command processing logic
-    let response = "";
-    const lowerCommand = command.toLowerCase();
+    try {
+      // Call OpenAI via edge function
+      const { data, error } = await supabase.functions.invoke('voice-chat', {
+        body: { message: command }
+      });
 
-    if (lowerCommand.includes("add") && lowerCommand.includes("cart")) {
-      response = `Added ${command.split("add")[1].split("to cart")[0].trim()} to cart successfully`;
-    } else if (lowerCommand.includes("sales") && lowerCommand.includes("report")) {
-      response = "Today's sales: $12,750.80 from 156 transactions. Revenue up 12% from yesterday.";
-    } else if (lowerCommand.includes("inventory") || lowerCommand.includes("stock")) {
-      response = "Current inventory levels: 23 iPhone 15 Pro, 8 Samsung Galaxy S24 (low stock alert), 45 AirPods Pro";
-    } else if (lowerCommand.includes("customer") && lowerCommand.includes("search")) {
-      response = "Found 3 customers matching your search criteria. Displaying results now.";
-    } else if (lowerCommand.includes("print") && lowerCommand.includes("receipt")) {
-      response = "Printing receipt for transaction TX-2024-001234. Please wait.";
-    } else if (lowerCommand.includes("help")) {
-      response = "I can help you with sales, inventory, reports, customer lookup, and system commands. What would you like to do?";
-    } else {
-      response = "I understand your request. Processing command through AI system.";
+      if (error) throw error;
+
+      const response = data.response || "I couldn't process that command.";
+
+      const newCommand: VoiceCommand = {
+        id: Date.now().toString(),
+        command,
+        response,
+        timestamp: new Date().toLocaleTimeString(),
+        confidence
+      };
+
+      setCommandHistory(prev => [newCommand, ...prev].slice(0, 10));
+      speakResponse(response);
+    } catch (error) {
+      console.error('Error processing voice command:', error);
+      toast({
+        title: "Error",
+        description: "Failed to process voice command. Please try again.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsProcessing(false);
     }
-
-    const newCommand: VoiceCommand = {
-      id: Date.now().toString(),
-      command,
-      response,
-      timestamp: new Date().toLocaleTimeString(),
-      confidence
-    };
-
-    setCommandHistory(prev => [newCommand, ...prev].slice(0, 10));
-    speakResponse(response);
   };
 
   const speakResponse = (text: string) => {
@@ -155,12 +139,12 @@ const AIVoiceAssistant = () => {
   };
 
   const quickCommands = [
-    "Show today's sales",
-    "Check low stock items", 
-    "Add customer to database",
-    "Print daily report",
-    "Search customer by phone",
-    "Process return transaction"
+    "What were today's sales?",
+    "How many low stock items do we have?", 
+    "How many active loans are there?",
+    "What's our total revenue today?",
+    "Show me customer statistics",
+    "What products need restocking?"
   ];
 
   const getConfidenceColor = (confidence: number) => {
@@ -246,6 +230,14 @@ const AIVoiceAssistant = () => {
             <div className="p-4 bg-accent/10 border border-accent/30 rounded-lg">
               <p className="text-sm text-accent font-medium mb-1">Last Command:</p>
               <p className="text-foreground">{currentCommand}</p>
+            </div>
+          )}
+
+          {/* Processing Indicator */}
+          {isProcessing && (
+            <div className="flex items-center justify-center gap-2 p-4 bg-primary/10 border border-primary/30 rounded-lg">
+              <Loader2 className="w-4 h-4 text-primary animate-spin" />
+              <span className="text-primary font-medium">AI Processing...</span>
             </div>
           )}
 
