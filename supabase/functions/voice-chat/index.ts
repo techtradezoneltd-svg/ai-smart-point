@@ -14,11 +14,14 @@ serve(async (req) => {
 
   try {
     const { message } = await req.json();
-    const OPENAI_API_KEY = Deno.env.get('OPENAI_API_KEY');
+    console.log('Received message:', message);
     
+    const OPENAI_API_KEY = Deno.env.get('OPENAI_API_KEY');
     if (!OPENAI_API_KEY) {
+      console.error('OPENAI_API_KEY is not configured');
       throw new Error('OPENAI_API_KEY is not configured');
     }
+    console.log('OPENAI_API_KEY is configured');
 
     // Initialize Supabase client to get context
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
@@ -84,10 +87,39 @@ Be conversational, helpful, and concise in your responses.`;
       }),
     });
 
+    console.log('OpenAI API response status:', response.status);
+
     if (!response.ok) {
       const error = await response.text();
       console.error('OpenAI API error:', error);
-      throw new Error('Failed to get AI response');
+      
+      // Check for quota errors
+      if (response.status === 429 || error.includes('quota')) {
+        return new Response(
+          JSON.stringify({ 
+            error: 'OpenAI API quota exceeded. Please check your billing details or try again later.' 
+          }),
+          { 
+            status: 429,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+          }
+        );
+      }
+      
+      // Check for authentication errors
+      if (response.status === 401) {
+        return new Response(
+          JSON.stringify({ 
+            error: 'Invalid OpenAI API key. Please update your API key in Supabase secrets.' 
+          }),
+          { 
+            status: 401,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+          }
+        );
+      }
+      
+      throw new Error(`OpenAI API error: ${response.status} - ${error}`);
     }
 
     const data = await response.json();
