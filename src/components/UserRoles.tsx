@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { 
   Shield, 
   Users, 
@@ -32,6 +33,7 @@ interface UserRole {
 
 const UserRoles = () => {
   const [users, setUsers] = useState<UserRole[]>([]);
+  const [selectedUser, setSelectedUser] = useState<UserRole | null>(null);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -226,7 +228,7 @@ const UserRoles = () => {
                   </div>
 
                   <div className="flex gap-2">
-                    <Button size="sm" variant="outline">
+                    <Button size="sm" variant="outline" onClick={() => setSelectedUser(user)}>
                       <Eye className="w-4 h-4" />
                     </Button>
                     <Button size="sm" variant="outline">
@@ -304,6 +306,197 @@ const UserRoles = () => {
           </div>
         </CardContent>
       </Card>
+
+      {/* User Detail Dialog */}
+      <Dialog open={!!selectedUser} onOpenChange={() => setSelectedUser(null)}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>User Profile Details</DialogTitle>
+          </DialogHeader>
+          {selectedUser && (
+            <div className="space-y-6">
+              <div className="flex items-start gap-4">
+                <Avatar className="w-20 h-20">
+                  <AvatarFallback className={`bg-gradient-${getRoleColor(selectedUser.role)} text-white font-bold text-xl`}>
+                    {(selectedUser.full_name || selectedUser.email || "U").split(' ').map(n => n[0]).join('').toUpperCase()}
+                  </AvatarFallback>
+                </Avatar>
+                <div className="flex-1">
+                  <h3 className="text-2xl font-bold mb-2">{selectedUser.full_name || "No name set"}</h3>
+                  <div className="flex gap-2 mb-2">
+                    <div className="flex items-center gap-1">
+                      {getRoleIcon(selectedUser.role)}
+                      <Badge 
+                        variant="outline" 
+                        className={`border-${getRoleColor(selectedUser.role)} text-${getRoleColor(selectedUser.role)} capitalize`}
+                      >
+                        {selectedUser.role.replace('_', ' ')}
+                      </Badge>
+                    </div>
+                    <Badge 
+                      variant="outline" 
+                      className={`border-${getStatusColor(selectedUser.is_active)} text-${getStatusColor(selectedUser.is_active)}`}
+                    >
+                      {selectedUser.is_active ? "Active" : "Inactive"}
+                    </Badge>
+                  </div>
+                  <p className="text-sm text-muted-foreground">{selectedUser.email}</p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <Card>
+                  <CardContent className="p-4">
+                    <h4 className="font-semibold mb-2">Account Information</h4>
+                    <div className="space-y-2 text-sm">
+                      <div>
+                        <p className="text-muted-foreground">User ID</p>
+                        <p className="font-mono text-xs">{selectedUser.id}</p>
+                      </div>
+                      <div>
+                        <p className="text-muted-foreground">Created</p>
+                        <p>{new Date(selectedUser.created_at).toLocaleDateString()}</p>
+                      </div>
+                      <div>
+                        <p className="text-muted-foreground">Last Updated</p>
+                        <p>{new Date(selectedUser.updated_at).toLocaleDateString()}</p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardContent className="p-4">
+                    <h4 className="font-semibold mb-2">Role & Permissions</h4>
+                    <div className="space-y-2 text-sm">
+                      <div>
+                        <p className="text-muted-foreground">Role</p>
+                        <p className="font-semibold capitalize">{selectedUser.role}</p>
+                      </div>
+                      <div>
+                        <p className="text-muted-foreground">Access Level</p>
+                        <p>
+                          {selectedUser.role === 'admin' ? 'Full System Access' : 
+                           selectedUser.role === 'manager' ? 'Management Access' :
+                           selectedUser.role === 'supervisor' ? 'Supervisory Access' : 'Basic Access'}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-muted-foreground">Status</p>
+                        <p className={selectedUser.is_active ? "text-success font-semibold" : "text-muted-foreground"}>
+                          {selectedUser.is_active ? "Active" : "Inactive"}
+                        </p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+
+              <Card>
+                <CardContent className="p-4">
+                  <h4 className="font-semibold mb-3">Role Capabilities</h4>
+                  <div className="space-y-2 text-sm">
+                    {selectedUser.role === 'admin' && (
+                      <>
+                        <div className="flex items-start gap-2">
+                          <div className="w-1.5 h-1.5 rounded-full bg-primary mt-2" />
+                          <p>Full system access and control</p>
+                        </div>
+                        <div className="flex items-start gap-2">
+                          <div className="w-1.5 h-1.5 rounded-full bg-primary mt-2" />
+                          <p>Manage all users and roles</p>
+                        </div>
+                        <div className="flex items-start gap-2">
+                          <div className="w-1.5 h-1.5 rounded-full bg-primary mt-2" />
+                          <p>System configuration and settings</p>
+                        </div>
+                        <div className="flex items-start gap-2">
+                          <div className="w-1.5 h-1.5 rounded-full bg-primary mt-2" />
+                          <p>View all reports and analytics</p>
+                        </div>
+                      </>
+                    )}
+                    {selectedUser.role === 'manager' && (
+                      <>
+                        <div className="flex items-start gap-2">
+                          <div className="w-1.5 h-1.5 rounded-full bg-warning mt-2" />
+                          <p>Manage inventory and products</p>
+                        </div>
+                        <div className="flex items-start gap-2">
+                          <div className="w-1.5 h-1.5 rounded-full bg-warning mt-2" />
+                          <p>View and generate reports</p>
+                        </div>
+                        <div className="flex items-start gap-2">
+                          <div className="w-1.5 h-1.5 rounded-full bg-warning mt-2" />
+                          <p>Manage expenses and suppliers</p>
+                        </div>
+                        <div className="flex items-start gap-2">
+                          <div className="w-1.5 h-1.5 rounded-full bg-warning mt-2" />
+                          <p>Staff oversight capabilities</p>
+                        </div>
+                      </>
+                    )}
+                    {selectedUser.role === 'supervisor' && (
+                      <>
+                        <div className="flex items-start gap-2">
+                          <div className="w-1.5 h-1.5 rounded-full bg-accent mt-2" />
+                          <p>Stock management and adjustments</p>
+                        </div>
+                        <div className="flex items-start gap-2">
+                          <div className="w-1.5 h-1.5 rounded-full bg-accent mt-2" />
+                          <p>Supervise staff activities</p>
+                        </div>
+                        <div className="flex items-start gap-2">
+                          <div className="w-1.5 h-1.5 rounded-full bg-accent mt-2" />
+                          <p>Customer service operations</p>
+                        </div>
+                        <div className="flex items-start gap-2">
+                          <div className="w-1.5 h-1.5 rounded-full bg-accent mt-2" />
+                          <p>Basic reports access</p>
+                        </div>
+                      </>
+                    )}
+                    {selectedUser.role === 'cashier' && (
+                      <>
+                        <div className="flex items-start gap-2">
+                          <div className="w-1.5 h-1.5 rounded-full bg-success mt-2" />
+                          <p>Process sales transactions</p>
+                        </div>
+                        <div className="flex items-start gap-2">
+                          <div className="w-1.5 h-1.5 rounded-full bg-success mt-2" />
+                          <p>View product catalog</p>
+                        </div>
+                        <div className="flex items-start gap-2">
+                          <div className="w-1.5 h-1.5 rounded-full bg-success mt-2" />
+                          <p>Customer lookup and basic info</p>
+                        </div>
+                        <div className="flex items-start gap-2">
+                          <div className="w-1.5 h-1.5 rounded-full bg-success mt-2" />
+                          <p>Basic POS operations</p>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+
+              <div className="flex justify-end gap-2 pt-4 border-t">
+                <Button variant="outline" onClick={() => setSelectedUser(null)}>
+                  Close
+                </Button>
+                <Button variant="outline">
+                  <Edit className="w-4 h-4 mr-2" />
+                  Edit User
+                </Button>
+                <Button variant="outline">
+                  <Settings className="w-4 h-4 mr-2" />
+                  Manage Permissions
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

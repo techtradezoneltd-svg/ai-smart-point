@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { 
   Activity, 
   Search, 
@@ -34,6 +35,7 @@ interface AuditLog {
 const AuditLogs = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
+  const [selectedLog, setSelectedLog] = useState<AuditLog | null>(null);
 
   const auditLogs: AuditLog[] = [
     {
@@ -342,7 +344,7 @@ const AuditLogs = () => {
                 </div>
 
                 <div className="text-right">
-                  <Button size="sm" variant="outline">
+                  <Button size="sm" variant="outline" onClick={() => setSelectedLog(log)}>
                     View Details
                   </Button>
                 </div>
@@ -351,6 +353,92 @@ const AuditLogs = () => {
           </div>
         </CardContent>
       </Card>
+
+      {/* Detail Dialog */}
+      <Dialog open={!!selectedLog} onOpenChange={() => setSelectedLog(null)}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Audit Log Details</DialogTitle>
+          </DialogHeader>
+          {selectedLog && (
+            <div className="space-y-4">
+              <div className="flex items-center gap-3">
+                {getStatusIcon(selectedLog.status)}
+                <div className={`p-2 rounded-lg bg-${getCategoryColor(selectedLog.category)}/10 border border-${getCategoryColor(selectedLog.category)}/20`}>
+                  {getCategoryIcon(selectedLog.category)}
+                </div>
+                <div>
+                  <h3 className="font-semibold text-lg">{selectedLog.action}</h3>
+                  <p className="text-sm text-muted-foreground">Log ID: {selectedLog.id}</p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <div>
+                    <p className="text-sm font-medium text-muted-foreground">Category</p>
+                    <Badge 
+                      variant="outline" 
+                      className={`border-${getCategoryColor(selectedLog.category)} text-${getCategoryColor(selectedLog.category)} capitalize`}
+                    >
+                      {selectedLog.category}
+                    </Badge>
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-muted-foreground">Risk Level</p>
+                    <Badge 
+                      variant="outline" 
+                      className={`border-${getRiskColor(selectedLog.risk)} text-${getRiskColor(selectedLog.risk)}`}
+                    >
+                      {selectedLog.risk} risk
+                    </Badge>
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-muted-foreground">Status</p>
+                    <Badge 
+                      variant="outline" 
+                      className={`capitalize ${selectedLog.status === 'success' ? 'border-success text-success' : selectedLog.status === 'warning' ? 'border-warning text-warning' : 'border-destructive text-destructive'}`}
+                    >
+                      {selectedLog.status}
+                    </Badge>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <div>
+                    <p className="text-sm font-medium text-muted-foreground">User</p>
+                    <p className="text-sm font-semibold">{selectedLog.user}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-muted-foreground">Timestamp</p>
+                    <p className="text-sm">{selectedLog.timestamp}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-muted-foreground">IP Address</p>
+                    <p className="text-sm font-mono">{selectedLog.ip}</p>
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <p className="text-sm font-medium text-muted-foreground mb-2">Details</p>
+                <div className="p-4 bg-muted/50 rounded-lg border">
+                  <p className="text-sm">{selectedLog.details}</p>
+                </div>
+              </div>
+
+              <div className="flex justify-end gap-2 pt-4">
+                <Button variant="outline" onClick={() => setSelectedLog(null)}>
+                  Close
+                </Button>
+                <Button className="bg-gradient-primary">
+                  Export Log
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

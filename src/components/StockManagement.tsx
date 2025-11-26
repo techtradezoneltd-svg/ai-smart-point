@@ -63,6 +63,7 @@ const StockManagement = () => {
   const [filterType, setFilterType] = useState<string>("all");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<string>("");
+  const [selectedProductDetail, setSelectedProductDetail] = useState<Product | null>(null);
   const [movementType, setMovementType] = useState<'in' | 'out' | 'damage' | 'return' | 'adjustment'>('in');
   const [quantity, setQuantity] = useState<number>(0);
   const [notes, setNotes] = useState("");
@@ -586,7 +587,7 @@ const StockManagement = () => {
                                     </Button>
                                   </DropdownMenuTrigger>
                                   <DropdownMenuContent align="end">
-                                    <DropdownMenuItem>
+                                    <DropdownMenuItem onClick={() => setSelectedProductDetail(product)}>
                                       <Package className="mr-2 h-4 w-4" />
                                       View Details
                                     </DropdownMenuItem>
@@ -723,6 +724,160 @@ const StockManagement = () => {
           </Card>
         </TabsContent>
       </Tabs>
+
+      {/* Product Detail Dialog */}
+      <Dialog open={!!selectedProductDetail} onOpenChange={() => setSelectedProductDetail(null)}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Product Stock Details</DialogTitle>
+          </DialogHeader>
+          {selectedProductDetail && (
+            <div className="space-y-6">
+              <div className="flex items-start justify-between">
+                <div>
+                  <h3 className="text-2xl font-bold mb-2">{selectedProductDetail.name}</h3>
+                  <div className="flex gap-2">
+                    <Badge variant="outline">SKU: {selectedProductDetail.sku}</Badge>
+                    <Badge variant="outline">{selectedProductDetail.categories.name}</Badge>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <p className="text-sm text-muted-foreground">Current Stock</p>
+                  <p className="text-3xl font-bold text-primary">{selectedProductDetail.current_stock}</p>
+                  <p className="text-sm text-muted-foreground">{selectedProductDetail.units.name}</p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <Card>
+                  <CardContent className="p-4">
+                    <h4 className="font-semibold mb-3">Stock Levels</h4>
+                    <div className="space-y-2 text-sm">
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Current Stock:</span>
+                        <span className="font-semibold">{selectedProductDetail.current_stock} {selectedProductDetail.units.symbol}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Minimum Level:</span>
+                        <span>{selectedProductDetail.min_stock_level} {selectedProductDetail.units.symbol}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Maximum Level:</span>
+                        <span>{selectedProductDetail.max_stock_level} {selectedProductDetail.units.symbol}</span>
+                      </div>
+                      <div className="pt-2 border-t">
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">Stock Status:</span>
+                          <Badge 
+                            variant="outline" 
+                            className={
+                              selectedProductDetail.current_stock <= selectedProductDetail.min_stock_level 
+                                ? "border-destructive text-destructive" 
+                                : selectedProductDetail.current_stock >= selectedProductDetail.max_stock_level
+                                ? "border-warning text-warning"
+                                : "border-success text-success"
+                            }
+                          >
+                            {selectedProductDetail.current_stock <= selectedProductDetail.min_stock_level 
+                              ? "Low Stock" 
+                              : selectedProductDetail.current_stock >= selectedProductDetail.max_stock_level
+                              ? "Overstock"
+                              : "Optimal"}
+                          </Badge>
+                        </div>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardContent className="p-4">
+                    <h4 className="font-semibold mb-3">Pricing</h4>
+                    <div className="space-y-2 text-sm">
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Cost Price:</span>
+                        <span className="font-semibold">${selectedProductDetail.cost_price.toFixed(2)}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Selling Price:</span>
+                        <span className="font-semibold">${selectedProductDetail.selling_price.toFixed(2)}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Profit Margin:</span>
+                        <span className="font-semibold text-success">
+                          ${(selectedProductDetail.selling_price - selectedProductDetail.cost_price).toFixed(2)}
+                        </span>
+                      </div>
+                      <div className="pt-2 border-t">
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">Stock Value:</span>
+                          <span className="font-bold text-accent">
+                            ${(selectedProductDetail.current_stock * selectedProductDetail.cost_price).toFixed(2)}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+
+              <Card>
+                <CardContent className="p-4">
+                  <h4 className="font-semibold mb-3">Product Information</h4>
+                  <div className="grid grid-cols-2 gap-4 text-sm">
+                    <div>
+                      <p className="text-muted-foreground">Category</p>
+                      <p className="font-semibold">{selectedProductDetail.categories.name}</p>
+                    </div>
+                    <div>
+                      <p className="text-muted-foreground">Unit of Measurement</p>
+                      <p className="font-semibold">{selectedProductDetail.units.name} ({selectedProductDetail.units.symbol})</p>
+                    </div>
+                    <div>
+                      <p className="text-muted-foreground">Product ID</p>
+                      <p className="font-mono text-xs">{selectedProductDetail.id}</p>
+                    </div>
+                    <div>
+                      <p className="text-muted-foreground">SKU</p>
+                      <p className="font-mono">{selectedProductDetail.sku}</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <div className="flex justify-end gap-2 pt-4 border-t">
+                <Button variant="outline" onClick={() => setSelectedProductDetail(null)}>
+                  Close
+                </Button>
+                <Button 
+                  variant="outline"
+                  onClick={() => {
+                    setSelectedProduct(selectedProductDetail.id);
+                    setMovementType('in');
+                    setSelectedProductDetail(null);
+                    setIsDialogOpen(true);
+                  }}
+                >
+                  <TrendingUp className="w-4 h-4 mr-2" />
+                  Stock In
+                </Button>
+                <Button 
+                  variant="outline"
+                  onClick={() => {
+                    setSelectedProduct(selectedProductDetail.id);
+                    setMovementType('out');
+                    setSelectedProductDetail(null);
+                    setIsDialogOpen(true);
+                  }}
+                >
+                  <TrendingDown className="w-4 h-4 mr-2" />
+                  Stock Out
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
