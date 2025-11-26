@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { useToast } from "@/hooks/use-toast";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { 
   Search, 
@@ -49,10 +50,13 @@ interface Supplier {
 }
 
 const Suppliers = () => {
+  const { toast } = useToast();
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("all");
   const [selectedStatus, setSelectedStatus] = useState("all");
   const [selectedSupplier, setSelectedSupplier] = useState<Supplier | null>(null);
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [editForm, setEditForm] = useState<Partial<Supplier>>({});
 
   const suppliers: Supplier[] = [
     {
@@ -435,10 +439,43 @@ const Suppliers = () => {
       </div>
 
       {/* Supplier Detail Dialog */}
-      <Dialog open={!!selectedSupplier} onOpenChange={() => setSelectedSupplier(null)}>
+      <Dialog open={!!selectedSupplier} onOpenChange={() => {
+        setSelectedSupplier(null);
+        setIsEditMode(false);
+        setEditForm({});
+      }}>
         <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Supplier Details</DialogTitle>
+            <DialogTitle className="flex items-center justify-between">
+              <span>Supplier Details</span>
+              {!isEditMode ? (
+                <Button size="sm" onClick={() => {
+                  setIsEditMode(true);
+                  setEditForm(selectedSupplier || {});
+                }}>
+                  <Edit className="w-4 h-4 mr-2" />
+                  Edit
+                </Button>
+              ) : (
+                <div className="flex gap-2">
+                  <Button size="sm" variant="outline" onClick={() => {
+                    setIsEditMode(false);
+                    setEditForm({});
+                  }}>
+                    Cancel
+                  </Button>
+                  <Button size="sm" onClick={() => {
+                    // TODO: Connect to database to save changes
+                    console.log('Saving supplier:', editForm);
+                    toast({ title: "Success", description: "Supplier updated successfully" });
+                    setIsEditMode(false);
+                    setSelectedSupplier(null);
+                  }}>
+                    Save Changes
+                  </Button>
+                </div>
+              )}
+            </DialogTitle>
           </DialogHeader>
           {selectedSupplier && (
             <div className="space-y-6">
@@ -447,23 +484,61 @@ const Suppliers = () => {
                   <div className="p-4 bg-primary/10 rounded-lg">
                     <Package className="w-8 h-8 text-primary" />
                   </div>
-                  <div>
-                    <h3 className="text-2xl font-bold mb-2">{selectedSupplier.name}</h3>
-                    <div className="flex gap-2 mb-2">
-                      <Badge 
-                        variant="outline" 
-                        className={`border-${getStatusColor(selectedSupplier.status)} text-${getStatusColor(selectedSupplier.status)} capitalize`}
-                      >
-                        {selectedSupplier.status}
-                      </Badge>
-                      <Badge variant="outline" className="capitalize">
-                        {selectedSupplier.category}
-                      </Badge>
-                    </div>
-                    <div className="flex items-center gap-1">
-                      {getRatingStars(selectedSupplier.rating)}
-                      <span className="text-sm text-muted-foreground ml-2">({selectedSupplier.rating}/5)</span>
-                    </div>
+                  <div className="flex-1">
+                    {isEditMode ? (
+                      <div className="space-y-3">
+                        <div>
+                          <label className="text-sm font-medium mb-1 block">Company Name</label>
+                          <Input 
+                            value={editForm.name || ''} 
+                            onChange={(e) => setEditForm({...editForm, name: e.target.value})}
+                          />
+                        </div>
+                        <div>
+                          <label className="text-sm font-medium mb-1 block">Contact Person</label>
+                          <Input 
+                            value={editForm.contactPerson || ''} 
+                            onChange={(e) => setEditForm({...editForm, contactPerson: e.target.value})}
+                          />
+                        </div>
+                        <div className="grid grid-cols-2 gap-3">
+                          <div>
+                            <label className="text-sm font-medium mb-1 block">Email</label>
+                            <Input 
+                              type="email"
+                              value={editForm.email || ''} 
+                              onChange={(e) => setEditForm({...editForm, email: e.target.value})}
+                            />
+                          </div>
+                          <div>
+                            <label className="text-sm font-medium mb-1 block">Phone</label>
+                            <Input 
+                              value={editForm.phone || ''} 
+                              onChange={(e) => setEditForm({...editForm, phone: e.target.value})}
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      <>
+                        <h3 className="text-2xl font-bold mb-2">{selectedSupplier.name}</h3>
+                        <div className="flex gap-2 mb-2">
+                          <Badge 
+                            variant="outline" 
+                            className={`border-${getStatusColor(selectedSupplier.status)} text-${getStatusColor(selectedSupplier.status)} capitalize`}
+                          >
+                            {selectedSupplier.status}
+                          </Badge>
+                          <Badge variant="outline" className="capitalize">
+                            {selectedSupplier.category}
+                          </Badge>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          {getRatingStars(selectedSupplier.rating)}
+                          <span className="text-sm text-muted-foreground ml-2">({selectedSupplier.rating}/5)</span>
+                        </div>
+                      </>
+                    )}
                   </div>
                 </div>
                 <div className="text-right">
