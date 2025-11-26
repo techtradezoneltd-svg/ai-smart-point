@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { useCurrency } from "@/hooks/useCurrency";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { 
   Users, 
   Search, 
@@ -37,6 +38,7 @@ interface Customer {
 const Customers = () => {
   const { formatCurrency } = useCurrency();
   const [searchTerm, setSearchTerm] = useState("");
+  const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
 
   const customersData: Customer[] = [
     {
@@ -319,7 +321,7 @@ const Customers = () => {
                         <Target className="w-4 h-4 mr-2" />
                         Send Offer
                       </Button>
-                      <Button size="sm" variant="outline" className="w-full">
+                      <Button size="sm" variant="outline" className="w-full" onClick={() => setSelectedCustomer(customer)}>
                         View Profile
                       </Button>
                     </div>
@@ -376,6 +378,112 @@ const Customers = () => {
           </div>
         </CardContent>
       </Card>
+
+      {/* Customer Detail Dialog */}
+      <Dialog open={!!selectedCustomer} onOpenChange={() => setSelectedCustomer(null)}>
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Customer Profile</DialogTitle>
+          </DialogHeader>
+          {selectedCustomer && (
+            <div className="space-y-6">
+              <div className="flex items-start gap-4">
+                <Avatar className="w-20 h-20">
+                  <AvatarFallback className={`text-white font-bold text-xl ${getTierColor(selectedCustomer.tier)}`}>
+                    {selectedCustomer.name.split(' ').map(n => n[0]).join('')}
+                  </AvatarFallback>
+                </Avatar>
+                <div className="flex-1">
+                  <h3 className="text-2xl font-bold mb-2">{selectedCustomer.name}</h3>
+                  <div className="flex gap-2 mb-4">
+                    <Badge className={`${getTierColor(selectedCustomer.tier)} text-white border-0 capitalize`}>
+                      {selectedCustomer.tier}
+                    </Badge>
+                    <Badge variant="outline" className={`border-${getRiskColor(selectedCustomer.riskLevel)} text-${getRiskColor(selectedCustomer.riskLevel)}`}>
+                      {selectedCustomer.riskLevel} risk
+                    </Badge>
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <Card>
+                  <CardContent className="p-4">
+                    <p className="text-sm text-muted-foreground mb-1">Total Spent</p>
+                    <p className="text-2xl font-bold text-success">{formatCurrency(selectedCustomer.totalSpent)}</p>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardContent className="p-4">
+                    <p className="text-sm text-muted-foreground mb-1">Predicted Value</p>
+                    <p className="text-2xl font-bold text-accent">{formatCurrency(selectedCustomer.predictedValue)}</p>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardContent className="p-4">
+                    <p className="text-sm text-muted-foreground mb-1">Total Visits</p>
+                    <p className="text-2xl font-bold text-primary">{selectedCustomer.visits}</p>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardContent className="p-4">
+                    <p className="text-sm text-muted-foreground mb-1">Loyalty Points</p>
+                    <div className="flex items-center gap-2">
+                      <Gift className="w-6 h-6 text-warning" />
+                      <p className="text-2xl font-bold text-warning">{selectedCustomer.loyaltyPoints}</p>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+
+              <div className="space-y-4">
+                <div>
+                  <h4 className="font-semibold mb-2">Contact Information</h4>
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2">
+                      <Mail className="w-4 h-4 text-muted-foreground" />
+                      <span>{selectedCustomer.email}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Phone className="w-4 h-4 text-muted-foreground" />
+                      <span>{selectedCustomer.phone}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Calendar className="w-4 h-4 text-muted-foreground" />
+                      <span>Last visit: {selectedCustomer.lastVisit}</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-accent/10 border border-accent/30 rounded-lg p-4">
+                  <div className="flex items-center gap-2 mb-3">
+                    <Brain className="w-5 h-5 text-accent animate-pulse" />
+                    <h4 className="font-semibold text-accent">AI Customer Insights</h4>
+                  </div>
+                  <div className="space-y-2">
+                    {selectedCustomer.aiInsights.map((insight, index) => (
+                      <div key={index} className="flex items-start gap-2">
+                        <div className="w-1.5 h-1.5 rounded-full bg-accent mt-2" />
+                        <p className="text-sm">{insight}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex justify-end gap-2 pt-4 border-t">
+                <Button variant="outline" onClick={() => setSelectedCustomer(null)}>
+                  Close
+                </Button>
+                <Button className="bg-gradient-primary">
+                  <Target className="w-4 h-4 mr-2" />
+                  Send Offer
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

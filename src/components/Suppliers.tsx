@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { 
   Search, 
   Plus,
@@ -51,6 +52,7 @@ const Suppliers = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("all");
   const [selectedStatus, setSelectedStatus] = useState("all");
+  const [selectedSupplier, setSelectedSupplier] = useState<Supplier | null>(null);
 
   const suppliers: Supplier[] = [
     {
@@ -408,11 +410,11 @@ const Suppliers = () => {
                   )}
                 </div>
 
-                <div className="flex items-center gap-2">
-                  <Button size="sm" variant="outline">
-                    <Eye className="w-3 h-3 mr-1" />
-                    View
-                  </Button>
+                  <div className="flex items-center gap-2">
+                    <Button size="sm" variant="outline" onClick={() => setSelectedSupplier(supplier)}>
+                      <Eye className="w-3 h-3 mr-1" />
+                      View
+                    </Button>
                   <Button size="sm" variant="outline">
                     <Edit className="w-3 h-3 mr-1" />
                     Edit
@@ -431,6 +433,162 @@ const Suppliers = () => {
           </Card>
         ))}
       </div>
+
+      {/* Supplier Detail Dialog */}
+      <Dialog open={!!selectedSupplier} onOpenChange={() => setSelectedSupplier(null)}>
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Supplier Details</DialogTitle>
+          </DialogHeader>
+          {selectedSupplier && (
+            <div className="space-y-6">
+              <div className="flex items-start justify-between">
+                <div className="flex items-start gap-4">
+                  <div className="p-4 bg-primary/10 rounded-lg">
+                    <Package className="w-8 h-8 text-primary" />
+                  </div>
+                  <div>
+                    <h3 className="text-2xl font-bold mb-2">{selectedSupplier.name}</h3>
+                    <div className="flex gap-2 mb-2">
+                      <Badge 
+                        variant="outline" 
+                        className={`border-${getStatusColor(selectedSupplier.status)} text-${getStatusColor(selectedSupplier.status)} capitalize`}
+                      >
+                        {selectedSupplier.status}
+                      </Badge>
+                      <Badge variant="outline" className="capitalize">
+                        {selectedSupplier.category}
+                      </Badge>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      {getRatingStars(selectedSupplier.rating)}
+                      <span className="text-sm text-muted-foreground ml-2">({selectedSupplier.rating}/5)</span>
+                    </div>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <p className="text-3xl font-bold">${selectedSupplier.totalValue.toLocaleString()}</p>
+                  <p className="text-sm text-muted-foreground">{selectedSupplier.totalOrders} total orders</p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <Card>
+                  <CardContent className="p-4">
+                    <h4 className="font-semibold mb-3">Contact Information</h4>
+                    <div className="space-y-2">
+                      <div>
+                        <p className="text-xs text-muted-foreground">Contact Person</p>
+                        <p className="font-medium">{selectedSupplier.contactPerson}</p>
+                      </div>
+                      <div className="flex items-center gap-2 text-sm">
+                        <Mail className="w-4 h-4 text-muted-foreground" />
+                        <span>{selectedSupplier.email}</span>
+                      </div>
+                      <div className="flex items-center gap-2 text-sm">
+                        <Phone className="w-4 h-4 text-muted-foreground" />
+                        <span>{selectedSupplier.phone}</span>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardContent className="p-4">
+                    <h4 className="font-semibold mb-3">Location</h4>
+                    <div className="space-y-2">
+                      <div className="flex items-start gap-2">
+                        <MapPin className="w-4 h-4 text-muted-foreground mt-1" />
+                        <div>
+                          <p className="text-sm">{selectedSupplier.address}</p>
+                          <p className="text-sm">{selectedSupplier.city}, {selectedSupplier.country}</p>
+                        </div>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardContent className="p-4">
+                    <h4 className="font-semibold mb-3">Business Terms</h4>
+                    <div className="space-y-2">
+                      <div>
+                        <p className="text-xs text-muted-foreground">Payment Terms</p>
+                        <p className="font-medium">{selectedSupplier.paymentTerms}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-muted-foreground">Lead Time</p>
+                        <p className="font-medium">{selectedSupplier.leadTime} days</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-muted-foreground">Last Order</p>
+                        <p className="font-medium">{selectedSupplier.lastOrderDate}</p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardContent className="p-4">
+                    <h4 className="font-semibold mb-3">Performance</h4>
+                    <div className="space-y-2">
+                      <div>
+                        <p className="text-xs text-muted-foreground">Reliability Score</p>
+                        <div className="flex items-center gap-2">
+                          <Badge 
+                            variant="outline" 
+                            className={`border-${getReliabilityColor(selectedSupplier.reliability)} text-${getReliabilityColor(selectedSupplier.reliability)}`}
+                          >
+                            {selectedSupplier.reliability}%
+                          </Badge>
+                        </div>
+                      </div>
+                      <div>
+                        <p className="text-xs text-muted-foreground">Member Since</p>
+                        <p className="font-medium">{selectedSupplier.joinedDate}</p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+
+              <div>
+                <h4 className="font-semibold mb-3">Products Supplied</h4>
+                <div className="flex flex-wrap gap-2">
+                  {selectedSupplier.products.map((product, index) => (
+                    <Badge key={index} variant="secondary">
+                      {product}
+                    </Badge>
+                  ))}
+                </div>
+              </div>
+
+              {selectedSupplier.notes && (
+                <div>
+                  <h4 className="font-semibold mb-2">Notes</h4>
+                  <div className="p-4 bg-muted/50 rounded-lg border">
+                    <p className="text-sm">{selectedSupplier.notes}</p>
+                  </div>
+                </div>
+              )}
+
+              <div className="flex justify-end gap-2 pt-4 border-t">
+                <Button variant="outline" onClick={() => setSelectedSupplier(null)}>
+                  Close
+                </Button>
+                <Button variant="outline">
+                  <Edit className="w-4 h-4 mr-2" />
+                  Edit
+                </Button>
+                <Button className="bg-gradient-primary">
+                  <Plus className="w-4 h-4 mr-2" />
+                  Place Order
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
