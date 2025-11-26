@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { useCurrency } from "@/hooks/useCurrency";
+import { useToast } from "@/hooks/use-toast";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { 
@@ -17,7 +18,8 @@ import {
   Calendar,
   ShoppingBag,
   Gift,
-  Target
+  Target,
+  Edit
 } from "lucide-react";
 
 interface Customer {
@@ -37,8 +39,11 @@ interface Customer {
 
 const Customers = () => {
   const { formatCurrency } = useCurrency();
+  const { toast } = useToast();
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [editForm, setEditForm] = useState<Partial<Customer>>({});
 
   const customersData: Customer[] = [
     {
@@ -380,10 +385,43 @@ const Customers = () => {
       </Card>
 
       {/* Customer Detail Dialog */}
-      <Dialog open={!!selectedCustomer} onOpenChange={() => setSelectedCustomer(null)}>
+      <Dialog open={!!selectedCustomer} onOpenChange={() => {
+        setSelectedCustomer(null);
+        setIsEditMode(false);
+        setEditForm({});
+      }}>
         <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Customer Profile</DialogTitle>
+            <DialogTitle className="flex items-center justify-between">
+              <span>Customer Profile</span>
+              {!isEditMode ? (
+                <Button size="sm" onClick={() => {
+                  setIsEditMode(true);
+                  setEditForm(selectedCustomer || {});
+                }}>
+                  <Edit className="w-4 h-4 mr-2" />
+                  Edit
+                </Button>
+              ) : (
+                <div className="flex gap-2">
+                  <Button size="sm" variant="outline" onClick={() => {
+                    setIsEditMode(false);
+                    setEditForm({});
+                  }}>
+                    Cancel
+                  </Button>
+                  <Button size="sm" onClick={() => {
+                    // TODO: Connect to database to save changes
+                    console.log('Saving customer:', editForm);
+                    setIsEditMode(false);
+                    setSelectedCustomer(null);
+                    toast({ title: "Success", description: "Customer updated successfully" });
+                  }}>
+                    Save Changes
+                  </Button>
+                </div>
+              )}
+            </DialogTitle>
           </DialogHeader>
           {selectedCustomer && (
             <div className="space-y-6">
@@ -394,15 +432,44 @@ const Customers = () => {
                   </AvatarFallback>
                 </Avatar>
                 <div className="flex-1">
-                  <h3 className="text-2xl font-bold mb-2">{selectedCustomer.name}</h3>
-                  <div className="flex gap-2 mb-4">
-                    <Badge className={`${getTierColor(selectedCustomer.tier)} text-white border-0 capitalize`}>
-                      {selectedCustomer.tier}
-                    </Badge>
-                    <Badge variant="outline" className={`border-${getRiskColor(selectedCustomer.riskLevel)} text-${getRiskColor(selectedCustomer.riskLevel)}`}>
-                      {selectedCustomer.riskLevel} risk
-                    </Badge>
-                  </div>
+                  {isEditMode ? (
+                    <div className="space-y-3">
+                      <div>
+                        <label className="text-sm font-medium mb-1 block">Name</label>
+                        <Input 
+                          value={editForm.name || ''} 
+                          onChange={(e) => setEditForm({...editForm, name: e.target.value})}
+                        />
+                      </div>
+                      <div>
+                        <label className="text-sm font-medium mb-1 block">Email</label>
+                        <Input 
+                          type="email"
+                          value={editForm.email || ''} 
+                          onChange={(e) => setEditForm({...editForm, email: e.target.value})}
+                        />
+                      </div>
+                      <div>
+                        <label className="text-sm font-medium mb-1 block">Phone</label>
+                        <Input 
+                          value={editForm.phone || ''} 
+                          onChange={(e) => setEditForm({...editForm, phone: e.target.value})}
+                        />
+                      </div>
+                    </div>
+                  ) : (
+                    <>
+                      <h3 className="text-2xl font-bold mb-2">{selectedCustomer.name}</h3>
+                      <div className="flex gap-2 mb-4">
+                        <Badge className={`${getTierColor(selectedCustomer.tier)} text-white border-0 capitalize`}>
+                          {selectedCustomer.tier}
+                        </Badge>
+                        <Badge variant="outline" className={`border-${getRiskColor(selectedCustomer.riskLevel)} text-${getRiskColor(selectedCustomer.riskLevel)}`}>
+                          {selectedCustomer.riskLevel} risk
+                        </Badge>
+                      </div>
+                    </>
+                  )}
                 </div>
               </div>
 
@@ -436,40 +503,42 @@ const Customers = () => {
                 </Card>
               </div>
 
-              <div className="space-y-4">
-                <div>
-                  <h4 className="font-semibold mb-2">Contact Information</h4>
-                  <div className="space-y-2">
-                    <div className="flex items-center gap-2">
-                      <Mail className="w-4 h-4 text-muted-foreground" />
-                      <span>{selectedCustomer.email}</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Phone className="w-4 h-4 text-muted-foreground" />
-                      <span>{selectedCustomer.phone}</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Calendar className="w-4 h-4 text-muted-foreground" />
-                      <span>Last visit: {selectedCustomer.lastVisit}</span>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="bg-accent/10 border border-accent/30 rounded-lg p-4">
-                  <div className="flex items-center gap-2 mb-3">
-                    <Brain className="w-5 h-5 text-accent animate-pulse" />
-                    <h4 className="font-semibold text-accent">AI Customer Insights</h4>
-                  </div>
-                  <div className="space-y-2">
-                    {selectedCustomer.aiInsights.map((insight, index) => (
-                      <div key={index} className="flex items-start gap-2">
-                        <div className="w-1.5 h-1.5 rounded-full bg-accent mt-2" />
-                        <p className="text-sm">{insight}</p>
+              {!isEditMode && (
+                <div className="space-y-4">
+                  <div>
+                    <h4 className="font-semibold mb-2">Contact Information</h4>
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2">
+                        <Mail className="w-4 h-4 text-muted-foreground" />
+                        <span>{selectedCustomer.email}</span>
                       </div>
-                    ))}
+                      <div className="flex items-center gap-2">
+                        <Phone className="w-4 h-4 text-muted-foreground" />
+                        <span>{selectedCustomer.phone}</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Calendar className="w-4 h-4 text-muted-foreground" />
+                        <span>Last visit: {selectedCustomer.lastVisit}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="bg-accent/10 border border-accent/30 rounded-lg p-4">
+                    <div className="flex items-center gap-2 mb-3">
+                      <Brain className="w-5 h-5 text-accent animate-pulse" />
+                      <h4 className="font-semibold text-accent">AI Customer Insights</h4>
+                    </div>
+                    <div className="space-y-2">
+                      {selectedCustomer.aiInsights.map((insight, index) => (
+                        <div key={index} className="flex items-start gap-2">
+                          <div className="w-1.5 h-1.5 rounded-full bg-accent mt-2" />
+                          <p className="text-sm">{insight}</p>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 </div>
-              </div>
+              )}
 
               <div className="flex justify-end gap-2 pt-4 border-t">
                 <Button variant="outline" onClick={() => setSelectedCustomer(null)}>

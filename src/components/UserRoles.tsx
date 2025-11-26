@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { 
   Shield, 
   Users, 
@@ -34,6 +35,8 @@ interface UserRole {
 const UserRoles = () => {
   const [users, setUsers] = useState<UserRole[]>([]);
   const [selectedUser, setSelectedUser] = useState<UserRole | null>(null);
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [editForm, setEditForm] = useState<Partial<UserRole>>({});
   const { toast } = useToast();
 
   useEffect(() => {
@@ -308,10 +311,56 @@ const UserRoles = () => {
       </Card>
 
       {/* User Detail Dialog */}
-      <Dialog open={!!selectedUser} onOpenChange={() => setSelectedUser(null)}>
+      <Dialog open={!!selectedUser} onOpenChange={() => {
+        setSelectedUser(null);
+        setIsEditMode(false);
+        setEditForm({});
+      }}>
         <DialogContent className="max-w-2xl">
           <DialogHeader>
-            <DialogTitle>User Profile Details</DialogTitle>
+            <DialogTitle className="flex items-center justify-between">
+              <span>User Profile Details</span>
+              {!isEditMode ? (
+                <Button size="sm" onClick={() => {
+                  setIsEditMode(true);
+                  setEditForm(selectedUser || {});
+                }}>
+                  <Edit className="w-4 h-4 mr-2" />
+                  Edit
+                </Button>
+              ) : (
+                <div className="flex gap-2">
+                  <Button size="sm" variant="outline" onClick={() => {
+                    setIsEditMode(false);
+                    setEditForm({});
+                  }}>
+                    Cancel
+                  </Button>
+                  <Button size="sm" onClick={async () => {
+                    if (!selectedUser) return;
+                    const { error } = await supabase
+                      .from('profiles')
+                      .update({
+                        full_name: editForm.full_name,
+                        role: editForm.role,
+                        is_active: editForm.is_active
+                      })
+                      .eq('id', selectedUser.id);
+                    
+                    if (error) {
+                      toast({ title: "Error", description: error.message, variant: "destructive" });
+                    } else {
+                      toast({ title: "Success", description: "User updated successfully" });
+                      setIsEditMode(false);
+                      setSelectedUser(null);
+                      fetchUsers();
+                    }
+                  }}>
+                    Save Changes
+                  </Button>
+                </div>
+              )}
+            </DialogTitle>
           </DialogHeader>
           {selectedUser && (
             <div className="space-y-6">
@@ -322,25 +371,63 @@ const UserRoles = () => {
                   </AvatarFallback>
                 </Avatar>
                 <div className="flex-1">
-                  <h3 className="text-2xl font-bold mb-2">{selectedUser.full_name || "No name set"}</h3>
-                  <div className="flex gap-2 mb-2">
-                    <div className="flex items-center gap-1">
-                      {getRoleIcon(selectedUser.role)}
-                      <Badge 
-                        variant="outline" 
-                        className={`border-${getRoleColor(selectedUser.role)} text-${getRoleColor(selectedUser.role)} capitalize`}
-                      >
-                        {selectedUser.role.replace('_', ' ')}
-                      </Badge>
+                  {isEditMode ? (
+                    <div className="space-y-3">
+                      <div>
+                        <label className="text-sm font-medium mb-1 block">Full Name</label>
+                        <Input 
+                          value={editForm.full_name || ''} 
+                          onChange={(e) => setEditForm({...editForm, full_name: e.target.value})}
+                        />
+                      </div>
+                      <div>
+                        <label className="text-sm font-medium mb-1 block">Role</label>
+                        <Select value={editForm.role} onValueChange={(value: any) => setEditForm({...editForm, role: value})}>
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="admin">Administrator</SelectItem>
+                            <SelectItem value="manager">Manager</SelectItem>
+                            <SelectItem value="supervisor">Supervisor</SelectItem>
+                            <SelectItem value="cashier">Cashier</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="checkbox"
+                          id="is_active"
+                          checked={editForm.is_active}
+                          onChange={(e) => setEditForm({...editForm, is_active: e.target.checked})}
+                          className="w-4 h-4"
+                        />
+                        <label htmlFor="is_active" className="text-sm font-medium">Active User</label>
+                      </div>
                     </div>
-                    <Badge 
-                      variant="outline" 
-                      className={`border-${getStatusColor(selectedUser.is_active)} text-${getStatusColor(selectedUser.is_active)}`}
-                    >
-                      {selectedUser.is_active ? "Active" : "Inactive"}
-                    </Badge>
-                  </div>
-                  <p className="text-sm text-muted-foreground">{selectedUser.email}</p>
+                  ) : (
+                    <>
+                      <h3 className="text-2xl font-bold mb-2">{selectedUser.full_name || "No name set"}</h3>
+                      <div className="flex gap-2 mb-2">
+                        <div className="flex items-center gap-1">
+                          {getRoleIcon(selectedUser.role)}
+                          <Badge 
+                            variant="outline" 
+                            className={`border-${getRoleColor(selectedUser.role)} text-${getRoleColor(selectedUser.role)} capitalize`}
+                          >
+                            {selectedUser.role.replace('_', ' ')}
+                          </Badge>
+                        </div>
+                        <Badge 
+                          variant="outline" 
+                          className={`border-${getStatusColor(selectedUser.is_active)} text-${getStatusColor(selectedUser.is_active)}`}
+                        >
+                          {selectedUser.is_active ? "Active" : "Inactive"}
+                        </Badge>
+                      </div>
+                      <p className="text-sm text-muted-foreground">{selectedUser.email}</p>
+                    </>
+                  )}
                 </div>
               </div>
 

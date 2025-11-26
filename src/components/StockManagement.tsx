@@ -27,7 +27,8 @@ import {
   Upload,
   FileText,
   File,
-  MoreHorizontal
+  MoreHorizontal,
+  Edit
 } from "lucide-react";
 
 interface Product {
@@ -64,6 +65,8 @@ const StockManagement = () => {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<string>("");
   const [selectedProductDetail, setSelectedProductDetail] = useState<Product | null>(null);
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [editForm, setEditForm] = useState<Partial<Product>>({});
   const [movementType, setMovementType] = useState<'in' | 'out' | 'damage' | 'return' | 'adjustment'>('in');
   const [quantity, setQuantity] = useState<number>(0);
   const [notes, setNotes] = useState("");
@@ -726,20 +729,120 @@ const StockManagement = () => {
       </Tabs>
 
       {/* Product Detail Dialog */}
-      <Dialog open={!!selectedProductDetail} onOpenChange={() => setSelectedProductDetail(null)}>
+      <Dialog open={!!selectedProductDetail} onOpenChange={() => {
+        setSelectedProductDetail(null);
+        setIsEditMode(false);
+        setEditForm({});
+      }}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Product Stock Details</DialogTitle>
+            <DialogTitle className="flex items-center justify-between">
+              <span>Product Stock Details</span>
+              {!isEditMode ? (
+                <Button size="sm" onClick={() => {
+                  setIsEditMode(true);
+                  setEditForm(selectedProductDetail || {});
+                }}>
+                  <Edit className="w-4 h-4 mr-2" />
+                  Edit
+                </Button>
+              ) : (
+                <div className="flex gap-2">
+                  <Button size="sm" variant="outline" onClick={() => {
+                    setIsEditMode(false);
+                    setEditForm({});
+                  }}>
+                    Cancel
+                  </Button>
+                  <Button size="sm" onClick={async () => {
+                    if (!selectedProductDetail) return;
+                    const { error } = await supabase
+                      .from('products')
+                      .update({
+                        name: editForm.name,
+                        cost_price: editForm.cost_price,
+                        selling_price: editForm.selling_price,
+                        min_stock_level: editForm.min_stock_level,
+                        max_stock_level: editForm.max_stock_level
+                      })
+                      .eq('id', selectedProductDetail.id);
+                    
+                    if (error) {
+                      toast({ title: "Error", description: error.message, variant: "destructive" });
+                    } else {
+                      toast({ title: "Success", description: "Product updated successfully" });
+                      setIsEditMode(false);
+                      setSelectedProductDetail(null);
+                      await fetchProducts();
+                    }
+                  }}>
+                    Save Changes
+                  </Button>
+                </div>
+              )}
+            </DialogTitle>
           </DialogHeader>
           {selectedProductDetail && (
             <div className="space-y-6">
               <div className="flex items-start justify-between">
-                <div>
-                  <h3 className="text-2xl font-bold mb-2">{selectedProductDetail.name}</h3>
-                  <div className="flex gap-2">
-                    <Badge variant="outline">SKU: {selectedProductDetail.sku}</Badge>
-                    <Badge variant="outline">{selectedProductDetail.categories.name}</Badge>
-                  </div>
+                <div className="flex-1">
+                  {isEditMode ? (
+                    <div className="space-y-3">
+                      <div>
+                        <label className="text-sm font-medium mb-1 block">Product Name</label>
+                        <Input 
+                          value={editForm.name || ''} 
+                          onChange={(e) => setEditForm({...editForm, name: e.target.value})}
+                        />
+                      </div>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <label className="text-sm font-medium mb-1 block">Cost Price ($)</label>
+                          <Input 
+                            type="number"
+                            step="0.01"
+                            value={editForm.cost_price || ''} 
+                            onChange={(e) => setEditForm({...editForm, cost_price: parseFloat(e.target.value)})}
+                          />
+                        </div>
+                        <div>
+                          <label className="text-sm font-medium mb-1 block">Selling Price ($)</label>
+                          <Input 
+                            type="number"
+                            step="0.01"
+                            value={editForm.selling_price || ''} 
+                            onChange={(e) => setEditForm({...editForm, selling_price: parseFloat(e.target.value)})}
+                          />
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <label className="text-sm font-medium mb-1 block">Min Stock Level</label>
+                          <Input 
+                            type="number"
+                            value={editForm.min_stock_level || ''} 
+                            onChange={(e) => setEditForm({...editForm, min_stock_level: parseInt(e.target.value)})}
+                          />
+                        </div>
+                        <div>
+                          <label className="text-sm font-medium mb-1 block">Max Stock Level</label>
+                          <Input 
+                            type="number"
+                            value={editForm.max_stock_level || ''} 
+                            onChange={(e) => setEditForm({...editForm, max_stock_level: parseInt(e.target.value)})}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <>
+                      <h3 className="text-2xl font-bold mb-2">{selectedProductDetail.name}</h3>
+                      <div className="flex gap-2">
+                        <Badge variant="outline">SKU: {selectedProductDetail.sku}</Badge>
+                        <Badge variant="outline">{selectedProductDetail.categories.name}</Badge>
+                      </div>
+                    </>
+                  )}
                 </div>
                 <div className="text-right">
                   <p className="text-sm text-muted-foreground">Current Stock</p>
