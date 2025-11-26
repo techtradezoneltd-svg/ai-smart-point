@@ -6,7 +6,8 @@ import { Badge } from "@/components/ui/badge";
 import { useCurrency } from "@/hooks/useCurrency";
 import { useToast } from "@/hooks/use-toast";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { 
   Users, 
   Search, 
@@ -19,7 +20,8 @@ import {
   ShoppingBag,
   Gift,
   Target,
-  Edit
+  Edit,
+  Trash2
 } from "lucide-react";
 
 interface Customer {
@@ -44,6 +46,7 @@ const Customers = () => {
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
   const [isEditMode, setIsEditMode] = useState(false);
   const [editForm, setEditForm] = useState<Partial<Customer>>({});
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
 
   const customersData: Customer[] = [
     {
@@ -395,13 +398,19 @@ const Customers = () => {
             <DialogTitle className="flex items-center justify-between">
               <span>Customer Profile</span>
               {!isEditMode ? (
-                <Button size="sm" onClick={() => {
-                  setIsEditMode(true);
-                  setEditForm(selectedCustomer || {});
-                }}>
-                  <Edit className="w-4 h-4 mr-2" />
-                  Edit
-                </Button>
+                <div className="flex gap-2">
+                  <Button size="sm" variant="outline" onClick={() => setShowDeleteDialog(true)}>
+                    <Trash2 className="w-4 h-4 mr-2" />
+                    Delete
+                  </Button>
+                  <Button size="sm" onClick={() => {
+                    setIsEditMode(true);
+                    setEditForm(selectedCustomer || {});
+                  }}>
+                    <Edit className="w-4 h-4 mr-2" />
+                    Edit
+                  </Button>
+                </div>
               ) : (
                 <div className="flex gap-2">
                   <Button size="sm" variant="outline" onClick={() => {
@@ -553,6 +562,37 @@ const Customers = () => {
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete the customer "{selectedCustomer?.name}". This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                // TODO: Connect to database to delete customer
+                console.log('Deleting customer:', selectedCustomer?.id);
+                toast({ 
+                  title: "Success", 
+                  description: "Customer deleted successfully",
+                  variant: "default"
+                });
+                setShowDeleteDialog(false);
+                setSelectedCustomer(null);
+              }}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };

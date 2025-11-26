@@ -5,7 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -28,7 +29,8 @@ import {
   FileText,
   File,
   MoreHorizontal,
-  Edit
+  Edit,
+  Trash2
 } from "lucide-react";
 
 interface Product {
@@ -67,6 +69,7 @@ const StockManagement = () => {
   const [selectedProductDetail, setSelectedProductDetail] = useState<Product | null>(null);
   const [isEditMode, setIsEditMode] = useState(false);
   const [editForm, setEditForm] = useState<Partial<Product>>({});
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [movementType, setMovementType] = useState<'in' | 'out' | 'damage' | 'return' | 'adjustment'>('in');
   const [quantity, setQuantity] = useState<number>(0);
   const [notes, setNotes] = useState("");
@@ -739,13 +742,19 @@ const StockManagement = () => {
             <DialogTitle className="flex items-center justify-between">
               <span>Product Stock Details</span>
               {!isEditMode ? (
-                <Button size="sm" onClick={() => {
-                  setIsEditMode(true);
-                  setEditForm(selectedProductDetail || {});
-                }}>
-                  <Edit className="w-4 h-4 mr-2" />
-                  Edit
-                </Button>
+                <div className="flex gap-2">
+                  <Button size="sm" variant="outline" onClick={() => setShowDeleteDialog(true)}>
+                    <Trash2 className="w-4 h-4 mr-2" />
+                    Delete
+                  </Button>
+                  <Button size="sm" onClick={() => {
+                    setIsEditMode(true);
+                    setEditForm(selectedProductDetail || {});
+                  }}>
+                    <Edit className="w-4 h-4 mr-2" />
+                    Edit
+                  </Button>
+                </div>
               ) : (
                 <div className="flex gap-2">
                   <Button size="sm" variant="outline" onClick={() => {
@@ -981,6 +990,46 @@ const StockManagement = () => {
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete the product "{selectedProductDetail?.name}". This action cannot be undone and will remove all associated stock movement history.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={async () => {
+                if (!selectedProductDetail) return;
+                const { error } = await supabase
+                  .from('products')
+                  .update({ is_active: false })
+                  .eq('id', selectedProductDetail.id);
+                
+                if (error) {
+                  toast({ title: "Error", description: error.message, variant: "destructive" });
+                } else {
+                  toast({ 
+                    title: "Success", 
+                    description: "Product deleted successfully",
+                    variant: "default"
+                  });
+                  setShowDeleteDialog(false);
+                  setSelectedProductDetail(null);
+                  await fetchProducts();
+                }
+              }}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };

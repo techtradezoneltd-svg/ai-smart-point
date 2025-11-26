@@ -4,7 +4,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { 
   Search, 
   Plus,
@@ -57,6 +58,7 @@ const Suppliers = () => {
   const [selectedSupplier, setSelectedSupplier] = useState<Supplier | null>(null);
   const [isEditMode, setIsEditMode] = useState(false);
   const [editForm, setEditForm] = useState<Partial<Supplier>>({});
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
 
   const suppliers: Supplier[] = [
     {
@@ -449,13 +451,19 @@ const Suppliers = () => {
             <DialogTitle className="flex items-center justify-between">
               <span>Supplier Details</span>
               {!isEditMode ? (
-                <Button size="sm" onClick={() => {
-                  setIsEditMode(true);
-                  setEditForm(selectedSupplier || {});
-                }}>
-                  <Edit className="w-4 h-4 mr-2" />
-                  Edit
-                </Button>
+                <div className="flex gap-2">
+                  <Button size="sm" variant="outline" onClick={() => setShowDeleteDialog(true)}>
+                    <Trash2 className="w-4 h-4 mr-2" />
+                    Delete
+                  </Button>
+                  <Button size="sm" onClick={() => {
+                    setIsEditMode(true);
+                    setEditForm(selectedSupplier || {});
+                  }}>
+                    <Edit className="w-4 h-4 mr-2" />
+                    Edit
+                  </Button>
+                </div>
               ) : (
                 <div className="flex gap-2">
                   <Button size="sm" variant="outline" onClick={() => {
@@ -664,6 +672,37 @@ const Suppliers = () => {
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete the supplier "{selectedSupplier?.name}". This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                // TODO: Connect to database to delete supplier
+                console.log('Deleting supplier:', selectedSupplier?.id);
+                toast({ 
+                  title: "Success", 
+                  description: "Supplier deleted successfully",
+                  variant: "default"
+                });
+                setShowDeleteDialog(false);
+                setSelectedSupplier(null);
+              }}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };

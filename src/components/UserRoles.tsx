@@ -6,7 +6,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { 
   Shield, 
@@ -37,6 +38,7 @@ const UserRoles = () => {
   const [selectedUser, setSelectedUser] = useState<UserRole | null>(null);
   const [isEditMode, setIsEditMode] = useState(false);
   const [editForm, setEditForm] = useState<Partial<UserRole>>({});
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -321,13 +323,21 @@ const UserRoles = () => {
             <DialogTitle className="flex items-center justify-between">
               <span>User Profile Details</span>
               {!isEditMode ? (
-                <Button size="sm" onClick={() => {
-                  setIsEditMode(true);
-                  setEditForm(selectedUser || {});
-                }}>
-                  <Edit className="w-4 h-4 mr-2" />
-                  Edit
-                </Button>
+                <div className="flex gap-2">
+                  {selectedUser?.role !== 'admin' && (
+                    <Button size="sm" variant="outline" onClick={() => setShowDeleteDialog(true)}>
+                      <Trash2 className="w-4 h-4 mr-2" />
+                      Delete
+                    </Button>
+                  )}
+                  <Button size="sm" onClick={() => {
+                    setIsEditMode(true);
+                    setEditForm(selectedUser || {});
+                  }}>
+                    <Edit className="w-4 h-4 mr-2" />
+                    Edit
+                  </Button>
+                </div>
               ) : (
                 <div className="flex gap-2">
                   <Button size="sm" variant="outline" onClick={() => {
@@ -584,6 +594,46 @@ const UserRoles = () => {
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete the user "{selectedUser?.full_name || selectedUser?.email}". This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={async () => {
+                if (!selectedUser) return;
+                const { error } = await supabase
+                  .from('profiles')
+                  .delete()
+                  .eq('id', selectedUser.id);
+                
+                if (error) {
+                  toast({ title: "Error", description: error.message, variant: "destructive" });
+                } else {
+                  toast({ 
+                    title: "Success", 
+                    description: "User deleted successfully",
+                    variant: "default"
+                  });
+                  setShowDeleteDialog(false);
+                  setSelectedUser(null);
+                  fetchUsers();
+                }
+              }}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };
