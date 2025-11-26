@@ -60,11 +60,35 @@ const AIReportingSystem = () => {
   const [dailyReport, setDailyReport] = useState(null);
   const [recentActivities, setRecentActivities] = useState<ShopActivity[]>([]);
   const [whatsappQueries, setWhatsappQueries] = useState([]);
+  const [alertThresholds, setAlertThresholds] = useState({
+    large_sale: 1000,
+    large_expense: 500,
+    low_stock: 10,
+    overdue_loan: 7
+  });
+
+  // Load alert thresholds from database
+  const loadAlertThresholds = async () => {
+    try {
+      const { data } = await supabase
+        .from('ai_config')
+        .select('value')
+        .eq('key', 'alert_thresholds')
+        .maybeSingle();
+
+      if (data?.value) {
+        setAlertThresholds(data.value as any);
+      }
+    } catch (error) {
+      console.error('Error loading alert thresholds:', error);
+    }
+  };
 
   useEffect(() => {
     loadSettings();
     loadDailyReport();
     loadRecentActivities();
+    loadAlertThresholds();
     setupRealtimeMonitoring();
   }, []);
 
@@ -300,9 +324,18 @@ const AIReportingSystem = () => {
   };
 
   const handleNewSale = async (sale: any) => {
-    // Check for unusual activity
-    if (Number(sale.total_amount) > 1000) {
+    // Check for unusual activity using dynamic thresholds
+    if (Number(sale.total_amount) > alertThresholds.large_sale) {
       sendAlert('Large Sale Alert', `High-value transaction: ${formatCurrency(sale.total_amount)} - Sale #${sale.sale_number}`);
+      
+      // Create AI recommendation
+      await supabase.from('ai_recommendations').insert({
+        type: 'sale_alert',
+        title: 'Large Sale Detected',
+        message: `High-value transaction of ${formatCurrency(sale.total_amount)} recorded`,
+        priority: 'medium',
+        data: { sale_id: sale.id, amount: sale.total_amount }
+      });
     }
     
     loadDailyReport();
@@ -310,9 +343,18 @@ const AIReportingSystem = () => {
   };
 
   const handleNewExpense = async (expense: any) => {
-    // Check for unusual expenses
-    if (Number(expense.amount) > 500) {
+    // Check for unusual expenses using dynamic thresholds
+    if (Number(expense.amount) > alertThresholds.large_expense) {
       sendAlert('Large Expense Alert', `High expense recorded: ${formatCurrency(expense.amount)} - ${expense.title}`);
+      
+      // Create AI recommendation
+      await supabase.from('ai_recommendations').insert({
+        type: 'expense_alert',
+        title: 'Large Expense Detected',
+        message: `High expense of ${formatCurrency(expense.amount)} recorded: ${expense.title}`,
+        priority: 'medium',
+        data: { expense_id: expense.id, amount: expense.amount }
+      });
     }
     
     loadDailyReport();

@@ -14,6 +14,36 @@ export type Database = {
   }
   public: {
     Tables: {
+      ai_config: {
+        Row: {
+          category: string
+          created_at: string | null
+          description: string | null
+          id: string
+          key: string
+          updated_at: string | null
+          value: Json
+        }
+        Insert: {
+          category?: string
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          key: string
+          updated_at?: string | null
+          value?: Json
+        }
+        Update: {
+          category?: string
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          key?: string
+          updated_at?: string | null
+          value?: Json
+        }
+        Relationships: []
+      }
       ai_recommendations: {
         Row: {
           created_at: string | null
@@ -486,6 +516,42 @@ export type Database = {
         }
         Relationships: []
       }
+      quick_actions: {
+        Row: {
+          action: string
+          color_class: string
+          created_at: string | null
+          display_order: number | null
+          icon: string
+          id: string
+          is_active: boolean | null
+          label: string
+          updated_at: string | null
+        }
+        Insert: {
+          action: string
+          color_class: string
+          created_at?: string | null
+          display_order?: number | null
+          icon: string
+          id?: string
+          is_active?: boolean | null
+          label: string
+          updated_at?: string | null
+        }
+        Update: {
+          action?: string
+          color_class?: string
+          created_at?: string | null
+          display_order?: number | null
+          icon?: string
+          id?: string
+          is_active?: boolean | null
+          label?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       sale_items: {
         Row: {
           created_at: string | null
@@ -719,6 +785,39 @@ export type Database = {
         }
         Relationships: []
       }
+      voice_commands: {
+        Row: {
+          category: string
+          command: string
+          created_at: string | null
+          description: string | null
+          display_order: number | null
+          id: string
+          is_active: boolean | null
+          updated_at: string | null
+        }
+        Insert: {
+          category: string
+          command: string
+          created_at?: string | null
+          description?: string | null
+          display_order?: number | null
+          id?: string
+          is_active?: boolean | null
+          updated_at?: string | null
+        }
+        Update: {
+          category?: string
+          command?: string
+          created_at?: string | null
+          description?: string | null
+          display_order?: number | null
+          id?: string
+          is_active?: boolean | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       loan_reminder_summary: {
@@ -737,20 +836,14 @@ export type Database = {
       }
     }
     Functions: {
-      generate_ai_recommendations: {
-        Args: Record<PropertyKey, never>
-        Returns: undefined
-      }
-      generate_loan_reminders: {
-        Args: Record<PropertyKey, never>
-        Returns: undefined
-      }
+      generate_ai_recommendations: { Args: never; Returns: undefined }
+      generate_loan_reminders: { Args: never; Returns: undefined }
       get_current_user_role: {
-        Args: Record<PropertyKey, never>
+        Args: never
         Returns: Database["public"]["Enums"]["user_role"]
       }
       get_loans_needing_reminders: {
-        Args: Record<PropertyKey, never>
+        Args: never
         Returns: {
           customer_name: string
           customer_phone: string
@@ -763,26 +856,11 @@ export type Database = {
           total_amount: number
         }[]
       }
-      get_setting: {
-        Args: { setting_key: string }
-        Returns: Json
-      }
-      is_admin: {
-        Args: { user_id: string }
-        Returns: boolean
-      }
-      is_current_user_admin: {
-        Args: Record<PropertyKey, never>
-        Returns: boolean
-      }
-      make_user_admin: {
-        Args: { user_email: string }
-        Returns: undefined
-      }
-      trigger_loan_reminders: {
-        Args: Record<PropertyKey, never>
-        Returns: Json
-      }
+      get_setting: { Args: { setting_key: string }; Returns: Json }
+      is_admin: { Args: { user_id: string }; Returns: boolean }
+      is_current_user_admin: { Args: never; Returns: boolean }
+      make_user_admin: { Args: { user_email: string }; Returns: undefined }
+      trigger_loan_reminders: { Args: never; Returns: Json }
       update_setting: {
         Args: { setting_key: string; setting_value: Json }
         Returns: undefined
