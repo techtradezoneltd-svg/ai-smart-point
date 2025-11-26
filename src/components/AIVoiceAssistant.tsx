@@ -33,12 +33,33 @@ const AIVoiceAssistant = () => {
   const [currentCommand, setCurrentCommand] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
   const [commandHistory, setCommandHistory] = useState<VoiceCommand[]>([]);
+  const [quickCommands, setQuickCommands] = useState<string[]>([]);
   const { toast } = useToast();
 
   const recognitionRef = useRef<any>(null);
   const synthRef = useRef<any>(null);
 
+  // Load voice commands from database
+  const loadVoiceCommands = async () => {
+    try {
+      const { data: commands } = await supabase
+        .from('voice_commands')
+        .select('command')
+        .eq('is_active', true)
+        .order('display_order')
+        .limit(6);
+
+      if (commands) {
+        setQuickCommands(commands.map(c => c.command));
+      }
+    } catch (error) {
+      console.error('Error loading voice commands:', error);
+    }
+  };
+
   useEffect(() => {
+    loadVoiceCommands();
+
     // Initialize speech recognition
     if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
       const SpeechRecognition = (window as any).webkitSpeechRecognition || (window as any).SpeechRecognition;
@@ -138,14 +159,6 @@ const AIVoiceAssistant = () => {
     }
   };
 
-  const quickCommands = [
-    "What were today's sales?",
-    "How many low stock items do we have?", 
-    "How many active loans are there?",
-    "What's our total revenue today?",
-    "Show me customer statistics",
-    "What products need restocking?"
-  ];
 
   const getConfidenceColor = (confidence: number) => {
     if (confidence >= 90) return "success";

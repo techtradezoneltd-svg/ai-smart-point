@@ -31,13 +31,14 @@ const Dashboard = ({ onNavigate }: DashboardProps) => {
   const [profitPeriod, setProfitPeriod] = useState<string>("today");
   const [profitData, setProfitData] = useState({ profit: 0, sales: 0, change: 0 });
   const [loading, setLoading] = useState(false);
-  
-  const todayStats = {
-    sales: 12750.80,
-    transactions: 156,
-    customers: 89,
-    aiInsights: 7
-  };
+  const [todayStats, setTodayStats] = useState({
+    sales: 0,
+    transactions: 0,
+    customers: 0,
+    aiInsights: 0
+  });
+  const [aiAlerts, setAiAlerts] = useState<any[]>([]);
+  const [quickActions, setQuickActions] = useState<any[]>([]);
 
   // Get currency from settings
   const currentCurrency = settings?.company.currency || 'USD';
@@ -166,8 +167,132 @@ const Dashboard = ({ onNavigate }: DashboardProps) => {
     }
   };
 
+  // Load real-time stats
+  const loadTodayStats = async () => {
+    try {
+      const today = new Date().toISOString().split('T')[0];
+      const startOfToday = `${today}T00:00:00`;
+      const endOfToday = `${today}T23:59:59`;
+
+      // Get today's sales
+      const { data: salesData } = await supabase
+        .from('sales')
+        .select('total_amount')
+        .gte('created_at', startOfToday)
+        .lt('created_at', endOfToday);
+
+      const totalSales = salesData?.reduce((sum, sale) => sum + Number(sale.total_amount), 0) || 0;
+      const transactions = salesData?.length || 0;
+
+      // Get unique customers today
+      const { data: customersData } = await supabase
+        .from('sales')
+        .select('customer_id')
+        .gte('created_at', startOfToday)
+        .lt('created_at', endOfToday)
+        .not('customer_id', 'is', null);
+
+      const uniqueCustomers = new Set(customersData?.map(s => s.customer_id)).size;
+
+      // Get unread AI recommendations
+      const { data: recommendations } = await supabase
+        .from('ai_recommendations')
+        .select('id')
+        .eq('is_read', false);
+
+      setTodayStats({
+        sales: totalSales,
+        transactions,
+        customers: uniqueCustomers,
+        aiInsights: recommendations?.length || 0
+      });
+    } catch (error) {
+      console.error('Error loading today stats:', error);
+    }
+  };
+
+  // Load AI alerts from database
+  const loadAiAlerts = async () => {
+    try {
+      const { data: recommendations } = await supabase
+        .from('ai_recommendations')
+        .select('*')
+        .eq('is_read', false)
+        .order('created_at', { ascending: false })
+        .limit(3);
+
+      if (recommendations) {
+        setAiAlerts(recommendations.map(rec => ({
+          type: rec.type,
+          message: rec.message,
+          priority: rec.priority
+        })));
+      }
+    } catch (error) {
+      console.error('Error loading AI alerts:', error);
+    }
+  };
+
+  // Load quick actions from database
+  const loadQuickActions = async () => {
+    try {
+      const { data: actions } = await supabase
+        .from('quick_actions')
+        .select('*')
+        .eq('is_active', true)
+        .order('display_order');
+
+      if (actions) {
+        setQuickActions(actions.map(action => ({
+          icon: action.icon === 'ShoppingCart' ? ShoppingCart :
+                action.icon === 'Package' ? Package :
+                action.icon === 'Users' ? Users :
+                action.icon === 'BarChart3' ? BarChart3 : ShoppingCart,
+          label: action.label,
+          action: action.action,
+          color: action.color_class
+        })));
+      }
+    } catch (error) {
+      console.error('Error loading quick actions:', error);
+    }
+  };
+
   useEffect(() => {
     calculateProfit(profitPeriod);
+    loadTodayStats();
+    loadAiAlerts();
+    loadQuickActions();
+
+    // Set up real-time subscriptions
+    const salesChannel = supabase
+      .channel('dashboard-sales')
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'sales'
+      }, () => {
+        loadTodayStats();
+        calculateProfit(profitPeriod);
+      })
+      .subscribe();
+
+    const recommendationsChannel = supabase
+      .channel('dashboard-recommendations')
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'ai_recommendations'
+      }, () => {
+        loadAiAlerts();
+        loadTodayStats();
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(salesChannel);
+      supabase.removeChannel(recommendationsChannel);
+    };
   }, [profitPeriod]);
 
   const getPeriodLabel = (period: string) => {
@@ -180,18 +305,6 @@ const Dashboard = ({ onNavigate }: DashboardProps) => {
     }
   };
 
-  const aiAlerts = [
-    { type: "restock", message: "AI suggests restocking iPhone 15 Pro - projected stockout in 2 days", priority: "high" },
-    { type: "pricing", message: "Dynamic pricing recommends 15% discount on Samsung Galaxy S24", priority: "medium" },
-    { type: "fraud", message: "AI detected suspicious return pattern - investigate user ID 2847", priority: "high" }
-  ];
-
-  const quickActions = [
-    { icon: ShoppingCart, label: "New Sale", action: "pos", color: "bg-gradient-primary" },
-    { icon: Package, label: "Inventory", action: "inventory", color: "bg-gradient-accent" },
-    { icon: Users, label: "Customers", action: "customers", color: "bg-secondary" },
-    { icon: BarChart3, label: "Analytics", action: "analytics", color: "bg-success" }
-  ];
 
   return (
     <div className="space-y-6">
