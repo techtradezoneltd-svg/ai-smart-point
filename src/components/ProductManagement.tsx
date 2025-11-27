@@ -12,6 +12,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { useCurrency } from "@/hooks/useCurrency";
 import { exportToExcel, exportToCSV, importFromCSV, importFromExcel, formatForExport } from "@/lib/exportImport";
 import { 
   Package, 
@@ -61,6 +62,7 @@ interface Unit {
 
 const ProductManagement = () => {
   const { toast } = useToast();
+  const { formatCurrency } = useCurrency();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const csvInputRef = useRef<HTMLInputElement>(null);
 
@@ -639,8 +641,8 @@ const ProductManagement = () => {
                             </TableCell>
                             <TableCell className="text-right">
                               <div className="text-xs sm:text-sm">
-                                <div className="font-medium">${product.selling_price}</div>
-                                <div className="text-muted-foreground">${product.cost_price}</div>
+                                <div className="font-medium">{formatCurrency(product.selling_price)}</div>
+                                <div className="text-muted-foreground">{formatCurrency(product.cost_price)}</div>
                               </div>
                             </TableCell>
                             <TableCell className="text-center">

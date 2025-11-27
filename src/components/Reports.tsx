@@ -2,7 +2,8 @@ import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { 
+import { useCurrency } from "@/hooks/useCurrency";
+import {
   BarChart3, 
   TrendingUp,
   TrendingDown,
@@ -22,6 +23,7 @@ import {
 
 const Reports = () => {
   const [selectedPeriod, setSelectedPeriod] = useState("month");
+  const { formatCurrency } = useCurrency();
 
   const reportCategories = [
     {
@@ -77,7 +79,7 @@ const Reports = () => {
   const keyMetrics = [
     {
       title: "Total Revenue",
-      value: "$47,285",
+      value: formatCurrency(47285),
       change: "+12.5%",
       trend: "up",
       icon: <DollarSign className="w-5 h-5" />,
@@ -93,7 +95,7 @@ const Reports = () => {
     },
     {
       title: "Inventory Value",
-      value: "$23,150",
+      value: formatCurrency(23150),
       change: "-2.1%",
       trend: "down", 
       icon: <Package className="w-5 h-5" />,
@@ -109,7 +111,7 @@ const Reports = () => {
     },
     {
       title: "Avg Order Value",
-      value: "$37.92",
+      value: formatCurrency(37.92),
       change: "+4.2%",
       trend: "up", 
       icon: <Target className="w-5 h-5" />,

@@ -46,7 +46,7 @@ const Analytics = () => {
   const aiPredictions = [
     {
       title: "Revenue Forecast",
-      prediction: "$156,780",
+      prediction: formatCurrency(156780),
       confidence: "94%",
       period: "Next 30 days",
       trend: "+18%",
