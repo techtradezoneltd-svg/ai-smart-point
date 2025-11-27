@@ -1,6 +1,7 @@
 import { useState } from "react";
 import NavigationEnhanced from "@/components/NavigationEnhanced";
 import Dashboard from "@/components/Dashboard";
+import RoleDashboard from "@/components/RoleDashboard";
 import EnhancedPOSInterface from "@/components/EnhancedPOSInterface";
 import StockManagement from "@/components/StockManagement";
 import ProductManagement from "@/components/ProductManagement";
@@ -22,8 +23,10 @@ import UserRoles from "@/components/UserRoles";
 import AuditLogs from "@/components/AuditLogs";
 import ReportsExport from "@/components/ReportsExport";
 import NotificationCenter from "@/components/NotificationCenter";
+import { AuthProvider } from "@/components/AuthProvider";
+import { SettingsProvider } from "@/contexts/SettingsContext";
 
-const Index = () => {
+const AuthenticatedApp = () => {
   const [currentView, setCurrentView] = useState("dashboard");
 
   const renderCurrentView = () => {
@@ -69,7 +72,7 @@ const Index = () => {
       case "reports-export":
         return <ReportsExport />;
       default:
-        return <Dashboard onNavigate={setCurrentView} />;
+        return <RoleDashboard onNavigate={setCurrentView} />;
     }
   };
 
@@ -83,6 +86,16 @@ const Index = () => {
       </div>
       <NotificationCenter />
     </div>
+  );
+};
+
+const Index = () => {
+  return (
+    <AuthProvider>
+      <SettingsProvider>
+        <AuthenticatedApp />
+      </SettingsProvider>
+    </AuthProvider>
   );
 };
 
