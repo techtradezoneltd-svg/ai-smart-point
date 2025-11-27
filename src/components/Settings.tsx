@@ -68,7 +68,19 @@ const Settings = () => {
     if (!companyForm) return;
     setIsUpdating(true);
     try {
+      // Import audit logging
+      const { useAuditLog } = await import('@/hooks/useAuditLog');
+      const { logAction } = useAuditLog();
+
       await updateCompanySettings(companyForm);
+
+      // Log the action
+      await logAction({
+        action: 'Updated company settings',
+        category: 'settings',
+        details: { updated_fields: Object.keys(companyForm) },
+        risk_level: 'medium'
+      });
     } finally {
       setIsUpdating(false);
     }
@@ -108,7 +120,19 @@ const Settings = () => {
     if (!integrationForm) return;
     setIsUpdating(true);
     try {
+      // Import audit logging
+      const { useAuditLog } = await import('@/hooks/useAuditLog');
+      const { logAction } = useAuditLog();
+
       await updateIntegrationSettings(integrationForm);
+
+      // Log the action
+      await logAction({
+        action: 'Updated integration settings',
+        category: 'settings',
+        details: { whatsapp_configured: !!integrationForm.whatsappApiToken },
+        risk_level: 'high'
+      });
     } finally {
       setIsUpdating(false);
     }

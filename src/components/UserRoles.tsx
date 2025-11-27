@@ -348,6 +348,11 @@ const UserRoles = () => {
                   </Button>
                   <Button size="sm" onClick={async () => {
                     if (!selectedUser) return;
+
+                    // Import audit logging
+                    const { useAuditLog } = await import('@/hooks/useAuditLog');
+                    const { logAction } = useAuditLog();
+
                     const { error } = await supabase
                       .from('profiles')
                       .update({
@@ -360,6 +365,20 @@ const UserRoles = () => {
                     if (error) {
                       toast({ title: "Error", description: error.message, variant: "destructive" });
                     } else {
+                      // Log the action
+                      await logAction({
+                        action: `Updated user: ${editForm.full_name}`,
+                        category: 'user_management',
+                        details: {
+                          user_id: selectedUser.id,
+                          changes: {
+                            role: editForm.role !== selectedUser.role ? { from: selectedUser.role, to: editForm.role } : undefined,
+                            is_active: editForm.is_active !== selectedUser.is_active ? { from: selectedUser.is_active, to: editForm.is_active } : undefined
+                          }
+                        },
+                        risk_level: editForm.role !== selectedUser.role ? 'high' : 'medium'
+                      });
+
                       toast({ title: "Success", description: "User updated successfully" });
                       setIsEditMode(false);
                       setSelectedUser(null);
@@ -609,6 +628,11 @@ const UserRoles = () => {
             <AlertDialogAction
               onClick={async () => {
                 if (!selectedUser) return;
+
+                // Import audit logging
+                const { useAuditLog } = await import('@/hooks/useAuditLog');
+                const { logAction } = useAuditLog();
+
                 const { error } = await supabase
                   .from('profiles')
                   .delete()
@@ -617,6 +641,18 @@ const UserRoles = () => {
                 if (error) {
                   toast({ title: "Error", description: error.message, variant: "destructive" });
                 } else {
+                  // Log the action
+                  await logAction({
+                    action: `Deleted user: ${selectedUser.full_name}`,
+                    category: 'user_management',
+                    details: {
+                      user_id: selectedUser.id,
+                      role: selectedUser.role,
+                      email: selectedUser.email
+                    },
+                    risk_level: 'high'
+                  });
+
                   toast({ 
                     title: "Success", 
                     description: "User deleted successfully",
