@@ -13,6 +13,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { useCurrency } from "@/hooks/useCurrency";
 import { exportToExcel, exportToCSV, importFromCSV, importFromExcel, formatForExport } from "@/lib/exportImport";
 import { 
   Package, 
@@ -76,6 +77,7 @@ const StockManagement = () => {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const { toast } = useToast();
+  const { currencySymbol, formatCurrency } = useCurrency();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -806,7 +808,7 @@ const StockManagement = () => {
                       </div>
                       <div className="grid grid-cols-2 gap-3">
                         <div>
-                          <label className="text-sm font-medium mb-1 block">Cost Price ($)</label>
+                          <label className="text-sm font-medium mb-1 block">Cost Price ({currencySymbol})</label>
                           <Input 
                             type="number"
                             step="0.01"
@@ -815,7 +817,7 @@ const StockManagement = () => {
                           />
                         </div>
                         <div>
-                          <label className="text-sm font-medium mb-1 block">Selling Price ($)</label>
+                          <label className="text-sm font-medium mb-1 block">Selling Price ({currencySymbol})</label>
                           <Input 
                             type="number"
                             step="0.01"
