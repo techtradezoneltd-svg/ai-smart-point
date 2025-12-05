@@ -23,6 +23,7 @@ import UserRoles from "@/components/UserRoles";
 import AuditLogs from "@/components/AuditLogs";
 import ReportsExport from "@/components/ReportsExport";
 import NotificationCenter from "@/components/NotificationCenter";
+import FloatingRoleSwitcher from "@/components/FloatingRoleSwitcher";
 import { AuthProvider } from "@/components/AuthProvider";
 import { SettingsProvider } from "@/contexts/SettingsContext";
 import { usePermissions } from "@/hooks/usePermissions";
@@ -166,6 +167,7 @@ const AuthenticatedApp = () => {
         {renderCurrentView()}
       </div>
       <NotificationCenter />
+      <FloatingRoleSwitcher />
     </div>
   );
 };
