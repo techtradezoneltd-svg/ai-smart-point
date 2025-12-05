@@ -5,6 +5,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { useState, useMemo } from "react";
 import { useAuth } from "@/components/AuthProvider";
 import { usePermissions, UserRole } from "@/hooks/usePermissions";
+import RoleSwitcher from "@/components/RoleSwitcher";
 import { 
   LayoutDashboard, 
   ShoppingCart, 
@@ -345,6 +346,18 @@ const NavigationEnhanced = ({ currentView, onNavigate }: NavigationProps) => {
             <p className="text-xs text-muted-foreground truncate max-w-32">{user?.email}</p>
           </div>
         </div>
+        {/* Role Switcher for Admins */}
+        {permissions.isActualAdmin && (
+          <div className="mt-2 hidden sm:block">
+            <RoleSwitcher />
+          </div>
+        )}
+        {/* Preview Mode Indicator */}
+        {permissions.isPreviewMode && (
+          <div className="mt-2 p-1 bg-warning/20 border border-warning/30 rounded text-center">
+            <span className="text-xs text-warning font-medium">Preview Mode</span>
+          </div>
+        )}
       </div>
 
       {/* AI Status */}
