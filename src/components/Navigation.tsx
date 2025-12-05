@@ -1,5 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { useMemo } from "react";
+import { usePermissions, UserRole } from "@/hooks/usePermissions";
 import { 
   LayoutDashboard, 
   ShoppingCart, 
@@ -14,7 +16,8 @@ import {
   TrendingUp,
   DollarSign,
   UserCheck,
-  Tags
+  Tags,
+  LucideIcon
 } from "lucide-react";
 
 interface NavigationProps {
@@ -22,8 +25,20 @@ interface NavigationProps {
   onNavigate: (view: string) => void;
 }
 
+interface NavItem {
+  id: string;
+  label: string;
+  icon: LucideIcon;
+  badge: string | null;
+  category: string;
+  allowedRoles?: UserRole[];
+  requiredPermission?: keyof ReturnType<typeof usePermissions>;
+}
+
 const Navigation = ({ currentView, onNavigate }: NavigationProps) => {
-  const navigationItems = [
+  const permissions = usePermissions();
+
+  const navigationItems: NavItem[] = [
     { 
       id: "dashboard", 
       label: "Dashboard", 
@@ -36,77 +51,88 @@ const Navigation = ({ currentView, onNavigate }: NavigationProps) => {
       label: "Point of Sale", 
       icon: ShoppingCart, 
       badge: "AI",
-      category: "sales"
+      category: "sales",
+      requiredPermission: "canProcessSales"
     },
     { 
       id: "inventory", 
       label: "Product Management", 
       icon: Package, 
       badge: null,
-      category: "inventory"
+      category: "inventory",
+      requiredPermission: "canManageProducts"
     },
     { 
       id: "stock", 
       label: "Stock Movements", 
       icon: TrendingUp, 
       badge: null,
-      category: "inventory"
+      category: "inventory",
+      requiredPermission: "canManageProducts"
     },
     { 
       id: "categories", 
       label: "Category & Units", 
       icon: Tags, 
       badge: null,
-      category: "inventory"
+      category: "inventory",
+      requiredPermission: "canManageProducts"
     },
     { 
       id: "saleshistory", 
       label: "Sales History", 
       icon: FileText, 
       badge: null,
-      category: "sales"
+      category: "sales",
+      requiredPermission: "canProcessSales"
     },
     { 
       id: "customers", 
       label: "Customers", 
       icon: Users, 
       badge: null,
-      category: "crm"
+      category: "crm",
+      requiredPermission: "canManageCustomers"
     },
     { 
       id: "suppliers", 
       label: "Suppliers", 
       icon: Truck, 
       badge: null,
-      category: "crm"
+      category: "crm",
+      requiredPermission: "canManageSuppliers"
     },
     { 
       id: "expenses", 
       label: "Expense Management", 
       icon: DollarSign, 
       badge: null,
-      category: "finance"
+      category: "finance",
+      requiredPermission: "canManageExpenses"
     },
     { 
       id: "reports", 
       label: "Reports", 
       icon: BarChart3, 
       badge: null,
-      category: "reports"
+      category: "reports",
+      requiredPermission: "canViewReports"
     },
     { 
       id: "reports-export", 
       label: "Export Center", 
       icon: FileText, 
       badge: null,
-      category: "reports"
+      category: "reports",
+      requiredPermission: "canViewReports"
     },
     { 
       id: "analytics", 
       label: "Analytics", 
       icon: TrendingUp, 
       badge: "AI",
-      category: "reports"
+      category: "reports",
+      requiredPermission: "canViewReports"
     },
     { 
       id: "ai-voice", 
@@ -120,30 +146,59 @@ const Navigation = ({ currentView, onNavigate }: NavigationProps) => {
       label: "Staff Management", 
       icon: UserCheck, 
       badge: null,
-      category: "admin"
+      category: "admin",
+      requiredPermission: "canManageStaff"
     },
     { 
       id: "user-roles", 
       label: "User Roles", 
       icon: Users, 
       badge: null,
-      category: "admin"
+      category: "admin",
+      allowedRoles: ["admin"]
     },
     { 
       id: "audit-logs", 
       label: "Audit Logs", 
       icon: FileText, 
       badge: null,
-      category: "admin"
+      category: "admin",
+      allowedRoles: ["admin", "manager"]
     },
     { 
       id: "settings", 
       label: "Settings", 
       icon: Settings, 
       badge: null,
-      category: "admin"
+      category: "admin",
+      requiredPermission: "canManageSettings"
     }
   ];
+
+  // Filter navigation based on permissions
+  const filteredItems = useMemo(() => {
+    if (permissions.loading) return [];
+    
+    return navigationItems.filter(item => {
+      // Check role-based access
+      if (item.allowedRoles && permissions.role) {
+        return item.allowedRoles.includes(permissions.role);
+      }
+      // Check permission-based access
+      if (item.requiredPermission) {
+        return permissions[item.requiredPermission] === true;
+      }
+      return true;
+    });
+  }, [permissions]);
+
+  if (permissions.loading) {
+    return (
+      <div className="bg-gradient-card border-r border-border w-full sm:w-64 md:w-72 lg:w-80 min-h-screen p-3 sm:p-4 md:p-6 animate-fade-in flex items-center justify-center">
+        <div className="animate-spin w-6 h-6 border-2 border-primary border-t-transparent rounded-full" />
+      </div>
+    );
+  }
 
   return (
     <div className="bg-gradient-card border-r border-border w-full sm:w-64 md:w-72 lg:w-80 min-h-screen p-3 sm:p-4 md:p-6 animate-fade-in">
@@ -178,7 +233,7 @@ const Navigation = ({ currentView, onNavigate }: NavigationProps) => {
 
       {/* Navigation Items */}
       <nav className="space-y-1 sm:space-y-2">
-        {navigationItems.map((item, index) => (
+        {filteredItems.map((item, index) => (
           <Button
             key={item.id}
             variant={currentView === item.id ? "default" : "ghost"}

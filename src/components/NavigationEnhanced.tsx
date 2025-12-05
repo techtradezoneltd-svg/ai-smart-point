@@ -2,8 +2,9 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useAuth } from "@/components/AuthProvider";
+import { usePermissions, UserRole } from "@/hooks/usePermissions";
 import { 
   LayoutDashboard, 
   ShoppingCart, 
@@ -25,7 +26,8 @@ import {
   ChevronDown,
   ChevronRight,
   LogOut,
-  User
+  User,
+  LucideIcon
 } from "lucide-react";
 
 interface NavigationProps {
@@ -33,13 +35,31 @@ interface NavigationProps {
   onNavigate: (view: string) => void;
 }
 
+interface NavItem {
+  id: string;
+  label: string;
+  icon: LucideIcon;
+  badge: string | null;
+  allowedRoles?: UserRole[];
+  requiredPermission?: keyof ReturnType<typeof usePermissions>;
+}
+
+interface NavCategory {
+  id: string;
+  label: string;
+  icon: LucideIcon;
+  items: NavItem[];
+  allowedRoles?: UserRole[];
+}
+
 const NavigationEnhanced = ({ currentView, onNavigate }: NavigationProps) => {
   const { signOut, user } = useAuth();
+  const permissions = usePermissions();
   const [expandedCategories, setExpandedCategories] = useState<string[]>([
     "main", "sales", "inventory"
   ]);
 
-  const navigationCategories = [
+  const navigationCategories: NavCategory[] = [
     {
       id: "main",
       label: "Dashboard",
@@ -62,13 +82,15 @@ const NavigationEnhanced = ({ currentView, onNavigate }: NavigationProps) => {
           id: "pos", 
           label: "Enhanced POS", 
           icon: ShoppingCart, 
-          badge: "AI" 
+          badge: "AI",
+          requiredPermission: "canProcessSales"
         },
         { 
           id: "saleshistory", 
           label: "Sales History", 
           icon: FileText, 
-          badge: null 
+          badge: null,
+          requiredPermission: "canProcessSales"
         }
       ]
     },
@@ -81,19 +103,22 @@ const NavigationEnhanced = ({ currentView, onNavigate }: NavigationProps) => {
           id: "inventory", 
           label: "Products", 
           icon: Package, 
-          badge: null 
+          badge: null,
+          requiredPermission: "canManageProducts"
         },
         { 
           id: "stock", 
           label: "Stock Movements", 
           icon: TrendingUp, 
-          badge: null 
+          badge: null,
+          requiredPermission: "canManageProducts"
         },
         { 
           id: "categories", 
           label: "Categories & Units", 
           icon: Tags, 
-          badge: null 
+          badge: null,
+          requiredPermission: "canManageProducts"
         }
       ]
     },
@@ -106,19 +131,22 @@ const NavigationEnhanced = ({ currentView, onNavigate }: NavigationProps) => {
           id: "customers", 
           label: "Customers", 
           icon: Users, 
-          badge: null 
+          badge: null,
+          requiredPermission: "canManageCustomers"
         },
         { 
           id: "loans", 
           label: "Loan Management", 
           icon: Users, 
-          badge: "NEW" 
+          badge: "NEW",
+          requiredPermission: "canManageLoans"
         },
         { 
           id: "suppliers", 
           label: "Suppliers", 
           icon: Truck, 
-          badge: null 
+          badge: null,
+          requiredPermission: "canManageSuppliers"
         }
       ]
     },
@@ -131,7 +159,8 @@ const NavigationEnhanced = ({ currentView, onNavigate }: NavigationProps) => {
           id: "expenses", 
           label: "Expenses", 
           icon: DollarSign, 
-          badge: null 
+          badge: null,
+          requiredPermission: "canManageExpenses"
         }
       ]
     },
@@ -144,37 +173,43 @@ const NavigationEnhanced = ({ currentView, onNavigate }: NavigationProps) => {
           id: "reports", 
           label: "Reports", 
           icon: BarChart3, 
-          badge: null 
+          badge: null,
+          requiredPermission: "canViewReports"
         },
         { 
           id: "reports-export", 
           label: "Export Center", 
           icon: FileText, 
-          badge: null 
+          badge: null,
+          requiredPermission: "canViewReports"
         },
         { 
           id: "analytics", 
           label: "Analytics", 
           icon: TrendingUp, 
-          badge: "AI" 
+          badge: "AI",
+          requiredPermission: "canViewReports"
         },
         { 
           id: "ai-reporting", 
           label: "AI Reporting", 
           icon: Bot, 
-          badge: "NEW" 
+          badge: "NEW",
+          requiredPermission: "canViewReports"
         },
         { 
           id: "loan-reports", 
           label: "Loan Reports", 
           icon: CreditCard, 
-          badge: "AI" 
+          badge: "AI",
+          requiredPermission: "canViewReports"
         },
         { 
           id: "loan-tester", 
           label: "Reminder Tester", 
           icon: MessageSquare, 
-          badge: "TEST" 
+          badge: "TEST",
+          allowedRoles: ["admin"]
         }
       ]
     },
@@ -187,7 +222,7 @@ const NavigationEnhanced = ({ currentView, onNavigate }: NavigationProps) => {
           id: "ai-voice", 
           label: "Voice Assistant", 
           icon: Brain, 
-          badge: "NEW" 
+          badge: "NEW"
         }
       ]
     },
@@ -195,34 +230,68 @@ const NavigationEnhanced = ({ currentView, onNavigate }: NavigationProps) => {
       id: "admin",
       label: "Administration",
       icon: Settings,
+      allowedRoles: ["admin"],
       items: [
         { 
           id: "staff", 
           label: "Staff Management", 
           icon: UserCheck, 
-          badge: null 
+          badge: null,
+          requiredPermission: "canManageStaff"
         },
         { 
           id: "user-roles", 
           label: "User Roles", 
           icon: Users, 
-          badge: null 
+          badge: null,
+          allowedRoles: ["admin"]
         },
         { 
           id: "audit-logs", 
           label: "Audit Logs", 
           icon: FileText, 
-          badge: null 
+          badge: null,
+          allowedRoles: ["admin", "manager"]
         },
         { 
           id: "settings", 
           label: "Settings", 
           icon: Settings, 
-          badge: null 
+          badge: null,
+          requiredPermission: "canManageSettings"
         }
       ]
     }
   ];
+
+  // Filter navigation based on permissions
+  const filteredCategories = useMemo(() => {
+    if (permissions.loading) return [];
+    
+    return navigationCategories
+      .filter(category => {
+        // Check if category has role restrictions
+        if (category.allowedRoles && permissions.role) {
+          return category.allowedRoles.includes(permissions.role);
+        }
+        return true;
+      })
+      .map(category => ({
+        ...category,
+        items: category.items.filter(item => {
+          // Check role-based access
+          if (item.allowedRoles && permissions.role) {
+            return item.allowedRoles.includes(permissions.role);
+          }
+          // Check permission-based access
+          if (item.requiredPermission) {
+            return permissions[item.requiredPermission] === true;
+          }
+          return true;
+        })
+      }))
+      .filter(category => category.items.length > 0);
+  }, [permissions]);
 
   const toggleCategory = (categoryId: string) => {
     setExpandedCategories(prev => 
@@ -239,6 +308,14 @@ const NavigationEnhanced = ({ currentView, onNavigate }: NavigationProps) => {
       console.error('Logout error:', error);
     }
   };
+
+  if (permissions.loading) {
+    return (
+      <div className="bg-gradient-card border-r border-border w-16 sm:w-52 md:w-56 lg:w-60 min-h-screen p-2 sm:p-3 md:p-4 animate-fade-in flex items-center justify-center">
+        <div className="animate-spin w-6 h-6 border-2 border-primary border-t-transparent rounded-full" />
+      </div>
+    );
+  }
 
   return (
     <div className="bg-gradient-card border-r border-border w-16 sm:w-52 md:w-56 lg:w-60 min-h-screen p-2 sm:p-3 md:p-4 animate-fade-in">
@@ -264,7 +341,7 @@ const NavigationEnhanced = ({ currentView, onNavigate }: NavigationProps) => {
             <User className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-white" />
           </div>
           <div className="hidden sm:block">
-            <p className="text-xs font-medium text-accent">Welcome</p>
+            <p className="text-xs font-medium text-accent capitalize">{permissions.role || 'User'}</p>
             <p className="text-xs text-muted-foreground truncate max-w-32">{user?.email}</p>
           </div>
         </div>
@@ -286,7 +363,7 @@ const NavigationEnhanced = ({ currentView, onNavigate }: NavigationProps) => {
 
       {/* Navigation Categories */}
       <nav className="space-y-0.5 sm:space-y-1 mb-4 sm:mb-6">
-        {navigationCategories.map((category) => (
+        {filteredCategories.map((category) => (
           <Collapsible
             key={category.id}
             open={expandedCategories.includes(category.id)}
