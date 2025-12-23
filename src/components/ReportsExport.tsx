@@ -1,11 +1,11 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { exportToExcel, exportToCSV, exportToPDF, exportSummaryToPDF, formatForExport } from "@/lib/exportImport";
+import { exportToExcel, exportToCSV, exportToPDF, formatForExport, importFromExcel, importFromCSV } from "@/lib/exportImport";
 import { 
   FileDown, 
   Calendar, 
@@ -20,7 +20,13 @@ import {
   Users,
   Package,
   DollarSign,
-  Settings
+  Settings,
+  Upload,
+  Download,
+  FileUp,
+  Loader2,
+  CheckCircle2,
+  AlertCircle
 } from "lucide-react";
 
 interface ReportTemplate {
@@ -35,13 +41,22 @@ interface ReportTemplate {
   automated: boolean;
 }
 
+interface ImportResult {
+  success: boolean;
+  message: string;
+  count?: number;
+}
+
 const ReportsExport = () => {
   const { toast } = useToast();
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [selectedDateRange, setSelectedDateRange] = useState("last_7_days");
   const [selectedFormat, setSelectedFormat] = useState<"Excel" | "CSV" | "PDF" | "JSON">("Excel");
   const [customStartDate, setCustomStartDate] = useState("");
   const [customEndDate, setCustomEndDate] = useState("");
   const [isExporting, setIsExporting] = useState(false);
+  const [isImporting, setIsImporting] = useState(false);
+  const [importType, setImportType] = useState<string | null>(null);
 
   const reportTemplates: ReportTemplate[] = [
     {
@@ -513,6 +528,294 @@ const ReportsExport = () => {
     await exportData(staffStats, `Staff_Performance_${startDate.toISOString().split('T')[0]}_to_${endDate.toISOString().split('T')[0]}`);
   };
 
+  // Sample templates for import
+  const sampleTemplates = [
+    {
+      name: "Products Template",
+      description: "Import products with categories",
+      type: "products",
+      columns: ["name", "sku", "barcode", "description", "cost_price", "selling_price", "current_stock", "min_stock_level", "max_stock_level"]
+    },
+    {
+      name: "Customers Template", 
+      description: "Import customer data",
+      type: "customers",
+      columns: ["name", "phone", "email", "address"]
+    },
+    {
+      name: "Stock Movements Template",
+      description: "Import stock adjustments",
+      type: "stock",
+      columns: ["product_name", "type", "quantity", "notes", "reference_number"]
+    },
+    {
+      name: "Expenses Template",
+      description: "Import expense records",
+      type: "expenses",
+      columns: ["title", "amount", "category", "expense_date", "description", "receipt_number"]
+    }
+  ];
+
+  // Download sample Excel template
+  const downloadSampleTemplate = (type: string) => {
+    let sampleData: any[] = [];
+    let filename = "";
+
+    switch (type) {
+      case "products":
+        sampleData = [
+          { name: "Sample Product 1", sku: "SKU001", barcode: "1234567890123", description: "Product description", cost_price: 100, selling_price: 150, current_stock: 50, min_stock_level: 10, max_stock_level: 200 },
+          { name: "Sample Product 2", sku: "SKU002", barcode: "1234567890124", description: "Another product", cost_price: 200, selling_price: 300, current_stock: 30, min_stock_level: 5, max_stock_level: 100 }
+        ];
+        filename = "Products_Import_Template";
+        break;
+      case "customers":
+        sampleData = [
+          { name: "John Doe", phone: "+250780000001", email: "john@example.com", address: "123 Main St, Kigali" },
+          { name: "Jane Smith", phone: "+250780000002", email: "jane@example.com", address: "456 Oak Ave, Kigali" }
+        ];
+        filename = "Customers_Import_Template";
+        break;
+      case "stock":
+        sampleData = [
+          { product_name: "Sample Product 1", type: "in", quantity: 100, notes: "Initial stock", reference_number: "REF001" },
+          { product_name: "Sample Product 2", type: "out", quantity: 10, notes: "Damaged goods", reference_number: "REF002" }
+        ];
+        filename = "Stock_Movements_Import_Template";
+        break;
+      case "expenses":
+        sampleData = [
+          { title: "Office Supplies", amount: 5000, category: "supplies", expense_date: new Date().toISOString().split('T')[0], description: "Pens, paper, etc.", receipt_number: "REC001" },
+          { title: "Electricity Bill", amount: 15000, category: "utilities", expense_date: new Date().toISOString().split('T')[0], description: "Monthly electricity", receipt_number: "REC002" }
+        ];
+        filename = "Expenses_Import_Template";
+        break;
+    }
+
+    exportToExcel(sampleData, filename);
+    toast({
+      title: "Template Downloaded",
+      description: `${filename}.xlsx downloaded successfully. Fill in your data and import it back.`,
+    });
+  };
+
+  // Handle file import
+  const handleFileImport = async (event: React.ChangeEvent<HTMLInputElement>, type: string) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    setIsImporting(true);
+    setImportType(type);
+
+    try {
+      let data: any[];
+      
+      if (file.name.endsWith('.xlsx') || file.name.endsWith('.xls')) {
+        data = await importFromExcel(file);
+      } else if (file.name.endsWith('.csv')) {
+        data = await importFromCSV(file);
+      } else {
+        throw new Error("Unsupported file format. Please use Excel (.xlsx) or CSV (.csv) files.");
+      }
+
+      if (!data || data.length === 0) {
+        throw new Error("No data found in the file.");
+      }
+
+      const result = await processImport(type, data);
+      
+      if (result.success) {
+        toast({
+          title: "Import Successful",
+          description: result.message,
+        });
+      } else {
+        toast({
+          title: "Import Failed",
+          description: result.message,
+          variant: "destructive"
+        });
+      }
+    } catch (error: any) {
+      console.error("Import error:", error);
+      toast({
+        title: "Import Error",
+        description: error.message || "Failed to import file. Please check the format and try again.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsImporting(false);
+      setImportType(null);
+      if (event.target) {
+        event.target.value = "";
+      }
+    }
+  };
+
+  // Process imported data
+  const processImport = async (type: string, data: any[]): Promise<ImportResult> => {
+    switch (type) {
+      case "products":
+        return await importProducts(data);
+      case "customers":
+        return await importCustomers(data);
+      case "stock":
+        return await importStockMovements(data);
+      case "expenses":
+        return await importExpenses(data);
+      default:
+        return { success: false, message: "Unknown import type" };
+    }
+  };
+
+  const importProducts = async (data: any[]): Promise<ImportResult> => {
+    let successCount = 0;
+    let errorCount = 0;
+
+    for (const item of data) {
+      if (!item.name) continue;
+
+      const { error } = await supabase.from('products').insert({
+        name: item.name,
+        sku: item.sku || null,
+        barcode: item.barcode || null,
+        description: item.description || null,
+        cost_price: parseFloat(item.cost_price) || 0,
+        selling_price: parseFloat(item.selling_price) || 0,
+        current_stock: parseInt(item.current_stock) || 0,
+        min_stock_level: parseInt(item.min_stock_level) || 10,
+        max_stock_level: parseInt(item.max_stock_level) || 1000,
+        is_active: true
+      });
+
+      if (error) {
+        console.error("Product insert error:", error);
+        errorCount++;
+      } else {
+        successCount++;
+      }
+    }
+
+    return {
+      success: successCount > 0,
+      message: `Imported ${successCount} products. ${errorCount > 0 ? `${errorCount} failed.` : ''}`,
+      count: successCount
+    };
+  };
+
+  const importCustomers = async (data: any[]): Promise<ImportResult> => {
+    let successCount = 0;
+    let errorCount = 0;
+
+    for (const item of data) {
+      if (!item.name || !item.phone) continue;
+
+      const { error } = await supabase.from('customers').insert({
+        name: item.name,
+        phone: item.phone,
+        email: item.email || null,
+        address: item.address || null,
+        is_active: true
+      });
+
+      if (error) {
+        console.error("Customer insert error:", error);
+        errorCount++;
+      } else {
+        successCount++;
+      }
+    }
+
+    return {
+      success: successCount > 0,
+      message: `Imported ${successCount} customers. ${errorCount > 0 ? `${errorCount} failed.` : ''}`,
+      count: successCount
+    };
+  };
+
+  const importStockMovements = async (data: any[]): Promise<ImportResult> => {
+    let successCount = 0;
+    let errorCount = 0;
+
+    for (const item of data) {
+      if (!item.product_name || !item.quantity) continue;
+
+      // Find product by name
+      const { data: product } = await supabase
+        .from('products')
+        .select('id')
+        .ilike('name', item.product_name)
+        .limit(1)
+        .maybeSingle();
+
+      if (!product) {
+        errorCount++;
+        continue;
+      }
+
+      const validTypes = ['in', 'out', 'damage', 'return', 'adjustment'];
+      const movementType = validTypes.includes(item.type?.toLowerCase()) ? item.type.toLowerCase() : 'in';
+
+      const { error } = await supabase.from('stock_movements').insert({
+        product_id: product.id,
+        type: movementType as any,
+        quantity: parseInt(item.quantity),
+        notes: item.notes || null,
+        reference_number: item.reference_number || null
+      });
+
+      if (error) {
+        console.error("Stock movement insert error:", error);
+        errorCount++;
+      } else {
+        successCount++;
+      }
+    }
+
+    return {
+      success: successCount > 0,
+      message: `Imported ${successCount} stock movements. ${errorCount > 0 ? `${errorCount} failed.` : ''}`,
+      count: successCount
+    };
+  };
+
+  const importExpenses = async (data: any[]): Promise<ImportResult> => {
+    let successCount = 0;
+    let errorCount = 0;
+
+    const validCategories = ['utilities', 'rent', 'supplies', 'maintenance', 'marketing', 'salaries', 'other'];
+
+    for (const item of data) {
+      if (!item.title || !item.amount) continue;
+
+      const category = validCategories.includes(item.category?.toLowerCase()) 
+        ? item.category.toLowerCase() 
+        : 'other';
+
+      const { error } = await supabase.from('expenses').insert({
+        title: item.title,
+        amount: parseFloat(item.amount),
+        category: category as any,
+        expense_date: item.expense_date || new Date().toISOString().split('T')[0],
+        description: item.description || null,
+        receipt_number: item.receipt_number || null
+      });
+
+      if (error) {
+        console.error("Expense insert error:", error);
+        errorCount++;
+      } else {
+        successCount++;
+      }
+    }
+
+    return {
+      success: successCount > 0,
+      message: `Imported ${successCount} expenses. ${errorCount > 0 ? `${errorCount} failed.` : ''}`,
+      count: successCount
+    };
+  };
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -757,6 +1060,92 @@ const ReportsExport = () => {
                 </div>
               </div>
             ))}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Import Data Section */}
+      <Card className="bg-gradient-card border-primary/20">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Upload className="w-5 h-5 text-primary" />
+            Import Data
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            {sampleTemplates.map((template, index) => (
+              <div
+                key={index}
+                className="p-4 border border-border rounded-lg hover:border-primary/50 transition-all"
+              >
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="p-2 bg-primary/10 rounded-lg">
+                    <FileSpreadsheet className="w-5 h-5 text-primary" />
+                  </div>
+                  <div>
+                    <h3 className="font-medium text-sm">{template.name}</h3>
+                    <p className="text-xs text-muted-foreground">{template.description}</p>
+                  </div>
+                </div>
+                
+                <div className="space-y-2">
+                  <Button 
+                    size="sm" 
+                    variant="outline"
+                    className="w-full"
+                    onClick={() => downloadSampleTemplate(template.type)}
+                  >
+                    <Download className="w-3 h-3 mr-1" />
+                    Download Template
+                  </Button>
+                  
+                  <div className="relative">
+                    <input
+                      type="file"
+                      accept=".xlsx,.xls,.csv"
+                      className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                      onChange={(e) => handleFileImport(e, template.type)}
+                      disabled={isImporting}
+                    />
+                    <Button 
+                      size="sm" 
+                      className="w-full bg-gradient-primary"
+                      disabled={isImporting && importType === template.type}
+                    >
+                      {isImporting && importType === template.type ? (
+                        <Loader2 className="w-3 h-3 mr-1 animate-spin" />
+                      ) : (
+                        <FileUp className="w-3 h-3 mr-1" />
+                      )}
+                      {isImporting && importType === template.type ? "Importing..." : "Import Data"}
+                    </Button>
+                  </div>
+                </div>
+                
+                <div className="mt-3 pt-3 border-t border-border">
+                  <p className="text-xs text-muted-foreground">
+                    Columns: {template.columns.slice(0, 3).join(", ")}
+                    {template.columns.length > 3 && `, +${template.columns.length - 3} more`}
+                  </p>
+                </div>
+              </div>
+            ))}
+          </div>
+          
+          <div className="mt-4 p-4 bg-muted/50 rounded-lg">
+            <div className="flex items-start gap-3">
+              <AlertCircle className="w-5 h-5 text-muted-foreground mt-0.5" />
+              <div>
+                <p className="text-sm font-medium">Import Instructions</p>
+                <ul className="text-xs text-muted-foreground mt-1 space-y-1">
+                  <li>• Download the template to see the required column format</li>
+                  <li>• Fill in your data following the sample rows</li>
+                  <li>• Save as Excel (.xlsx) or CSV (.csv) format</li>
+                  <li>• Upload the file using the "Import Data" button</li>
+                </ul>
+              </div>
+            </div>
           </div>
         </CardContent>
       </Card>
