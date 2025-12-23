@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { exportToExcel, exportToCSV, formatForExport } from "@/lib/exportImport";
+import { exportToExcel, exportToCSV, exportToPDF, exportSummaryToPDF, formatForExport } from "@/lib/exportImport";
 import { 
   FileDown, 
   Calendar, 
@@ -227,7 +227,7 @@ const ReportsExport = () => {
     return { startDate, endDate };
   };
 
-  const exportData = async (data: any[], filename: string) => {
+  const exportData = async (data: any[], filename: string, title?: string) => {
     try {
       if (!data || data.length === 0) {
         toast({
@@ -237,6 +237,8 @@ const ReportsExport = () => {
         });
         return;
       }
+
+      const reportTitle = title || filename.replace(/_/g, ' ');
 
       if (selectedFormat === "Excel") {
         exportToExcel(data, filename);
@@ -264,11 +266,15 @@ const ReportsExport = () => {
           title: "Success",
           description: `JSON file "${filename}.json" downloaded successfully!`,
         });
-      } else {
+      } else if (selectedFormat === "PDF") {
+        exportToPDF(data, filename, reportTitle, {
+          orientation: data.length > 0 && Object.keys(data[0]).length > 6 ? 'landscape' : 'portrait',
+          includeTimestamp: true,
+          companyName: 'SmartPOS'
+        });
         toast({
-          title: "PDF Export",
-          description: "PDF export will be available soon. Please use Excel or CSV format.",
-          variant: "destructive"
+          title: "Success",
+          description: `PDF file "${filename}.pdf" downloaded successfully!`,
         });
       }
     } catch (error) {
