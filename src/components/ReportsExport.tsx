@@ -671,34 +671,113 @@ const ReportsExport = () => {
   const importProducts = async (data: any[]): Promise<ImportResult> => {
     let successCount = 0;
     let errorCount = 0;
+    let skippedCount = 0;
+    const errors: string[] = [];
 
-    for (const item of data) {
-      if (!item.name) continue;
+    // Fetch existing products for duplicate checking
+    const { data: existingProducts } = await supabase
+      .from('products')
+      .select('name, sku, barcode');
+
+    const existingNames = new Set((existingProducts || []).map(p => p.name?.toLowerCase().trim()));
+    const existingSkus = new Set((existingProducts || []).filter(p => p.sku).map(p => p.sku?.toLowerCase().trim()));
+    const existingBarcodes = new Set((existingProducts || []).filter(p => p.barcode).map(p => p.barcode?.trim()));
+
+    for (let i = 0; i < data.length; i++) {
+      const item = data[i];
+      const rowNum = i + 2; // +2 for header row and 0-indexing
+
+      // Validation: Required fields
+      if (!item.name || String(item.name).trim() === '') {
+        errors.push(`Row ${rowNum}: Product name is required`);
+        errorCount++;
+        continue;
+      }
+
+      const productName = String(item.name).trim();
+      const productSku = item.sku ? String(item.sku).trim() : null;
+      const productBarcode = item.barcode ? String(item.barcode).trim() : null;
+
+      // Duplicate checking
+      if (existingNames.has(productName.toLowerCase())) {
+        errors.push(`Row ${rowNum}: Product "${productName}" already exists`);
+        skippedCount++;
+        continue;
+      }
+
+      if (productSku && existingSkus.has(productSku.toLowerCase())) {
+        errors.push(`Row ${rowNum}: SKU "${productSku}" already exists`);
+        skippedCount++;
+        continue;
+      }
+
+      if (productBarcode && existingBarcodes.has(productBarcode)) {
+        errors.push(`Row ${rowNum}: Barcode "${productBarcode}" already exists`);
+        skippedCount++;
+        continue;
+      }
+
+      // Validation: Numeric fields
+      const costPrice = parseFloat(item.cost_price);
+      const sellingPrice = parseFloat(item.selling_price);
+      const currentStock = parseInt(item.current_stock);
+      const minStock = parseInt(item.min_stock_level);
+      const maxStock = parseInt(item.max_stock_level);
+
+      if (item.cost_price && (isNaN(costPrice) || costPrice < 0)) {
+        errors.push(`Row ${rowNum}: Invalid cost price "${item.cost_price}"`);
+        errorCount++;
+        continue;
+      }
+
+      if (item.selling_price && (isNaN(sellingPrice) || sellingPrice < 0)) {
+        errors.push(`Row ${rowNum}: Invalid selling price "${item.selling_price}"`);
+        errorCount++;
+        continue;
+      }
+
+      if (item.current_stock && (isNaN(currentStock) || currentStock < 0)) {
+        errors.push(`Row ${rowNum}: Invalid stock quantity "${item.current_stock}"`);
+        errorCount++;
+        continue;
+      }
 
       const { error } = await supabase.from('products').insert({
-        name: item.name,
-        sku: item.sku || null,
-        barcode: item.barcode || null,
-        description: item.description || null,
-        cost_price: parseFloat(item.cost_price) || 0,
-        selling_price: parseFloat(item.selling_price) || 0,
-        current_stock: parseInt(item.current_stock) || 0,
-        min_stock_level: parseInt(item.min_stock_level) || 10,
-        max_stock_level: parseInt(item.max_stock_level) || 1000,
+        name: productName,
+        sku: productSku,
+        barcode: productBarcode,
+        description: item.description ? String(item.description).trim() : null,
+        cost_price: costPrice || 0,
+        selling_price: sellingPrice || 0,
+        current_stock: currentStock || 0,
+        min_stock_level: !isNaN(minStock) && minStock >= 0 ? minStock : 10,
+        max_stock_level: !isNaN(maxStock) && maxStock >= 0 ? maxStock : 1000,
         is_active: true
       });
 
       if (error) {
         console.error("Product insert error:", error);
+        errors.push(`Row ${rowNum}: ${error.message}`);
         errorCount++;
       } else {
         successCount++;
+        // Add to existing sets to prevent duplicates within same import
+        existingNames.add(productName.toLowerCase());
+        if (productSku) existingSkus.add(productSku.toLowerCase());
+        if (productBarcode) existingBarcodes.add(productBarcode);
       }
+    }
+
+    let message = `Imported ${successCount} products.`;
+    if (skippedCount > 0) message += ` ${skippedCount} skipped (duplicates).`;
+    if (errorCount > 0) message += ` ${errorCount} failed.`;
+    if (errors.length > 0 && errors.length <= 5) {
+      message += ` Issues: ${errors.slice(0, 5).join('; ')}`;
     }
 
     return {
       success: successCount > 0,
-      message: `Imported ${successCount} products. ${errorCount > 0 ? `${errorCount} failed.` : ''}`,
+      message,
       count: successCount
     };
   };
@@ -706,29 +785,99 @@ const ReportsExport = () => {
   const importCustomers = async (data: any[]): Promise<ImportResult> => {
     let successCount = 0;
     let errorCount = 0;
+    let skippedCount = 0;
+    const errors: string[] = [];
 
-    for (const item of data) {
-      if (!item.name || !item.phone) continue;
+    // Fetch existing customers for duplicate checking
+    const { data: existingCustomers } = await supabase
+      .from('customers')
+      .select('name, phone, email');
+
+    const existingPhones = new Set((existingCustomers || []).map(c => c.phone?.trim()));
+    const existingEmails = new Set((existingCustomers || []).filter(c => c.email).map(c => c.email?.toLowerCase().trim()));
+
+    for (let i = 0; i < data.length; i++) {
+      const item = data[i];
+      const rowNum = i + 2;
+
+      // Validation: Required fields
+      if (!item.name || String(item.name).trim() === '') {
+        errors.push(`Row ${rowNum}: Customer name is required`);
+        errorCount++;
+        continue;
+      }
+
+      if (!item.phone || String(item.phone).trim() === '') {
+        errors.push(`Row ${rowNum}: Phone number is required`);
+        errorCount++;
+        continue;
+      }
+
+      const customerName = String(item.name).trim();
+      const customerPhone = String(item.phone).trim();
+      const customerEmail = item.email ? String(item.email).trim().toLowerCase() : null;
+
+      // Phone format validation (basic)
+      const phoneRegex = /^[\+]?[0-9\s\-\(\)]{7,20}$/;
+      if (!phoneRegex.test(customerPhone)) {
+        errors.push(`Row ${rowNum}: Invalid phone format "${customerPhone}"`);
+        errorCount++;
+        continue;
+      }
+
+      // Email format validation
+      if (customerEmail) {
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(customerEmail)) {
+          errors.push(`Row ${rowNum}: Invalid email format "${customerEmail}"`);
+          errorCount++;
+          continue;
+        }
+      }
+
+      // Duplicate checking
+      if (existingPhones.has(customerPhone)) {
+        errors.push(`Row ${rowNum}: Phone "${customerPhone}" already exists`);
+        skippedCount++;
+        continue;
+      }
+
+      if (customerEmail && existingEmails.has(customerEmail)) {
+        errors.push(`Row ${rowNum}: Email "${customerEmail}" already exists`);
+        skippedCount++;
+        continue;
+      }
 
       const { error } = await supabase.from('customers').insert({
-        name: item.name,
-        phone: item.phone,
-        email: item.email || null,
-        address: item.address || null,
+        name: customerName,
+        phone: customerPhone,
+        email: customerEmail,
+        address: item.address ? String(item.address).trim() : null,
         is_active: true
       });
 
       if (error) {
         console.error("Customer insert error:", error);
+        errors.push(`Row ${rowNum}: ${error.message}`);
         errorCount++;
       } else {
         successCount++;
+        // Add to existing sets to prevent duplicates within same import
+        existingPhones.add(customerPhone);
+        if (customerEmail) existingEmails.add(customerEmail);
       }
+    }
+
+    let message = `Imported ${successCount} customers.`;
+    if (skippedCount > 0) message += ` ${skippedCount} skipped (duplicates).`;
+    if (errorCount > 0) message += ` ${errorCount} failed.`;
+    if (errors.length > 0 && errors.length <= 5) {
+      message += ` Issues: ${errors.slice(0, 5).join('; ')}`;
     }
 
     return {
       success: successCount > 0,
-      message: `Imported ${successCount} customers. ${errorCount > 0 ? `${errorCount} failed.` : ''}`,
+      message,
       count: successCount
     };
   };
