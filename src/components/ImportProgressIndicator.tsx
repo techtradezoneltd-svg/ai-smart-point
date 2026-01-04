@@ -1,10 +1,11 @@
 import { Progress } from "@/components/ui/progress";
-import { CheckCircle2, XCircle, AlertTriangle, Loader2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { CheckCircle2, XCircle, AlertTriangle, Loader2, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export interface ImportRowStatus {
   row: number;
-  status: "pending" | "processing" | "success" | "error" | "skipped";
+  status: "pending" | "processing" | "success" | "error" | "skipped" | "cancelled";
   message?: string;
 }
 
@@ -17,14 +18,17 @@ export interface ImportProgress {
   currentRow: number;
   rows: ImportRowStatus[];
   isComplete: boolean;
+  isCancelled: boolean;
 }
 
 interface ImportProgressIndicatorProps {
   progress: ImportProgress;
   importType: string;
+  onCancel: () => void;
+  onClose: () => void;
 }
 
-const ImportProgressIndicator = ({ progress, importType }: ImportProgressIndicatorProps) => {
+const ImportProgressIndicator = ({ progress, importType, onCancel, onClose }: ImportProgressIndicatorProps) => {
   const percentage = progress.totalRows > 0 
     ? Math.round((progress.processedRows / progress.totalRows) * 100) 
     : 0;
@@ -39,6 +43,8 @@ const ImportProgressIndicator = ({ progress, importType }: ImportProgressIndicat
         return <AlertTriangle className="w-4 h-4 text-warning" />;
       case "processing":
         return <Loader2 className="w-4 h-4 text-primary animate-spin" />;
+      case "cancelled":
+        return <X className="w-4 h-4 text-muted-foreground" />;
       default:
         return <div className="w-4 h-4 rounded-full bg-muted" />;
     }
@@ -54,22 +60,42 @@ const ImportProgressIndicator = ({ progress, importType }: ImportProgressIndicat
         return "text-warning";
       case "processing":
         return "text-primary";
+      case "cancelled":
+        return "text-muted-foreground";
       default:
         return "text-muted-foreground";
     }
   };
 
+  const cancelledCount = progress.rows.filter(r => r.status === "cancelled").length;
+
   return (
     <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center">
       <div className="bg-card border border-border rounded-lg shadow-lg w-full max-w-2xl mx-4 max-h-[80vh] overflow-hidden flex flex-col">
         {/* Header */}
-        <div className="p-4 border-b border-border">
-          <h3 className="text-lg font-semibold capitalize">
-            Importing {importType}
-          </h3>
-          <p className="text-sm text-muted-foreground">
-            Processing {progress.processedRows} of {progress.totalRows} rows
-          </p>
+        <div className="p-4 border-b border-border flex items-center justify-between">
+          <div>
+            <h3 className="text-lg font-semibold capitalize">
+              {progress.isCancelled ? "Import Cancelled" : `Importing ${importType}`}
+            </h3>
+            <p className="text-sm text-muted-foreground">
+              {progress.isCancelled 
+                ? `Stopped at row ${progress.currentRow} of ${progress.totalRows}`
+                : `Processing ${progress.processedRows} of ${progress.totalRows} rows`
+              }
+            </p>
+          </div>
+          {!progress.isComplete && !progress.isCancelled && (
+            <Button
+              variant="destructive"
+              size="sm"
+              onClick={onCancel}
+              className="flex items-center gap-2"
+            >
+              <X className="w-4 h-4" />
+              Cancel Import
+            </Button>
+          )}
         </div>
 
         {/* Progress Bar */}
@@ -89,9 +115,18 @@ const ImportProgressIndicator = ({ progress, importType }: ImportProgressIndicat
                 <XCircle className="w-3 h-3 text-destructive" />
                 {progress.errorCount} Errors
               </span>
+              {cancelledCount > 0 && (
+                <span className="flex items-center gap-1">
+                  <X className="w-3 h-3 text-muted-foreground" />
+                  {cancelledCount} Cancelled
+                </span>
+              )}
             </div>
           </div>
-          <Progress value={percentage} className="h-2" />
+          <Progress 
+            value={percentage} 
+            className={cn("h-2", progress.isCancelled && "opacity-50")} 
+          />
         </div>
 
         {/* Row Status List */}
@@ -106,6 +141,7 @@ const ImportProgressIndicator = ({ progress, importType }: ImportProgressIndicat
                   rowStatus.status === "success" && "bg-success/5",
                   rowStatus.status === "error" && "bg-destructive/5",
                   rowStatus.status === "skipped" && "bg-warning/5",
+                  rowStatus.status === "cancelled" && "bg-muted/50",
                   rowStatus.status === "pending" && "opacity-50"
                 )}
               >
@@ -120,11 +156,16 @@ const ImportProgressIndicator = ({ progress, importType }: ImportProgressIndicat
         </div>
 
         {/* Footer */}
-        {progress.isComplete && (
+        {(progress.isComplete || progress.isCancelled) && (
           <div className="p-4 border-t border-border bg-muted/50">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                {progress.errorCount === 0 && progress.skippedCount === 0 ? (
+                {progress.isCancelled ? (
+                  <>
+                    <X className="w-5 h-5 text-muted-foreground" />
+                    <span className="font-medium text-muted-foreground">Import was cancelled</span>
+                  </>
+                ) : progress.errorCount === 0 && progress.skippedCount === 0 ? (
                   <>
                     <CheckCircle2 className="w-5 h-5 text-success" />
                     <span className="font-medium text-success">Import completed successfully!</span>
@@ -136,9 +177,17 @@ const ImportProgressIndicator = ({ progress, importType }: ImportProgressIndicat
                   </>
                 )}
               </div>
-              <p className="text-sm text-muted-foreground">
-                {progress.successCount} imported, {progress.skippedCount} skipped, {progress.errorCount} failed
-              </p>
+              <div className="flex items-center gap-3">
+                <p className="text-sm text-muted-foreground">
+                  {progress.successCount} imported
+                  {progress.skippedCount > 0 && `, ${progress.skippedCount} skipped`}
+                  {progress.errorCount > 0 && `, ${progress.errorCount} failed`}
+                  {cancelledCount > 0 && `, ${cancelledCount} cancelled`}
+                </p>
+                <Button size="sm" onClick={onClose}>
+                  Close
+                </Button>
+              </div>
             </div>
           </div>
         )}
