@@ -59,6 +59,7 @@ const ReportsExport = () => {
   const [isImporting, setIsImporting] = useState(false);
   const [importType, setImportType] = useState<string | null>(null);
   const [importProgress, setImportProgress] = useState<ImportProgress | null>(null);
+  const cancelImportRef = useRef(false);
 
   const initializeProgress = useCallback((totalRows: number): ImportProgress => {
     const rows: ImportRowStatus[] = Array.from({ length: totalRows }, (_, i) => ({
@@ -74,6 +75,7 @@ const ReportsExport = () => {
       currentRow: 0,
       rows,
       isComplete: false,
+      isCancelled: false,
     };
   }, []);
 
@@ -121,6 +123,29 @@ const ReportsExport = () => {
 
   const completeProgress = useCallback(() => {
     setImportProgress(prev => prev ? { ...prev, isComplete: true } : prev);
+  }, []);
+
+  const cancelImport = useCallback(() => {
+    cancelImportRef.current = true;
+    setImportProgress(prev => {
+      if (!prev) return prev;
+      // Mark all pending rows as cancelled
+      const newRows = prev.rows.map(row => 
+        row.status === "pending" ? { ...row, status: "cancelled" as const, message: "Cancelled" } : row
+      );
+      return {
+        ...prev,
+        rows: newRows,
+        isCancelled: true,
+      };
+    });
+  }, []);
+
+  const closeProgressModal = useCallback(() => {
+    setImportProgress(null);
+    setIsImporting(false);
+    setImportType(null);
+    cancelImportRef.current = false;
   }, []);
 
   const reportTemplates: ReportTemplate[] = [
@@ -671,6 +696,7 @@ const ReportsExport = () => {
 
     setIsImporting(true);
     setImportType(type);
+    cancelImportRef.current = false;
 
     try {
       let data: any[];
@@ -692,22 +718,24 @@ const ReportsExport = () => {
 
       const result = await processImport(type, data);
       
-      completeProgress();
+      if (!cancelImportRef.current) {
+        completeProgress();
+      }
 
-      // Wait a moment for user to see the completion status
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      
-      if (result.success) {
-        toast({
-          title: "Import Successful",
-          description: result.message,
-        });
-      } else {
-        toast({
-          title: "Import Failed",
-          description: result.message,
-          variant: "destructive"
-        });
+      // Don't auto-close - let user click close button
+      if (!cancelImportRef.current) {
+        if (result.success) {
+          toast({
+            title: "Import Successful",
+            description: result.message,
+          });
+        } else {
+          toast({
+            title: "Import Failed",
+            description: result.message,
+            variant: "destructive"
+          });
+        }
       }
     } catch (error: any) {
       console.error("Import error:", error);
@@ -716,10 +744,8 @@ const ReportsExport = () => {
         description: error.message || "Failed to import file. Please check the format and try again.",
         variant: "destructive"
       });
+      closeProgressModal();
     } finally {
-      setIsImporting(false);
-      setImportType(null);
-      setImportProgress(null);
       if (event.target) {
         event.target.value = "";
       }
@@ -758,6 +784,9 @@ const ReportsExport = () => {
     const existingBarcodes = new Set((existingProducts || []).filter(p => p.barcode).map(p => p.barcode?.trim()));
 
     for (let i = 0; i < data.length; i++) {
+      // Check for cancellation
+      if (cancelImportRef.current) break;
+
       const item = data[i];
       const rowNum = i + 2; // +2 for header row and 0-indexing
 
@@ -766,6 +795,9 @@ const ReportsExport = () => {
       
       // Small delay to allow UI to update
       await new Promise(resolve => setTimeout(resolve, 50));
+      
+      // Check again after delay
+      if (cancelImportRef.current) break;
 
       // Validation: Required fields
       if (!item.name || String(item.name).trim() === '') {
@@ -886,6 +918,9 @@ const ReportsExport = () => {
     const existingEmails = new Set((existingCustomers || []).filter(c => c.email).map(c => c.email?.toLowerCase().trim()));
 
     for (let i = 0; i < data.length; i++) {
+      // Check for cancellation
+      if (cancelImportRef.current) break;
+
       const item = data[i];
       const rowNum = i + 2;
 
@@ -894,6 +929,9 @@ const ReportsExport = () => {
       
       // Small delay to allow UI to update
       await new Promise(resolve => setTimeout(resolve, 50));
+      
+      // Check again after delay
+      if (cancelImportRef.current) break;
 
       // Validation: Required fields
       if (!item.name || String(item.name).trim() === '') {
@@ -990,6 +1028,9 @@ const ReportsExport = () => {
     let errorCount = 0;
 
     for (let i = 0; i < data.length; i++) {
+      // Check for cancellation
+      if (cancelImportRef.current) break;
+
       const item = data[i];
 
       // Set row as processing
@@ -997,6 +1038,9 @@ const ReportsExport = () => {
       
       // Small delay to allow UI to update
       await new Promise(resolve => setTimeout(resolve, 50));
+      
+      // Check again after delay
+      if (cancelImportRef.current) break;
 
       if (!item.product_name || !item.quantity) {
         updateRowStatus(i, "error", "Product name and quantity are required");
@@ -1053,6 +1097,9 @@ const ReportsExport = () => {
     const validCategories = ['utilities', 'rent', 'supplies', 'maintenance', 'marketing', 'salaries', 'other'];
 
     for (let i = 0; i < data.length; i++) {
+      // Check for cancellation
+      if (cancelImportRef.current) break;
+
       const item = data[i];
 
       // Set row as processing
@@ -1060,6 +1107,9 @@ const ReportsExport = () => {
       
       // Small delay to allow UI to update
       await new Promise(resolve => setTimeout(resolve, 50));
+      
+      // Check again after delay
+      if (cancelImportRef.current) break;
 
       if (!item.title || !item.amount) {
         updateRowStatus(i, "error", "Title and amount are required");
@@ -1101,7 +1151,12 @@ const ReportsExport = () => {
     <div className="space-y-6">
       {/* Import Progress Modal */}
       {importProgress && importType && (
-        <ImportProgressIndicator progress={importProgress} importType={importType} />
+        <ImportProgressIndicator 
+          progress={importProgress} 
+          importType={importType}
+          onCancel={cancelImport}
+          onClose={closeProgressModal}
+        />
       )}
 
       {/* Header */}
