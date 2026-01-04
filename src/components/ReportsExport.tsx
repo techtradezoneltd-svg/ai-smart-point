@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { exportToExcel, exportToCSV, exportToPDF, formatForExport, importFromExcel, importFromCSV } from "@/lib/exportImport";
+import ImportProgressIndicator, { ImportProgress, ImportRowStatus } from "./ImportProgressIndicator";
 import { 
   FileDown, 
   Calendar, 
@@ -57,6 +58,70 @@ const ReportsExport = () => {
   const [isExporting, setIsExporting] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
   const [importType, setImportType] = useState<string | null>(null);
+  const [importProgress, setImportProgress] = useState<ImportProgress | null>(null);
+
+  const initializeProgress = useCallback((totalRows: number): ImportProgress => {
+    const rows: ImportRowStatus[] = Array.from({ length: totalRows }, (_, i) => ({
+      row: i + 2, // +2 for header row and 0-indexing
+      status: "pending" as const,
+    }));
+    return {
+      totalRows,
+      processedRows: 0,
+      successCount: 0,
+      errorCount: 0,
+      skippedCount: 0,
+      currentRow: 0,
+      rows,
+      isComplete: false,
+    };
+  }, []);
+
+  const updateRowStatus = useCallback((
+    rowIndex: number,
+    status: ImportRowStatus["status"],
+    message: string
+  ) => {
+    setImportProgress(prev => {
+      if (!prev) return prev;
+      const newRows = [...prev.rows];
+      newRows[rowIndex] = {
+        ...newRows[rowIndex],
+        status,
+        message,
+      };
+      return {
+        ...prev,
+        rows: newRows,
+        processedRows: status !== "processing" ? prev.processedRows + 1 : prev.processedRows,
+        successCount: status === "success" ? prev.successCount + 1 : prev.successCount,
+        errorCount: status === "error" ? prev.errorCount + 1 : prev.errorCount,
+        skippedCount: status === "skipped" ? prev.skippedCount + 1 : prev.skippedCount,
+        currentRow: rowIndex + 2,
+      };
+    });
+  }, []);
+
+  const setRowProcessing = useCallback((rowIndex: number) => {
+    setImportProgress(prev => {
+      if (!prev) return prev;
+      const newRows = [...prev.rows];
+      newRows[rowIndex] = {
+        ...newRows[rowIndex],
+        status: "processing",
+        message: "Processing...",
+      };
+      return {
+        ...prev,
+        rows: newRows,
+        currentRow: rowIndex + 2,
+      };
+    });
+  }, []);
+
+  const completeProgress = useCallback(() => {
+    setImportProgress(prev => prev ? { ...prev, isComplete: true } : prev);
+  }, []);
 
   const reportTemplates: ReportTemplate[] = [
     {
@@ -622,7 +687,15 @@ const ReportsExport = () => {
         throw new Error("No data found in the file.");
       }
 
+      // Initialize progress tracking
+      setImportProgress(initializeProgress(data.length));
+
       const result = await processImport(type, data);
+      
+      completeProgress();
+
+      // Wait a moment for user to see the completion status
+      await new Promise(resolve => setTimeout(resolve, 2000));
       
       if (result.success) {
         toast({
@@ -646,6 +719,7 @@ const ReportsExport = () => {
     } finally {
       setIsImporting(false);
       setImportType(null);
+      setImportProgress(null);
       if (event.target) {
         event.target.value = "";
       }
@@ -687,8 +761,15 @@ const ReportsExport = () => {
       const item = data[i];
       const rowNum = i + 2; // +2 for header row and 0-indexing
 
+      // Set row as processing
+      setRowProcessing(i);
+      
+      // Small delay to allow UI to update
+      await new Promise(resolve => setTimeout(resolve, 50));
+
       // Validation: Required fields
       if (!item.name || String(item.name).trim() === '') {
+        updateRowStatus(i, "error", "Product name is required");
         errors.push(`Row ${rowNum}: Product name is required`);
         errorCount++;
         continue;
@@ -700,18 +781,21 @@ const ReportsExport = () => {
 
       // Duplicate checking
       if (existingNames.has(productName.toLowerCase())) {
+        updateRowStatus(i, "skipped", `Product "${productName}" already exists`);
         errors.push(`Row ${rowNum}: Product "${productName}" already exists`);
         skippedCount++;
         continue;
       }
 
       if (productSku && existingSkus.has(productSku.toLowerCase())) {
+        updateRowStatus(i, "skipped", `SKU "${productSku}" already exists`);
         errors.push(`Row ${rowNum}: SKU "${productSku}" already exists`);
         skippedCount++;
         continue;
       }
 
       if (productBarcode && existingBarcodes.has(productBarcode)) {
+        updateRowStatus(i, "skipped", `Barcode "${productBarcode}" already exists`);
         errors.push(`Row ${rowNum}: Barcode "${productBarcode}" already exists`);
         skippedCount++;
         continue;
@@ -725,18 +809,21 @@ const ReportsExport = () => {
       const maxStock = parseInt(item.max_stock_level);
 
       if (item.cost_price && (isNaN(costPrice) || costPrice < 0)) {
+        updateRowStatus(i, "error", `Invalid cost price "${item.cost_price}"`);
         errors.push(`Row ${rowNum}: Invalid cost price "${item.cost_price}"`);
         errorCount++;
         continue;
       }
 
       if (item.selling_price && (isNaN(sellingPrice) || sellingPrice < 0)) {
+        updateRowStatus(i, "error", `Invalid selling price "${item.selling_price}"`);
         errors.push(`Row ${rowNum}: Invalid selling price "${item.selling_price}"`);
         errorCount++;
         continue;
       }
 
       if (item.current_stock && (isNaN(currentStock) || currentStock < 0)) {
+        updateRowStatus(i, "error", `Invalid stock quantity "${item.current_stock}"`);
         errors.push(`Row ${rowNum}: Invalid stock quantity "${item.current_stock}"`);
         errorCount++;
         continue;
@@ -757,9 +844,11 @@ const ReportsExport = () => {
 
       if (error) {
         console.error("Product insert error:", error);
+        updateRowStatus(i, "error", error.message);
         errors.push(`Row ${rowNum}: ${error.message}`);
         errorCount++;
       } else {
+        updateRowStatus(i, "success", `Imported "${productName}"`);
         successCount++;
         // Add to existing sets to prevent duplicates within same import
         existingNames.add(productName.toLowerCase());
@@ -800,14 +889,22 @@ const ReportsExport = () => {
       const item = data[i];
       const rowNum = i + 2;
 
+      // Set row as processing
+      setRowProcessing(i);
+      
+      // Small delay to allow UI to update
+      await new Promise(resolve => setTimeout(resolve, 50));
+
       // Validation: Required fields
       if (!item.name || String(item.name).trim() === '') {
+        updateRowStatus(i, "error", "Customer name is required");
         errors.push(`Row ${rowNum}: Customer name is required`);
         errorCount++;
         continue;
       }
 
       if (!item.phone || String(item.phone).trim() === '') {
+        updateRowStatus(i, "error", "Phone number is required");
         errors.push(`Row ${rowNum}: Phone number is required`);
         errorCount++;
         continue;
@@ -820,6 +917,7 @@ const ReportsExport = () => {
       // Phone format validation (basic)
       const phoneRegex = /^[\+]?[0-9\s\-\(\)]{7,20}$/;
       if (!phoneRegex.test(customerPhone)) {
+        updateRowStatus(i, "error", `Invalid phone format "${customerPhone}"`);
         errors.push(`Row ${rowNum}: Invalid phone format "${customerPhone}"`);
         errorCount++;
         continue;
@@ -829,6 +927,7 @@ const ReportsExport = () => {
       if (customerEmail) {
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
         if (!emailRegex.test(customerEmail)) {
+          updateRowStatus(i, "error", `Invalid email format "${customerEmail}"`);
           errors.push(`Row ${rowNum}: Invalid email format "${customerEmail}"`);
           errorCount++;
           continue;
@@ -837,12 +936,14 @@ const ReportsExport = () => {
 
       // Duplicate checking
       if (existingPhones.has(customerPhone)) {
+        updateRowStatus(i, "skipped", `Phone "${customerPhone}" already exists`);
         errors.push(`Row ${rowNum}: Phone "${customerPhone}" already exists`);
         skippedCount++;
         continue;
       }
 
       if (customerEmail && existingEmails.has(customerEmail)) {
+        updateRowStatus(i, "skipped", `Email "${customerEmail}" already exists`);
         errors.push(`Row ${rowNum}: Email "${customerEmail}" already exists`);
         skippedCount++;
         continue;
@@ -858,9 +959,11 @@ const ReportsExport = () => {
 
       if (error) {
         console.error("Customer insert error:", error);
+        updateRowStatus(i, "error", error.message);
         errors.push(`Row ${rowNum}: ${error.message}`);
         errorCount++;
       } else {
+        updateRowStatus(i, "success", `Imported "${customerName}"`);
         successCount++;
         // Add to existing sets to prevent duplicates within same import
         existingPhones.add(customerPhone);
@@ -886,8 +989,20 @@ const ReportsExport = () => {
     let successCount = 0;
     let errorCount = 0;
 
-    for (const item of data) {
-      if (!item.product_name || !item.quantity) continue;
+    for (let i = 0; i < data.length; i++) {
+      const item = data[i];
+
+      // Set row as processing
+      setRowProcessing(i);
+      
+      // Small delay to allow UI to update
+      await new Promise(resolve => setTimeout(resolve, 50));
+
+      if (!item.product_name || !item.quantity) {
+        updateRowStatus(i, "error", "Product name and quantity are required");
+        errorCount++;
+        continue;
+      }
 
       // Find product by name
       const { data: product } = await supabase
@@ -898,6 +1013,7 @@ const ReportsExport = () => {
         .maybeSingle();
 
       if (!product) {
+        updateRowStatus(i, "error", `Product "${item.product_name}" not found`);
         errorCount++;
         continue;
       }
@@ -915,8 +1031,10 @@ const ReportsExport = () => {
 
       if (error) {
         console.error("Stock movement insert error:", error);
+        updateRowStatus(i, "error", error.message);
         errorCount++;
       } else {
+        updateRowStatus(i, "success", `${movementType} ${item.quantity} for "${item.product_name}"`);
         successCount++;
       }
     }
@@ -934,8 +1052,20 @@ const ReportsExport = () => {
 
     const validCategories = ['utilities', 'rent', 'supplies', 'maintenance', 'marketing', 'salaries', 'other'];
 
-    for (const item of data) {
-      if (!item.title || !item.amount) continue;
+    for (let i = 0; i < data.length; i++) {
+      const item = data[i];
+
+      // Set row as processing
+      setRowProcessing(i);
+      
+      // Small delay to allow UI to update
+      await new Promise(resolve => setTimeout(resolve, 50));
+
+      if (!item.title || !item.amount) {
+        updateRowStatus(i, "error", "Title and amount are required");
+        errorCount++;
+        continue;
+      }
 
       const category = validCategories.includes(item.category?.toLowerCase()) 
         ? item.category.toLowerCase() 
@@ -952,8 +1082,10 @@ const ReportsExport = () => {
 
       if (error) {
         console.error("Expense insert error:", error);
+        updateRowStatus(i, "error", error.message);
         errorCount++;
       } else {
+        updateRowStatus(i, "success", `Imported "${item.title}"`);
         successCount++;
       }
     }
@@ -967,6 +1099,11 @@ const ReportsExport = () => {
 
   return (
     <div className="space-y-6">
+      {/* Import Progress Modal */}
+      {importProgress && importType && (
+        <ImportProgressIndicator progress={importProgress} importType={importType} />
+      )}
+
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
