@@ -1,9 +1,9 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Bell, X, AlertTriangle, Info, CheckCircle, AlertCircle } from "lucide-react";
-import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 
 interface Notification {
   id: string;
@@ -16,47 +16,93 @@ interface Notification {
 }
 
 const NotificationCenter = () => {
-  const { toast } = useToast();
-  const [notifications, setNotifications] = useState<Notification[]>([
-    {
-      id: "1",
-      type: "warning",
-      title: "Low Stock Alert",
-      message: "Samsung Galaxy S24 has only 8 units remaining - below minimum threshold",
-      timestamp: new Date(Date.now() - 1000 * 60 * 15), // 15 minutes ago
-      read: false,
-      urgent: true
-    },
-    {
-      id: "2",
-      type: "success",
-      title: "Daily Backup Complete",
-      message: "System backup completed successfully at 02:00 AM",
-      timestamp: new Date(Date.now() - 1000 * 60 * 60 * 6), // 6 hours ago
-      read: true,
-      urgent: false
-    },
-    {
-      id: "3",
-      type: "info",
-      title: "New Analytics Report",
-      message: "Weekly performance report is now available for review",
-      timestamp: new Date(Date.now() - 1000 * 60 * 60 * 2), // 2 hours ago
-      read: false,
-      urgent: false
-    },
-    {
-      id: "4",
-      type: "error",
-      title: "Payment Gateway Issue",
-      message: "Connection to payment processor temporarily disrupted",
-      timestamp: new Date(Date.now() - 1000 * 60 * 30), // 30 minutes ago
-      read: false,
-      urgent: true
-    }
-  ]);
-
+  const [notifications, setNotifications] = useState<Notification[]>([]);
   const [isOpen, setIsOpen] = useState(false);
+  const [loading, setLoading] = useState(true);
+
+  // Load notifications from AI recommendations and low stock products
+  const loadNotifications = useCallback(async () => {
+    try {
+      setLoading(true);
+      const notificationsList: Notification[] = [];
+
+      // Load AI recommendations as notifications
+      const { data: recommendations } = await supabase
+        .from('ai_recommendations')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(5);
+
+      if (recommendations) {
+        recommendations.forEach(rec => {
+          notificationsList.push({
+            id: rec.id,
+            type: rec.priority === 'high' ? 'warning' : 'info',
+            title: rec.title,
+            message: rec.message,
+            timestamp: new Date(rec.created_at || Date.now()),
+            read: rec.is_read || false,
+            urgent: rec.priority === 'high'
+          });
+        });
+      }
+
+      // Load low stock alerts
+      const { data: lowStockProducts } = await supabase
+        .from('products')
+        .select('id, name, current_stock, min_stock_level')
+        .eq('is_active', true)
+        .not('min_stock_level', 'is', null)
+        .limit(5);
+
+      if (lowStockProducts) {
+        lowStockProducts.forEach(product => {
+          if (product.current_stock !== null && 
+              product.min_stock_level !== null && 
+              product.current_stock <= product.min_stock_level) {
+            notificationsList.push({
+              id: `stock-${product.id}`,
+              type: product.current_stock === 0 ? 'error' : 'warning',
+              title: 'Low Stock Alert',
+              message: `${product.name} has only ${product.current_stock} units remaining`,
+              timestamp: new Date(),
+              read: false,
+              urgent: product.current_stock === 0
+            });
+          }
+        });
+      }
+
+      // Sort by timestamp (newest first)
+      notificationsList.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
+      
+      setNotifications(notificationsList.slice(0, 10));
+    } catch (error) {
+      console.error('Error loading notifications:', error);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadNotifications();
+
+    // Set up real-time subscription for AI recommendations
+    const channel = supabase
+      .channel('notification-center')
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'ai_recommendations'
+      }, () => {
+        loadNotifications();
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [loadNotifications]);
 
   const unreadCount = notifications.filter(n => !n.read).length;
   const urgentCount = notifications.filter(n => !n.read && n.urgent).length;
@@ -87,7 +133,15 @@ const NotificationCenter = () => {
     }
   };
 
-  const markAsRead = (id: string) => {
+  const markAsRead = async (id: string) => {
+    // If it's an AI recommendation, update in database
+    if (!id.startsWith('stock-')) {
+      await supabase
+        .from('ai_recommendations')
+        .update({ is_read: true })
+        .eq('id', id);
+    }
+    
     setNotifications(prev =>
       prev.map(notification =>
         notification.id === id
@@ -97,7 +151,19 @@ const NotificationCenter = () => {
     );
   };
 
-  const markAllAsRead = () => {
+  const markAllAsRead = async () => {
+    // Update AI recommendations in database
+    const aiRecIds = notifications
+      .filter(n => !n.id.startsWith('stock-') && !n.read)
+      .map(n => n.id);
+    
+    if (aiRecIds.length > 0) {
+      await supabase
+        .from('ai_recommendations')
+        .update({ is_read: true })
+        .in('id', aiRecIds);
+    }
+    
     setNotifications(prev =>
       prev.map(notification => ({ ...notification, read: true }))
     );
@@ -116,50 +182,6 @@ const NotificationCenter = () => {
     if (diffInMinutes < 1440) return `${Math.floor(diffInMinutes / 60)}h ago`;
     return `${Math.floor(diffInMinutes / 1440)}d ago`;
   };
-
-  // Auto-generate notifications for demo
-  useEffect(() => {
-    const interval = setInterval(() => {
-      const demoNotifications = [
-        {
-          type: "info" as const,
-          title: "System Update",
-          message: "New AI features have been deployed",
-          urgent: false
-        },
-        {
-          type: "warning" as const,
-          title: "Stock Alert",
-          message: "Multiple items approaching minimum stock levels",
-          urgent: true
-        },
-        {
-          type: "success" as const,
-          title: "Sales Milestone",
-          message: "Daily sales target achieved!",
-          urgent: false
-        }
-      ];
-
-      const randomNotification = demoNotifications[Math.floor(Math.random() * demoNotifications.length)];
-      
-      const newNotification: Notification = {
-        id: Date.now().toString(),
-        ...randomNotification,
-        timestamp: new Date(),
-        read: false
-      };
-
-      setNotifications(prev => [newNotification, ...prev.slice(0, 9)]); // Keep only 10 notifications
-      
-      toast({
-        title: randomNotification.title,
-        description: randomNotification.message,
-      });
-    }, 60000); // Every minute for demo
-
-    return () => clearInterval(interval);
-  }, [toast]);
 
   if (!isOpen) {
     return (

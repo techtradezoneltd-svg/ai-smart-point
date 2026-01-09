@@ -138,7 +138,7 @@ const NavigationEnhanced = ({ currentView, onNavigate }: NavigationProps) => {
         { 
           id: "loans", 
           label: "Loan Management", 
-          icon: Users, 
+          icon: CreditCard, 
           badge: "NEW",
           requiredPermission: "canManageLoans"
         },
