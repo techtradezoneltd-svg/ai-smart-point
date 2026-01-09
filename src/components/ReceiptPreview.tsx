@@ -201,18 +201,24 @@ const ReceiptPreview: React.FC<ReceiptPreviewProps> = ({
           {receiptSettings.header || companyInfo.name}
         </h1>
         <div className="text-sm space-y-1" style={{ opacity: 0.8 }}>
-          <div className="flex items-center justify-center gap-1">
-            <MapPin className="w-3 h-3" />
-            <span>{companyInfo.address}</span>
-          </div>
-          <div className="flex items-center justify-center gap-1">
-            <Phone className="w-3 h-3" />
-            <span>{companyInfo.phone}</span>
-          </div>
-          <div className="flex items-center justify-center gap-1">
-            <Mail className="w-3 h-3" />
-            <span>{companyInfo.email}</span>
-          </div>
+          {(receiptSettings.showCompanyAddress ?? true) && companyInfo.address && (
+            <div className="flex items-center justify-center gap-1">
+              <MapPin className="w-3 h-3" />
+              <span>{companyInfo.address}</span>
+            </div>
+          )}
+          {(receiptSettings.showCompanyPhone ?? true) && companyInfo.phone && (
+            <div className="flex items-center justify-center gap-1">
+              <Phone className="w-3 h-3" />
+              <span>{companyInfo.phone}</span>
+            </div>
+          )}
+          {(receiptSettings.showCompanyEmail ?? true) && companyInfo.email && (
+            <div className="flex items-center justify-center gap-1">
+              <Mail className="w-3 h-3" />
+              <span>{companyInfo.email}</span>
+            </div>
+          )}
         </div>
       </div>
 

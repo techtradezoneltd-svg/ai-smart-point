@@ -544,6 +544,50 @@ const Settings = () => {
                 </div>
               </div>
 
+              {/* Company Info Display Options */}
+              <Separator />
+              <div className="space-y-4">
+                <Label className="text-base font-medium">Company Information on Receipt</Label>
+                <p className="text-sm text-muted-foreground">
+                  Choose which company details to display on receipts. Configure company info in the Company tab.
+                </p>
+                
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="flex items-center justify-between p-3 border rounded-lg">
+                    <div className="space-y-0.5">
+                      <Label>Show Address</Label>
+                      <p className="text-xs text-muted-foreground">Display company address</p>
+                    </div>
+                    <Switch
+                      checked={receiptForm.showCompanyAddress ?? true}
+                      onCheckedChange={(checked) => setReceiptForm(prev => prev ? { ...prev, showCompanyAddress: checked } : null)}
+                    />
+                  </div>
+                  
+                  <div className="flex items-center justify-between p-3 border rounded-lg">
+                    <div className="space-y-0.5">
+                      <Label>Show Phone</Label>
+                      <p className="text-xs text-muted-foreground">Display phone number</p>
+                    </div>
+                    <Switch
+                      checked={receiptForm.showCompanyPhone ?? true}
+                      onCheckedChange={(checked) => setReceiptForm(prev => prev ? { ...prev, showCompanyPhone: checked } : null)}
+                    />
+                  </div>
+                  
+                  <div className="flex items-center justify-between p-3 border rounded-lg">
+                    <div className="space-y-0.5">
+                      <Label>Show Email</Label>
+                      <p className="text-xs text-muted-foreground">Display email address</p>
+                    </div>
+                    <Switch
+                      checked={receiptForm.showCompanyEmail ?? true}
+                      onCheckedChange={(checked) => setReceiptForm(prev => prev ? { ...prev, showCompanyEmail: checked } : null)}
+                    />
+                  </div>
+                </div>
+              </div>
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="currency-symbol">Currency Symbol</Label>
