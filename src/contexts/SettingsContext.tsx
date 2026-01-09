@@ -62,6 +62,10 @@ export interface ReceiptSettings {
   textColor: string;
   headerColor: string;
   borderColor: string;
+  // Company info display settings
+  showCompanyAddress: boolean;
+  showCompanyPhone: boolean;
+  showCompanyEmail: boolean;
 }
 
 export interface NotificationSettings {
@@ -197,7 +201,10 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
             backgroundColor: '#ffffff',
             textColor: '#000000',
             headerColor: '#333333',
-            borderColor: '#cccccc'
+            borderColor: '#cccccc',
+            showCompanyAddress: true,
+            showCompanyPhone: true,
+            showCompanyEmail: true
           },
           notifications: settingsMap.notifications || {
             lowStock: true,
