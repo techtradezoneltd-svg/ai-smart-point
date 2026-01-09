@@ -24,7 +24,7 @@ import AuditLogs from "@/components/AuditLogs";
 import ReportsExport from "@/components/ReportsExport";
 import NotificationCenter from "@/components/NotificationCenter";
 import FloatingRoleSwitcher from "@/components/FloatingRoleSwitcher";
-import { AuthProvider } from "@/components/AuthProvider";
+// AuthProvider is already in App.tsx - removed duplicate import
 import { SettingsProvider } from "@/contexts/SettingsContext";
 import { usePermissions } from "@/hooks/usePermissions";
 import { Loader2 } from "lucide-react";
@@ -83,7 +83,8 @@ const AuthenticatedApp = () => {
     if (!permissions.loading && !hasAccessToView(currentView)) {
       setCurrentView("dashboard");
     }
-  }, [currentView, permissions]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentView, permissions.loading, permissions.role]);
 
   // Safe navigation that checks permissions
   const handleNavigate = (view: string) => {
@@ -174,11 +175,9 @@ const AuthenticatedApp = () => {
 
 const Index = () => {
   return (
-    <AuthProvider>
-      <SettingsProvider>
-        <AuthenticatedApp />
-      </SettingsProvider>
-    </AuthProvider>
+    <SettingsProvider>
+      <AuthenticatedApp />
+    </SettingsProvider>
   );
 };
 

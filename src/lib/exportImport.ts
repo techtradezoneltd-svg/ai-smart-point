@@ -246,8 +246,8 @@ export const formatForExport = (data: any[], excludeFields: string[] = []) => {
       if (formatted[key] instanceof Date) {
         formatted[key] = formatted[key].toISOString().split('T')[0];
       }
-      // Handle string dates
-      if (typeof formatted[key] === 'string' && key.includes('_at') || key.includes('date')) {
+      // Handle string dates - fixed logic operator precedence
+      if (typeof formatted[key] === 'string' && (key.includes('_at') || key.includes('date'))) {
         const date = new Date(formatted[key]);
         if (!isNaN(date.getTime())) {
           formatted[key] = date.toISOString().split('T')[0];
