@@ -1,14 +1,13 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { supabase } from "@/integrations/supabase/client";
 import { 
   Activity, 
   Search, 
-  Filter, 
   Download,
   Calendar,
   User,
@@ -17,127 +16,98 @@ import {
   Settings,
   AlertTriangle,
   CheckCircle,
-  Clock
+  Clock,
+  Loader2,
+  RefreshCw
 } from "lucide-react";
+import { format } from "date-fns";
 
 interface AuditLog {
   id: string;
   timestamp: string;
-  user: string;
+  user_email: string | null;
+  user_role: string | null;
   action: string;
-  category: "sale" | "inventory" | "user" | "system" | "security";
-  details: string;
-  ip: string;
-  status: "success" | "warning" | "error";
-  risk: "low" | "medium" | "high";
+  category: string;
+  details: Record<string, any> | null;
+  ip_address: string | null;
+  status: string | null;
+  risk_level: string | null;
 }
 
 const AuditLogs = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
   const [selectedLog, setSelectedLog] = useState<AuditLog | null>(null);
+  const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const auditLogs: AuditLog[] = [
-    {
-      id: "1",
-      timestamp: "2024-01-25 14:32:15",
-      user: "Mike Cashier",
-      action: "Sale Completed",
-      category: "sale",
-      details: "iPhone 15 Pro - $999.99 - Customer: Sarah Johnson",
-      ip: "192.168.1.45",
-      status: "success",
-      risk: "low"
-    },
-    {
-      id: "2",
-      timestamp: "2024-01-25 14:28:43",
-      user: "Lisa Stock",
-      action: "Inventory Updated",
-      category: "inventory",
-      details: "Samsung Galaxy S24 - Stock adjusted from 15 to 8 units",
-      ip: "192.168.1.67",
-      status: "success",
-      risk: "low"
-    },
-    {
-      id: "3",
-      timestamp: "2024-01-25 14:15:22",
-      user: "Sarah Manager",
-      action: "User Role Modified",
-      category: "user",
-      details: "Changed Mike Cashier permissions - Added customer_lookup",
-      ip: "192.168.1.23",
-      status: "warning",
-      risk: "medium"
-    },
-    {
-      id: "4",
-      timestamp: "2024-01-25 13:45:11",
-      user: "John Admin",
-      action: "System Configuration",
-      category: "system",
-      details: "Updated tax rate from 7% to 8% for all products",
-      ip: "192.168.1.10",
-      status: "success",
-      risk: "high"
-    },
-    {
-      id: "5",
-      timestamp: "2024-01-25 13:30:55",
-      user: "Unknown User",
-      action: "Failed Login Attempt",
-      category: "security",
-      details: "Multiple failed login attempts from IP 203.45.67.89",
-      ip: "203.45.67.89",
-      status: "error",
-      risk: "high"
-    },
-    {
-      id: "6",
-      timestamp: "2024-01-25 12:15:33",
-      user: "Mike Cashier",
-      action: "Transaction Voided",
-      category: "sale",
-      details: "Voided transaction #TX-2024-001234 - Amount: $249.99",
-      ip: "192.168.1.45",
-      status: "warning",
-      risk: "medium"
-    },
-    {
-      id: "7",
-      timestamp: "2024-01-25 11:45:17",
-      user: "Lisa Stock",
-      action: "Bulk Inventory Import",
-      category: "inventory",
-      details: "Imported 150 products from supplier data feed",
-      ip: "192.168.1.67",
-      status: "success",
-      risk: "low"
-    },
-    {
-      id: "8",
-      timestamp: "2024-01-25 10:22:08",
-      user: "Sarah Manager",
-      action: "Report Generated",
-      category: "system",
-      details: "Generated weekly sales report for period 2024-01-18 to 2024-01-24",
-      ip: "192.168.1.23",
-      status: "success",
-      risk: "low"
+  useEffect(() => {
+    fetchAuditLogs();
+  }, []);
+
+  const fetchAuditLogs = async () => {
+    setLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from('audit_logs')
+        .select('*')
+        .order('timestamp', { ascending: false })
+        .limit(100);
+
+      if (error) {
+        console.error('Error fetching audit logs:', error);
+      } else {
+        // Map the data to our interface
+        const mappedLogs: AuditLog[] = (data || []).map(log => ({
+          id: log.id,
+          timestamp: log.timestamp,
+          user_email: log.user_email,
+          user_role: log.user_role,
+          action: log.action,
+          category: log.category,
+          details: typeof log.details === 'object' ? log.details as Record<string, any> : null,
+          ip_address: log.ip_address,
+          status: log.status,
+          risk_level: log.risk_level
+        }));
+        setAuditLogs(mappedLogs);
+      }
+    } catch (error) {
+      console.error('Error fetching audit logs:', error);
+    } finally {
+      setLoading(false);
     }
-  ];
+  };
+
+  const mapCategoryToDisplay = (category: string): string => {
+    const categoryMap: Record<string, string> = {
+      'sales': 'sale',
+      'financial': 'sale',
+      'inventory': 'inventory',
+      'user_management': 'user',
+      'settings': 'system',
+      'system': 'system',
+      'security': 'security'
+    };
+    return categoryMap[category] || category;
+  };
 
   const filteredLogs = auditLogs.filter(log => {
-    const matchesSearch = log.user.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         log.action.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         log.details.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesCategory = selectedCategory === "all" || log.category === selectedCategory;
+    const searchLower = searchTerm.toLowerCase();
+    const userMatch = (log.user_email || '').toLowerCase().includes(searchLower);
+    const actionMatch = log.action.toLowerCase().includes(searchLower);
+    const detailsMatch = log.details ? JSON.stringify(log.details).toLowerCase().includes(searchLower) : false;
+    const matchesSearch = userMatch || actionMatch || detailsMatch;
+    
+    const displayCategory = mapCategoryToDisplay(log.category);
+    const matchesCategory = selectedCategory === "all" || displayCategory === selectedCategory;
     return matchesSearch && matchesCategory;
   });
 
   const getCategoryIcon = (category: string) => {
-    switch (category) {
+    const displayCategory = mapCategoryToDisplay(category);
+    switch (displayCategory) {
       case "sale": return <ShoppingCart className="w-4 h-4" />;
       case "inventory": return <Package className="w-4 h-4" />;
       case "user": return <User className="w-4 h-4" />;
@@ -148,7 +118,8 @@ const AuditLogs = () => {
   };
 
   const getCategoryColor = (category: string) => {
-    switch (category) {
+    const displayCategory = mapCategoryToDisplay(category);
+    switch (displayCategory) {
       case "sale": return "success";
       case "inventory": return "primary";
       case "user": return "accent";
@@ -158,7 +129,7 @@ const AuditLogs = () => {
     }
   };
 
-  const getStatusIcon = (status: string) => {
+  const getStatusIcon = (status: string | null) => {
     switch (status) {
       case "success": return <CheckCircle className="w-4 h-4 text-success" />;
       case "warning": return <AlertTriangle className="w-4 h-4 text-warning" />;
@@ -167,9 +138,10 @@ const AuditLogs = () => {
     }
   };
 
-  const getRiskColor = (risk: string) => {
+  const getRiskColor = (risk: string | null) => {
     switch (risk) {
-      case "high": return "destructive";
+      case "high": 
+      case "critical": return "destructive";
       case "medium": return "warning";
       default: return "success";
     }
@@ -184,12 +156,38 @@ const AuditLogs = () => {
     { value: "security", label: "Security" }
   ];
 
+  const today = new Date().toISOString().split('T')[0];
   const stats = {
     total: auditLogs.length,
-    today: auditLogs.filter(log => log.timestamp.includes("2024-01-25")).length,
-    highRisk: auditLogs.filter(log => log.risk === "high").length,
+    today: auditLogs.filter(log => log.timestamp.startsWith(today)).length,
+    highRisk: auditLogs.filter(log => log.risk_level === "high" || log.risk_level === "critical").length,
     failed: auditLogs.filter(log => log.status === "error").length
   };
+
+  const formatDetails = (details: Record<string, any> | null): string => {
+    if (!details) return 'No details available';
+    try {
+      return JSON.stringify(details, null, 2);
+    } catch {
+      return 'Unable to display details';
+    }
+  };
+
+  const formatTimestamp = (timestamp: string): string => {
+    try {
+      return format(new Date(timestamp), 'yyyy-MM-dd HH:mm:ss');
+    } catch {
+      return timestamp;
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -202,9 +200,9 @@ const AuditLogs = () => {
           <p className="text-muted-foreground">Track all system activities and security events</p>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline">
-            <Calendar className="w-4 h-4 mr-2" />
-            Date Range
+          <Button variant="outline" onClick={fetchAuditLogs}>
+            <RefreshCw className="w-4 h-4 mr-2" />
+            Refresh
           </Button>
           <Button className="bg-gradient-primary">
             <Download className="w-4 h-4 mr-2" />
@@ -263,7 +261,7 @@ const AuditLogs = () => {
       {/* Filters */}
       <Card className="bg-gradient-card border-border">
         <CardContent className="pt-6">
-          <div className="flex gap-4">
+          <div className="flex flex-col lg:flex-row gap-4">
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
               <Input
@@ -273,7 +271,7 @@ const AuditLogs = () => {
                 className="pl-10"
               />
             </div>
-            <div className="flex gap-2">
+            <div className="flex gap-2 flex-wrap">
               {categories.map((category) => (
                 <Button
                   key={category.value}
@@ -295,62 +293,69 @@ const AuditLogs = () => {
           <CardTitle className="flex items-center gap-2">
             <Activity className="w-5 h-5 text-primary" />
             System Activity Log
+            <Badge variant="secondary" className="ml-2">{filteredLogs.length} entries</Badge>
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="space-y-4">
-            {filteredLogs.map((log) => (
-              <div
-                key={log.id}
-                className="flex items-start gap-4 p-4 border border-border rounded-lg hover:border-primary/50 transition-all"
-              >
-                <div className="flex items-center gap-2">
-                  {getStatusIcon(log.status)}
-                  <div className={`p-2 rounded-lg bg-${getCategoryColor(log.category)}/10 border border-${getCategoryColor(log.category)}/20`}>
-                    {getCategoryIcon(log.category)}
-                  </div>
-                </div>
-
-                <div className="flex-1">
-                  <div className="flex items-center gap-3 mb-2">
-                    <h3 className="font-semibold">{log.action}</h3>
-                    <Badge 
-                      variant="outline" 
-                      className={`border-${getCategoryColor(log.category)} text-${getCategoryColor(log.category)} capitalize`}
-                    >
-                      {log.category}
-                    </Badge>
-                    <Badge 
-                      variant="outline" 
-                      className={`border-${getRiskColor(log.risk)} text-${getRiskColor(log.risk)}`}
-                    >
-                      {log.risk} risk
-                    </Badge>
-                  </div>
-                  
-                  <p className="text-sm text-muted-foreground mb-2">{log.details}</p>
-                  
-                  <div className="flex items-center gap-4 text-xs text-muted-foreground">
-                    <div className="flex items-center gap-1">
-                      <User className="w-3 h-3" />
-                      <span>{log.user}</span>
+          {filteredLogs.length === 0 ? (
+            <div className="text-center py-8 text-muted-foreground">
+              <Activity className="w-12 h-12 mx-auto mb-4 opacity-50" />
+              <p>No audit logs found</p>
+              <p className="text-sm">Activity will appear here as actions are performed in the system</p>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {filteredLogs.map((log) => (
+                <div
+                  key={log.id}
+                  className="flex items-start gap-4 p-4 border border-border rounded-lg hover:border-primary/50 transition-all"
+                >
+                  <div className="flex items-center gap-2">
+                    {getStatusIcon(log.status)}
+                    <div className="p-2 rounded-lg bg-muted border">
+                      {getCategoryIcon(log.category)}
                     </div>
-                    <div className="flex items-center gap-1">
-                      <Clock className="w-3 h-3" />
-                      <span>{log.timestamp}</span>
+                  </div>
+
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-3 mb-2 flex-wrap">
+                      <h3 className="font-semibold">{log.action}</h3>
+                      <Badge variant="outline" className="capitalize">
+                        {mapCategoryToDisplay(log.category)}
+                      </Badge>
+                      <Badge 
+                        variant={log.risk_level === 'high' || log.risk_level === 'critical' ? 'destructive' : log.risk_level === 'medium' ? 'default' : 'secondary'}
+                      >
+                        {log.risk_level || 'low'} risk
+                      </Badge>
                     </div>
-                    <span>IP: {log.ip}</span>
+                    
+                    <p className="text-sm text-muted-foreground mb-2 truncate">
+                      {log.details ? JSON.stringify(log.details).substring(0, 100) + '...' : 'No details'}
+                    </p>
+                    
+                    <div className="flex items-center gap-4 text-xs text-muted-foreground flex-wrap">
+                      <div className="flex items-center gap-1">
+                        <User className="w-3 h-3" />
+                        <span>{log.user_email || 'Unknown'}</span>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <Clock className="w-3 h-3" />
+                        <span>{formatTimestamp(log.timestamp)}</span>
+                      </div>
+                      {log.ip_address && <span>IP: {log.ip_address}</span>}
+                    </div>
+                  </div>
+
+                  <div className="text-right">
+                    <Button size="sm" variant="outline" onClick={() => setSelectedLog(log)}>
+                      View Details
+                    </Button>
                   </div>
                 </div>
-
-                <div className="text-right">
-                  <Button size="sm" variant="outline" onClick={() => setSelectedLog(log)}>
-                    View Details
-                  </Button>
-                </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </CardContent>
       </Card>
 
@@ -364,7 +369,7 @@ const AuditLogs = () => {
             <div className="space-y-4">
               <div className="flex items-center gap-3">
                 {getStatusIcon(selectedLog.status)}
-                <div className={`p-2 rounded-lg bg-${getCategoryColor(selectedLog.category)}/10 border border-${getCategoryColor(selectedLog.category)}/20`}>
+                <div className="p-2 rounded-lg bg-muted border">
                   {getCategoryIcon(selectedLog.category)}
                 </div>
                 <div>
@@ -377,29 +382,25 @@ const AuditLogs = () => {
                 <div className="space-y-2">
                   <div>
                     <p className="text-sm font-medium text-muted-foreground">Category</p>
-                    <Badge 
-                      variant="outline" 
-                      className={`border-${getCategoryColor(selectedLog.category)} text-${getCategoryColor(selectedLog.category)} capitalize`}
-                    >
-                      {selectedLog.category}
+                    <Badge variant="outline" className="capitalize">
+                      {mapCategoryToDisplay(selectedLog.category)}
                     </Badge>
                   </div>
                   <div>
                     <p className="text-sm font-medium text-muted-foreground">Risk Level</p>
                     <Badge 
-                      variant="outline" 
-                      className={`border-${getRiskColor(selectedLog.risk)} text-${getRiskColor(selectedLog.risk)}`}
+                      variant={selectedLog.risk_level === 'high' || selectedLog.risk_level === 'critical' ? 'destructive' : 'secondary'}
                     >
-                      {selectedLog.risk} risk
+                      {selectedLog.risk_level || 'low'} risk
                     </Badge>
                   </div>
                   <div>
                     <p className="text-sm font-medium text-muted-foreground">Status</p>
                     <Badge 
-                      variant="outline" 
-                      className={`capitalize ${selectedLog.status === 'success' ? 'border-success text-success' : selectedLog.status === 'warning' ? 'border-warning text-warning' : 'border-destructive text-destructive'}`}
+                      variant={selectedLog.status === 'success' ? 'default' : selectedLog.status === 'error' ? 'destructive' : 'secondary'}
+                      className="capitalize"
                     >
-                      {selectedLog.status}
+                      {selectedLog.status || 'unknown'}
                     </Badge>
                   </div>
                 </div>
@@ -407,32 +408,32 @@ const AuditLogs = () => {
                 <div className="space-y-2">
                   <div>
                     <p className="text-sm font-medium text-muted-foreground">User</p>
-                    <p className="text-sm font-semibold">{selectedLog.user}</p>
+                    <p className="text-sm font-semibold">{selectedLog.user_email || 'Unknown'}</p>
+                    {selectedLog.user_role && (
+                      <p className="text-xs text-muted-foreground capitalize">Role: {selectedLog.user_role}</p>
+                    )}
                   </div>
                   <div>
                     <p className="text-sm font-medium text-muted-foreground">Timestamp</p>
-                    <p className="text-sm">{selectedLog.timestamp}</p>
+                    <p className="text-sm">{formatTimestamp(selectedLog.timestamp)}</p>
                   </div>
                   <div>
                     <p className="text-sm font-medium text-muted-foreground">IP Address</p>
-                    <p className="text-sm font-mono">{selectedLog.ip}</p>
+                    <p className="text-sm font-mono">{selectedLog.ip_address || 'N/A'}</p>
                   </div>
                 </div>
               </div>
 
               <div>
                 <p className="text-sm font-medium text-muted-foreground mb-2">Details</p>
-                <div className="p-4 bg-muted/50 rounded-lg border">
-                  <p className="text-sm">{selectedLog.details}</p>
+                <div className="p-4 bg-muted/50 rounded-lg border overflow-auto max-h-48">
+                  <pre className="text-sm whitespace-pre-wrap">{formatDetails(selectedLog.details)}</pre>
                 </div>
               </div>
 
               <div className="flex justify-end gap-2 pt-4">
                 <Button variant="outline" onClick={() => setSelectedLog(null)}>
                   Close
-                </Button>
-                <Button className="bg-gradient-primary">
-                  Export Log
                 </Button>
               </div>
             </div>

@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { useAuditLog } from "@/hooks/useAuditLog";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -39,7 +40,16 @@ const UserRoles = () => {
   const [isEditMode, setIsEditMode] = useState(false);
   const [editForm, setEditForm] = useState<Partial<UserRole>>({});
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [showAddUserDialog, setShowAddUserDialog] = useState(false);
+  const [newUserForm, setNewUserForm] = useState({
+    full_name: '',
+    email: '',
+    role: '' as 'admin' | 'cashier' | 'supervisor' | 'manager' | '',
+    password: ''
+  });
+  const [isCreating, setIsCreating] = useState(false);
   const { toast } = useToast();
+  const { logAction } = useAuditLog();
 
   useEffect(() => {
     fetchUsers();
@@ -55,6 +65,140 @@ const UserRoles = () => {
       toast({ title: "Error", description: "Failed to fetch users", variant: "destructive" });
     } else {
       setUsers(data || []);
+    }
+  };
+
+  const handleSaveUserChanges = async () => {
+    if (!selectedUser) return;
+
+    const { error } = await supabase
+      .from('profiles')
+      .update({
+        full_name: editForm.full_name,
+        role: editForm.role,
+        is_active: editForm.is_active
+      })
+      .eq('id', selectedUser.id);
+    
+    if (error) {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    } else {
+      // Log the action
+      await logAction({
+        action: `Updated user: ${editForm.full_name}`,
+        category: 'user_management',
+        details: {
+          user_id: selectedUser.id,
+          changes: {
+            role: editForm.role !== selectedUser.role ? { from: selectedUser.role, to: editForm.role } : undefined,
+            is_active: editForm.is_active !== selectedUser.is_active ? { from: selectedUser.is_active, to: editForm.is_active } : undefined
+          }
+        },
+        risk_level: editForm.role !== selectedUser.role ? 'high' : 'medium'
+      });
+
+      toast({ title: "Success", description: "User updated successfully" });
+      setIsEditMode(false);
+      setSelectedUser(null);
+      fetchUsers();
+    }
+  };
+
+  const handleAddUser = async () => {
+    if (!newUserForm.full_name || !newUserForm.email || !newUserForm.role || !newUserForm.password) {
+      toast({ title: "Error", description: "Please fill all required fields", variant: "destructive" });
+      return;
+    }
+
+    if (newUserForm.password.length < 6) {
+      toast({ title: "Error", description: "Password must be at least 6 characters", variant: "destructive" });
+      return;
+    }
+
+    setIsCreating(true);
+    try {
+      // Sign up the new user
+      const { data: authData, error: signUpError } = await supabase.auth.signUp({
+        email: newUserForm.email,
+        password: newUserForm.password,
+        options: {
+          data: {
+            full_name: newUserForm.full_name
+          },
+          emailRedirectTo: `${window.location.origin}/`
+        }
+      });
+
+      if (signUpError) {
+        toast({ title: "Error", description: signUpError.message, variant: "destructive" });
+        return;
+      }
+
+      if (authData.user) {
+        // Update the profile with the correct role
+        const { error: profileError } = await supabase
+          .from('profiles')
+          .upsert({
+            id: authData.user.id,
+            full_name: newUserForm.full_name,
+            email: newUserForm.email,
+            role: newUserForm.role,
+            is_active: true
+          });
+        
+        if (profileError) {
+          toast({ title: "Error", description: "Failed to create user profile", variant: "destructive" });
+          return;
+        }
+
+        // Log the action
+        await logAction({
+          action: `Created new user: ${newUserForm.full_name}`,
+          category: 'user_management',
+          details: {
+            user_email: newUserForm.email,
+            role: newUserForm.role
+          },
+          risk_level: 'high'
+        });
+
+        toast({ 
+          title: "Success", 
+          description: 'User created successfully. They will receive an email to confirm their account.'
+        });
+        setShowAddUserDialog(false);
+        setNewUserForm({ full_name: '', email: '', role: '', password: '' });
+        fetchUsers();
+      }
+    } catch (error) {
+      console.error('Error creating user:', error);
+      toast({ title: "Error", description: "Failed to create user", variant: "destructive" });
+    } finally {
+      setIsCreating(false);
+    }
+  };
+
+  const handleDeleteUser = async () => {
+    if (!selectedUser) return;
+    
+    const { error } = await supabase
+      .from('profiles')
+      .update({ is_active: false })
+      .eq('id', selectedUser.id);
+
+    if (error) {
+      toast({ title: "Error", description: "Failed to deactivate user", variant: "destructive" });
+    } else {
+      await logAction({
+        action: `Deactivated user: ${selectedUser.full_name || selectedUser.email}`,
+        category: 'user_management',
+        details: { user_id: selectedUser.id },
+        risk_level: 'high'
+      });
+      toast({ title: "Success", description: "User deactivated successfully" });
+      setShowDeleteDialog(false);
+      setSelectedUser(null);
+      fetchUsers();
     }
   };
 
@@ -109,7 +253,7 @@ const UserRoles = () => {
           </h1>
           <p className="text-muted-foreground">Manage user permissions and system access</p>
         </div>
-        <Button className="bg-gradient-primary">
+        <Button className="bg-gradient-primary" onClick={() => setShowAddUserDialog(true)}>
           <Plus className="w-4 h-4 mr-2" />
           Add User
         </Button>
@@ -346,45 +490,7 @@ const UserRoles = () => {
                   }}>
                     Cancel
                   </Button>
-                  <Button size="sm" onClick={async () => {
-                    if (!selectedUser) return;
-
-                    // Import audit logging
-                    const { useAuditLog } = await import('@/hooks/useAuditLog');
-                    const { logAction } = useAuditLog();
-
-                    const { error } = await supabase
-                      .from('profiles')
-                      .update({
-                        full_name: editForm.full_name,
-                        role: editForm.role,
-                        is_active: editForm.is_active
-                      })
-                      .eq('id', selectedUser.id);
-                    
-                    if (error) {
-                      toast({ title: "Error", description: error.message, variant: "destructive" });
-                    } else {
-                      // Log the action
-                      await logAction({
-                        action: `Updated user: ${editForm.full_name}`,
-                        category: 'user_management',
-                        details: {
-                          user_id: selectedUser.id,
-                          changes: {
-                            role: editForm.role !== selectedUser.role ? { from: selectedUser.role, to: editForm.role } : undefined,
-                            is_active: editForm.is_active !== selectedUser.is_active ? { from: selectedUser.is_active, to: editForm.is_active } : undefined
-                          }
-                        },
-                        risk_level: editForm.role !== selectedUser.role ? 'high' : 'medium'
-                      });
-
-                      toast({ title: "Success", description: "User updated successfully" });
-                      setIsEditMode(false);
-                      setSelectedUser(null);
-                      fetchUsers();
-                    }
-                  }}>
+                  <Button size="sm" onClick={() => handleSaveUserChanges()}>
                     Save Changes
                   </Button>
                 </div>
@@ -618,58 +724,112 @@ const UserRoles = () => {
       <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+            <AlertDialogTitle>Deactivate User?</AlertDialogTitle>
             <AlertDialogDescription>
-              This will permanently delete the user "{selectedUser?.full_name || selectedUser?.email}". This action cannot be undone.
+              This will deactivate the user "{selectedUser?.full_name || selectedUser?.email}". 
+              They will no longer be able to access the system.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction
-              onClick={async () => {
-                if (!selectedUser) return;
-
-                // Import audit logging
-                const { useAuditLog } = await import('@/hooks/useAuditLog');
-                const { logAction } = useAuditLog();
-
-                const { error } = await supabase
-                  .from('profiles')
-                  .delete()
-                  .eq('id', selectedUser.id);
-                
-                if (error) {
-                  toast({ title: "Error", description: error.message, variant: "destructive" });
-                } else {
-                  // Log the action
-                  await logAction({
-                    action: `Deleted user: ${selectedUser.full_name}`,
-                    category: 'user_management',
-                    details: {
-                      user_id: selectedUser.id,
-                      role: selectedUser.role,
-                      email: selectedUser.email
-                    },
-                    risk_level: 'high'
-                  });
-
-                  toast({ 
-                    title: "Success", 
-                    description: "User deleted successfully",
-                    variant: "default"
-                  });
-                  setShowDeleteDialog(false);
-                  setSelectedUser(null);
-                  fetchUsers();
-                }
-              }}
+              onClick={handleDeleteUser}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
-              Delete
+              Deactivate
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Add User Dialog */}
+      <Dialog open={showAddUserDialog} onOpenChange={setShowAddUserDialog}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Add New User</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <label className="text-sm font-medium mb-1 block">Full Name *</label>
+              <Input
+                value={newUserForm.full_name}
+                onChange={(e) => setNewUserForm({...newUserForm, full_name: e.target.value})}
+                placeholder="Enter full name"
+              />
+            </div>
+            
+            <div>
+              <label className="text-sm font-medium mb-1 block">Email *</label>
+              <Input
+                type="email"
+                value={newUserForm.email}
+                onChange={(e) => setNewUserForm({...newUserForm, email: e.target.value})}
+                placeholder="Enter email address"
+              />
+            </div>
+
+            <div>
+              <label className="text-sm font-medium mb-1 block">Password *</label>
+              <Input
+                type="password"
+                value={newUserForm.password}
+                onChange={(e) => setNewUserForm({...newUserForm, password: e.target.value})}
+                placeholder="Enter password (min 6 characters)"
+              />
+            </div>
+            
+            <div>
+              <label className="text-sm font-medium mb-1 block">Role *</label>
+              <Select 
+                value={newUserForm.role} 
+                onValueChange={(value: any) => setNewUserForm({...newUserForm, role: value})}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select role" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="admin">
+                    <div className="flex items-center gap-2">
+                      <Crown className="h-4 w-4" />
+                      Administrator
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="manager">
+                    <div className="flex items-center gap-2">
+                      <UserCheck className="h-4 w-4" />
+                      Manager
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="supervisor">
+                    <div className="flex items-center gap-2">
+                      <Shield className="h-4 w-4" />
+                      Supervisor
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="cashier">
+                    <div className="flex items-center gap-2">
+                      <User className="h-4 w-4" />
+                      Cashier
+                    </div>
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            
+            <div className="flex justify-end gap-2 pt-4">
+              <Button variant="outline" onClick={() => {
+                setShowAddUserDialog(false);
+                setNewUserForm({ full_name: '', email: '', role: '', password: '' });
+              }}>
+                Cancel
+              </Button>
+              <Button onClick={handleAddUser} disabled={isCreating}>
+                {isCreating ? 'Creating...' : 'Add User'}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
