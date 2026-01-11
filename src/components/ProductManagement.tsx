@@ -409,7 +409,7 @@ const ProductManagement = () => {
     if (!file) return;
 
     try {
-      let importedData;
+      let importedData: any[];
       if (file.name.endsWith('.csv')) {
         importedData = await importFromCSV(file);
       } else if (file.name.endsWith('.xlsx') || file.name.endsWith('.xls')) {
@@ -419,14 +419,57 @@ const ProductManagement = () => {
         return;
       }
 
-      // Process imported data (you can enhance this based on your needs)
-      console.log('Imported data:', importedData);
-      toast({ title: "Success", description: `Imported ${importedData.length} records` });
-      
-      // Clear file input
-      if (event.target) {
-        event.target.value = '';
+      if (importedData.length === 0) {
+        toast({ title: "Error", description: "No data found in file", variant: "destructive" });
+        return;
       }
+
+      // Get current user
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        toast({ title: "Error", description: "You must be logged in to import products", variant: "destructive" });
+        return;
+      }
+
+      let successCount = 0;
+      let errorCount = 0;
+
+      for (const row of importedData) {
+        try {
+          const productData = {
+            name: row.Name || row.name || row.Product || row.product,
+            sku: row.SKU || row.sku || null,
+            description: row.Description || row.description || null,
+            cost_price: parseFloat(row['Cost Price'] || row.cost_price || row.CostPrice || 0),
+            selling_price: parseFloat(row['Selling Price'] || row.selling_price || row.SellingPrice || row.Price || row.price || 0),
+            current_stock: parseInt(row['Current Stock'] || row.current_stock || row.Stock || row.stock || 0),
+            min_stock_level: parseInt(row['Min Stock Level'] || row.min_stock_level || row.MinStock || 10),
+            max_stock_level: parseInt(row['Max Stock Level'] || row.max_stock_level || row.MaxStock || 1000),
+            barcode: row.Barcode || row.barcode || null,
+            is_active: true,
+            created_by: user.id
+          };
+
+          if (!productData.name) continue;
+
+          const { error } = await supabase.from('products').insert(productData);
+          if (error) {
+            errorCount++;
+          } else {
+            successCount++;
+          }
+        } catch {
+          errorCount++;
+        }
+      }
+
+      toast({ 
+        title: "Import Complete", 
+        description: `Successfully imported ${successCount} products. ${errorCount > 0 ? `${errorCount} failed.` : ''}` 
+      });
+      
+      fetchProducts();
+      if (event.target) event.target.value = '';
     } catch (error) {
       toast({ title: "Error", description: "Failed to import file", variant: "destructive" });
     }

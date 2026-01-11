@@ -11,7 +11,6 @@ import Reports from "@/components/Reports";
 import AIReportingSystem from "@/components/AIReportingSystem";
 import Suppliers from "@/components/Suppliers";
 import ExpenseManagement from "@/components/ExpenseManagement";
-import StaffManagement from "@/components/StaffManagement";
 import CategoryUnitManagement from "@/components/CategoryUnitManagement";
 import Customers from "@/components/Customers";
 import LoanManagement from "@/components/LoanManagement";
@@ -112,7 +111,7 @@ const AuthenticatedApp = () => {
       case "expenses":
         return <ExpenseManagement />;
       case "staff":
-        return <StaffManagement />;
+        return <UserRoles />;
       case "categories":
         return <CategoryUnitManagement />;
       case "customers":
