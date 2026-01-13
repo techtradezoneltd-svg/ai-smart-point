@@ -281,13 +281,13 @@ const StockManagement = () => {
     toast({ title: "Success", description: `Stock movements exported to ${format.toUpperCase()}` });
   };
 
-  // Import function
+  // Import function - saves stock movements to database
   const handleFileImport = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
 
     try {
-      let importedData;
+      let importedData: any[];
       if (file.name.endsWith('.csv')) {
         importedData = await importFromCSV(file);
       } else if (file.name.endsWith('.xlsx') || file.name.endsWith('.xls')) {
@@ -297,14 +297,132 @@ const StockManagement = () => {
         return;
       }
 
-      console.log('Imported data:', importedData);
-      toast({ title: "Success", description: `Imported ${importedData.length} records` });
+      if (!importedData || importedData.length === 0) {
+        toast({ title: "Error", description: "No data found in the file", variant: "destructive" });
+        return;
+      }
+
+      // Get current user
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        toast({ title: "Error", description: "You must be logged in to import stock movements", variant: "destructive" });
+        return;
+      }
+
+      // Build a product lookup map (by SKU or name)
+      const productMap = new Map<string, string>();
+      products.forEach(p => {
+        productMap.set(p.sku?.toLowerCase(), p.id);
+        productMap.set(p.name?.toLowerCase(), p.id);
+      });
+
+      let successCount = 0;
+      let skipCount = 0;
+      const errors: string[] = [];
+
+      for (const row of importedData) {
+        // Try to find product by SKU or Name (flexible column naming)
+        const productIdentifier = (
+          row['SKU'] || row['sku'] || row['Sku'] ||
+          row['Product SKU'] || row['product_sku'] ||
+          row['Product Name'] || row['product_name'] ||
+          row['Product'] || row['product'] ||
+          row['Name'] || row['name']
+        )?.toString().toLowerCase();
+
+        const productId = productIdentifier ? productMap.get(productIdentifier) : null;
+
+        if (!productId) {
+          skipCount++;
+          errors.push(`Product not found: ${productIdentifier || 'Unknown'}`);
+          continue;
+        }
+
+        // Parse movement type (flexible column naming)
+        const typeRaw = (
+          row['Type'] || row['type'] || row['Movement Type'] || 
+          row['movement_type'] || row['MovementType']
+        )?.toString().toLowerCase();
+
+        // Map common type names to valid values
+        let type: 'in' | 'out' | 'damage' | 'return' | 'adjustment' = 'in';
+        if (typeRaw) {
+          if (['in', 'stock in', 'stock_in', 'stockin', 'receive', 'received'].includes(typeRaw)) {
+            type = 'in';
+          } else if (['out', 'stock out', 'stock_out', 'stockout', 'sold', 'issue'].includes(typeRaw)) {
+            type = 'out';
+          } else if (['damage', 'damaged', 'broken', 'spoiled'].includes(typeRaw)) {
+            type = 'damage';
+          } else if (['return', 'returned', 'refund'].includes(typeRaw)) {
+            type = 'return';
+          } else if (['adjustment', 'adjust', 'correction'].includes(typeRaw)) {
+            type = 'adjustment';
+          }
+        }
+
+        // Parse quantity (flexible column naming)
+        const quantityRaw = row['Quantity'] || row['quantity'] || row['Qty'] || row['qty'] || row['Amount'] || row['amount'];
+        const quantity = parseInt(quantityRaw?.toString() || '0', 10);
+
+        if (!quantity || quantity <= 0) {
+          skipCount++;
+          errors.push(`Invalid quantity for ${productIdentifier}: ${quantityRaw}`);
+          continue;
+        }
+
+        // Parse optional fields
+        const notes = row['Notes'] || row['notes'] || row['Note'] || row['note'] || row['Remarks'] || row['remarks'] || null;
+        const referenceNumber = row['Reference Number'] || row['reference_number'] || row['Reference'] || row['reference'] || 
+                                row['Ref'] || row['ref'] || `IMP-${Date.now()}-${successCount}`;
+        const unitCost = parseFloat(row['Unit Cost'] || row['unit_cost'] || row['Cost'] || row['cost'] || '0') || null;
+
+        // Insert stock movement
+        const { error } = await supabase
+          .from('stock_movements')
+          .insert({
+            product_id: productId,
+            type,
+            quantity,
+            reference_number: referenceNumber,
+            notes,
+            unit_cost: unitCost,
+            created_by: user.id
+          });
+
+        if (error) {
+          skipCount++;
+          errors.push(`Failed to insert movement for ${productIdentifier}: ${error.message}`);
+        } else {
+          successCount++;
+        }
+      }
+
+      // Show results
+      if (successCount > 0) {
+        toast({ 
+          title: "Import Complete", 
+          description: `Successfully imported ${successCount} stock movements${skipCount > 0 ? `, ${skipCount} skipped` : ''}` 
+        });
+        // Refresh data
+        await Promise.all([fetchProducts(), fetchStockMovements()]);
+      } else {
+        toast({ 
+          title: "Import Failed", 
+          description: `No records imported. ${errors.slice(0, 3).join('; ')}${errors.length > 3 ? '...' : ''}`, 
+          variant: "destructive" 
+        });
+      }
+
+      if (errors.length > 0) {
+        console.warn('Import errors:', errors);
+      }
       
       if (fileInputRef.current) {
         fileInputRef.current.value = '';
       }
-    } catch (error) {
-      toast({ title: "Error", description: "Failed to import file", variant: "destructive" });
+    } catch (error: any) {
+      console.error('Import error:', error);
+      toast({ title: "Error", description: `Failed to import file: ${error.message}`, variant: "destructive" });
     }
   };
 
