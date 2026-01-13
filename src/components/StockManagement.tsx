@@ -234,6 +234,50 @@ const StockManagement = () => {
 
   const lowStockItems = products.filter(p => p.current_stock <= p.min_stock_level);
 
+  // Download import template
+  const downloadImportTemplate = (format: 'excel' | 'csv') => {
+    const templateData = [
+      {
+        'SKU': 'PROD-001',
+        'Product Name': 'Example Product',
+        'Type': 'in',
+        'Quantity': 100,
+        'Notes': 'Initial stock',
+        'Reference Number': 'REF-001',
+        'Unit Cost': 25.00
+      },
+      {
+        'SKU': 'PROD-002',
+        'Product Name': 'Another Product',
+        'Type': 'out',
+        'Quantity': 10,
+        'Notes': 'Sold to customer',
+        'Reference Number': 'REF-002',
+        'Unit Cost': 30.00
+      },
+      {
+        'SKU': 'PROD-003',
+        'Product Name': 'Sample Item',
+        'Type': 'damage',
+        'Quantity': 2,
+        'Notes': 'Damaged during handling',
+        'Reference Number': 'REF-003',
+        'Unit Cost': 15.00
+      }
+    ];
+
+    if (format === 'excel') {
+      exportToExcel(templateData, 'stock-movement-template', 'Template');
+    } else {
+      exportToCSV(templateData, 'stock-movement-template');
+    }
+    
+    toast({ 
+      title: "Template Downloaded", 
+      description: `Stock movement import template downloaded. Valid types: in, out, damage, return, adjustment` 
+    });
+  };
+
   // Export functions
   const exportProducts = (format: 'excel' | 'csv') => {
     const exportData = formatForExport(
@@ -444,6 +488,25 @@ const StockManagement = () => {
             onChange={handleFileImport}
             className="hidden"
           />
+          
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" className="text-sm sm:text-base">
+                <Download className="mr-2 h-4 w-4" />
+                Template
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent>
+              <DropdownMenuItem onClick={() => downloadImportTemplate('excel')}>
+                <FileText className="mr-2 h-4 w-4" />
+                Excel Template
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => downloadImportTemplate('csv')}>
+                <File className="mr-2 h-4 w-4" />
+                CSV Template
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
           
           <Button 
             variant="outline" 

@@ -809,6 +809,84 @@ export type Database = {
           },
         ]
       }
+      suppliers: {
+        Row: {
+          address: string | null
+          category: string | null
+          city: string | null
+          contact_person: string | null
+          country: string | null
+          created_at: string
+          created_by: string | null
+          email: string | null
+          id: string
+          is_active: boolean
+          last_order_date: string | null
+          lead_time: number | null
+          name: string
+          notes: string | null
+          payment_terms: string | null
+          phone: string | null
+          products: string[] | null
+          rating: number | null
+          reliability: number | null
+          status: string
+          total_orders: number | null
+          total_value: number | null
+          updated_at: string
+        }
+        Insert: {
+          address?: string | null
+          category?: string | null
+          city?: string | null
+          contact_person?: string | null
+          country?: string | null
+          created_at?: string
+          created_by?: string | null
+          email?: string | null
+          id?: string
+          is_active?: boolean
+          last_order_date?: string | null
+          lead_time?: number | null
+          name: string
+          notes?: string | null
+          payment_terms?: string | null
+          phone?: string | null
+          products?: string[] | null
+          rating?: number | null
+          reliability?: number | null
+          status?: string
+          total_orders?: number | null
+          total_value?: number | null
+          updated_at?: string
+        }
+        Update: {
+          address?: string | null
+          category?: string | null
+          city?: string | null
+          contact_person?: string | null
+          country?: string | null
+          created_at?: string
+          created_by?: string | null
+          email?: string | null
+          id?: string
+          is_active?: boolean
+          last_order_date?: string | null
+          lead_time?: number | null
+          name?: string
+          notes?: string | null
+          payment_terms?: string | null
+          phone?: string | null
+          products?: string[] | null
+          rating?: number | null
+          reliability?: number | null
+          status?: string
+          total_orders?: number | null
+          total_value?: number | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       units: {
         Row: {
           created_at: string | null
