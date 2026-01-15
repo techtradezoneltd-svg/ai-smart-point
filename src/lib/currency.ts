@@ -25,7 +25,7 @@ export const CURRENCY_CONFIGS: Record<string, CurrencyConfig> = {
   TZS: { code: 'TZS', symbol: 'TSh', name: 'Tanzanian Shilling', locale: 'en-TZ', symbolPosition: 'before', decimalPlaces: 0 },
 };
 
-export const formatCurrency = (amount: number, currencyCode: string = 'USD'): string => {
+export const formatCurrency = (amount: number, currencyCode: string = 'RWF'): string => {
   const config = CURRENCY_CONFIGS[currencyCode] || CURRENCY_CONFIGS.USD;
   
   try {
@@ -58,12 +58,12 @@ export const formatCurrency = (amount: number, currencyCode: string = 'USD'): st
   }
 };
 
-export const getCurrencySymbol = (currencyCode: string = 'USD'): string => {
-  return CURRENCY_CONFIGS[currencyCode]?.symbol || '$';
+export const getCurrencySymbol = (currencyCode: string = 'RWF'): string => {
+  return CURRENCY_CONFIGS[currencyCode]?.symbol || 'FRw';
 };
 
-export const getCurrencyName = (currencyCode: string = 'USD'): string => {
-  return CURRENCY_CONFIGS[currencyCode]?.name || 'US Dollar';
+export const getCurrencyName = (currencyCode: string = 'RWF'): string => {
+  return CURRENCY_CONFIGS[currencyCode]?.name || 'Rwandan Franc';
 };
 
 export const getAllCurrencies = (): CurrencyConfig[] => {
