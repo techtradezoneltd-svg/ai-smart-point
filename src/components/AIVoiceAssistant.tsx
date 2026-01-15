@@ -99,14 +99,22 @@ const AIVoiceAssistant = () => {
     setIsProcessing(true);
     
     try {
-      // Call OpenAI via edge function
+      // Call AI via edge function
       const { data, error } = await supabase.functions.invoke('voice-chat', {
         body: { message: command }
       });
 
-      if (error) throw error;
-
-      const response = data.response || "I couldn't process that command.";
+      let response: string;
+      
+      if (error) {
+        console.error('Edge function error:', error);
+        response = "I'm having trouble connecting to the AI service. Please try again.";
+      } else if (data?.error) {
+        console.warn('AI service warning:', data.error);
+        response = data.response || "I couldn't process that command.";
+      } else {
+        response = data?.response || "I couldn't process that command.";
+      }
 
       const newCommand: VoiceCommand = {
         id: Date.now().toString(),
@@ -117,11 +125,33 @@ const AIVoiceAssistant = () => {
       };
 
       setCommandHistory(prev => [newCommand, ...prev].slice(0, 10));
-      speakResponse(response);
+      
+      if (!data?.error) {
+        speakResponse(response);
+      }
+      
+      if (data?.error) {
+        toast({
+          title: "Notice",
+          description: data.error,
+          variant: "default"
+        });
+      }
     } catch (error) {
       console.error('Error processing voice command:', error);
+      
+      const fallbackResponse = "I encountered an error. Please try again in a moment.";
+      const newCommand: VoiceCommand = {
+        id: Date.now().toString(),
+        command,
+        response: fallbackResponse,
+        timestamp: new Date().toLocaleTimeString(),
+        confidence
+      };
+      setCommandHistory(prev => [newCommand, ...prev].slice(0, 10));
+      
       toast({
-        title: "Error",
+        title: "Connection Error",
         description: "Failed to process voice command. Please try again.",
         variant: "destructive"
       });
