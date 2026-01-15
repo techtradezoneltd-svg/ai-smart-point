@@ -4,7 +4,7 @@ import { formatCurrency as formatCurrencyUtil, getCurrencySymbol } from "@/lib/c
 export const useCurrency = () => {
   const { settings } = useSettings();
   
-  const currentCurrency = settings?.company.currency || 'USD';
+  const currentCurrency = settings?.company.currency || 'RWF';
   
   const formatCurrency = (amount: number) => {
     return formatCurrencyUtil(amount, currentCurrency);
