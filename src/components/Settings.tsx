@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
@@ -12,6 +12,7 @@ import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 import { useSettings, CompanySettings, SystemSettings, ReceiptSettings, IntegrationSettings } from '@/contexts/SettingsContext';
 import ReceiptPreview from '@/components/ReceiptPreview';
+import { formatCurrency, getCurrencySymbol, CURRENCY_CONFIGS } from '@/lib/currency';
 import {
   Building2,
   Settings as SettingsIcon,
@@ -27,7 +28,8 @@ import {
   Trash2,
   Eye,
   Loader2,
-  MessageSquare
+  MessageSquare,
+  Coins
 } from 'lucide-react';
 
 const Settings = () => {
@@ -373,6 +375,35 @@ const Settings = () => {
                       <SelectItem value="CST">CST - Central Time</SelectItem>
                     </SelectContent>
                   </Select>
+                </div>
+              </div>
+
+              {/* Currency Format Preview */}
+              <div className="p-4 rounded-lg border border-border bg-muted/30">
+                <div className="flex items-center gap-2 mb-3">
+                  <Coins className="h-4 w-4 text-primary" />
+                  <Label className="text-sm font-medium">Currency Format Preview</Label>
+                  <Badge variant="outline" className="text-xs">
+                    {getCurrencySymbol(companyForm.currency)} {CURRENCY_CONFIGS[companyForm.currency]?.name || companyForm.currency}
+                  </Badge>
+                </div>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                  <div className="text-center p-2 rounded bg-background border border-border">
+                    <p className="text-xs text-muted-foreground mb-1">Small</p>
+                    <p className="font-medium text-foreground">{formatCurrency(150, companyForm.currency)}</p>
+                  </div>
+                  <div className="text-center p-2 rounded bg-background border border-border">
+                    <p className="text-xs text-muted-foreground mb-1">Medium</p>
+                    <p className="font-medium text-foreground">{formatCurrency(2500, companyForm.currency)}</p>
+                  </div>
+                  <div className="text-center p-2 rounded bg-background border border-border">
+                    <p className="text-xs text-muted-foreground mb-1">Large</p>
+                    <p className="font-medium text-foreground">{formatCurrency(45000, companyForm.currency)}</p>
+                  </div>
+                  <div className="text-center p-2 rounded bg-background border border-border">
+                    <p className="text-xs text-muted-foreground mb-1">Very Large</p>
+                    <p className="font-medium text-foreground">{formatCurrency(1250000, companyForm.currency)}</p>
+                  </div>
                 </div>
               </div>
 
