@@ -107,33 +107,64 @@ const ReceiptPreview: React.FC<ReceiptPreviewProps> = ({
     if (printContent) {
       const printWindow = window.open('', '_blank');
       if (printWindow) {
+        // Collect all stylesheets from the current page
+        const styleSheets = Array.from(document.styleSheets);
+        let cssText = '';
+        styleSheets.forEach((sheet) => {
+          try {
+            const rules = Array.from(sheet.cssRules || []);
+            rules.forEach((rule) => {
+              cssText += rule.cssText + '\n';
+            });
+          } catch (e) {
+            // Skip cross-origin stylesheets
+            if (sheet.href) {
+              cssText += `@import url("${sheet.href}");\n`;
+            }
+          }
+        });
+
         printWindow.document.write(`
           <!DOCTYPE html>
           <html>
             <head>
               <title>Receipt - ${saleNumber}</title>
+              <style>${cssText}</style>
               <style>
-                body { 
-                  font-family: 'Courier New', monospace; 
-                  font-size: 12px; 
-                  margin: 0; 
-                  padding: 20px;
-                  max-width: 300px;
+                @media print {
+                  body { margin: 0; padding: 0; }
+                  .receipt-wrapper { 
+                    max-width: 320px; 
+                    margin: 0 auto; 
+                    padding: 10px;
+                  }
                 }
-                .center { text-align: center; }
-                .bold { font-weight: bold; }
-                .separator { border-top: 1px dashed #000; margin: 10px 0; }
-                .item-row { display: flex; justify-content: space-between; margin: 2px 0; }
-                .total-row { margin: 5px 0; font-weight: bold; }
+                body {
+                  margin: 0;
+                  padding: 20px;
+                  display: flex;
+                  justify-content: center;
+                  background: white;
+                }
+                .receipt-wrapper {
+                  max-width: 320px;
+                  width: 100%;
+                }
+                /* Ensure SVG icons render */
+                svg { display: inline-block; vertical-align: middle; }
               </style>
             </head>
             <body>
-              ${printContent.innerHTML}
+              <div class="receipt-wrapper">
+                ${printContent.innerHTML}
+              </div>
             </body>
           </html>
         `);
         printWindow.document.close();
-        printWindow.print();
+        setTimeout(() => {
+          printWindow.print();
+        }, 300);
       }
     }
   };
