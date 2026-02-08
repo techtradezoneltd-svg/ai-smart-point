@@ -436,24 +436,38 @@ const ProductManagement = () => {
 
       for (const row of importedData) {
         try {
+          // Normalize keys to lowercase for flexible matching
+          const normalizedRow: Record<string, any> = {};
+          Object.entries(row).forEach(([key, value]) => {
+            normalizedRow[key.toLowerCase().replace(/[\s_-]+/g, '_').trim()] = value;
+          });
+
+          const rawName = normalizedRow.name || normalizedRow.product || normalizedRow.product_name || '';
+          const rawSku = normalizedRow.sku || '';
+          const rawBarcode = normalizedRow.barcode || '';
+
           const productData = {
-            name: row.Name || row.name || row.Product || row.product,
-            sku: row.SKU || row.sku || null,
-            description: row.Description || row.description || null,
-            cost_price: parseFloat(row['Cost Price'] || row.cost_price || row.CostPrice || 0),
-            selling_price: parseFloat(row['Selling Price'] || row.selling_price || row.SellingPrice || row.Price || row.price || 0),
-            current_stock: parseInt(row['Current Stock'] || row.current_stock || row.Stock || row.stock || 0),
-            min_stock_level: parseInt(row['Min Stock Level'] || row.min_stock_level || row.MinStock || 10),
-            max_stock_level: parseInt(row['Max Stock Level'] || row.max_stock_level || row.MaxStock || 1000),
-            barcode: row.Barcode || row.barcode || null,
+            name: String(rawName).trim(),
+            sku: String(rawSku).trim() || null,
+            description: String(normalizedRow.description || '').trim() || null,
+            cost_price: parseFloat(normalizedRow.cost_price || normalizedRow.costprice || 0) || 0,
+            selling_price: parseFloat(normalizedRow.selling_price || normalizedRow.sellingprice || normalizedRow.price || 0) || 0,
+            current_stock: parseInt(normalizedRow.current_stock || normalizedRow.stock || normalizedRow.quantity || 0) || 0,
+            min_stock_level: parseInt(normalizedRow.min_stock_level || normalizedRow.minstock || normalizedRow.min_stock || 10) || 10,
+            max_stock_level: parseInt(normalizedRow.max_stock_level || normalizedRow.maxstock || normalizedRow.max_stock || 1000) || 1000,
+            barcode: String(rawBarcode).trim() || null,
             is_active: true,
             created_by: user.id
           };
 
-          if (!productData.name) continue;
+          if (!productData.name) {
+            errorCount++;
+            continue;
+          }
 
           const { error } = await supabase.from('products').insert(productData);
           if (error) {
+            console.error(`Import row error:`, error.message);
             errorCount++;
           } else {
             successCount++;
