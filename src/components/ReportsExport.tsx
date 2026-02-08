@@ -808,8 +808,8 @@ const ReportsExport = () => {
       }
 
       const productName = String(item.name).trim();
-      const productSku = item.sku ? String(item.sku).trim() : null;
-      const productBarcode = item.barcode ? String(item.barcode).trim() : null;
+      const productSku = item.sku && String(item.sku).trim() !== '' ? String(item.sku).trim() : null;
+      const productBarcode = item.barcode && String(item.barcode).trim() !== '' ? String(item.barcode).trim() : null;
 
       // Duplicate checking
       if (existingNames.has(productName.toLowerCase())) {
