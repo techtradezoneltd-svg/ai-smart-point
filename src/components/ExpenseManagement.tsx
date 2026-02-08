@@ -9,10 +9,13 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Calendar } from "@/components/ui/calendar";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useCurrency } from "@/hooks/useCurrency";
+import { useBulkSelection } from "@/hooks/useBulkSelection";
+import BulkDeleteBar from "@/components/BulkDeleteBar";
 import { format } from "date-fns";
 import { 
   Receipt, 
@@ -62,6 +65,7 @@ const ExpenseManagement = () => {
   const [receiptNumber, setReceiptNumber] = useState("");
 
   const { toast } = useToast();
+  const expenseBulk = useBulkSelection(expenses);
 
   const categories = [
     { value: 'utilities', label: 'Utilities', color: 'bg-blue-500' },
@@ -198,6 +202,18 @@ const ExpenseManagement = () => {
     setReceiptNumber("");
     setSelectedDate(undefined);
     setEditingExpense(null);
+  };
+
+  const handleBulkDeleteExpenses = async () => {
+    const ids = Array.from(expenseBulk.selectedIds);
+    const { error } = await supabase.from('expenses').delete().in('id', ids);
+    if (error) {
+      toast({ title: "Error", description: "Failed to delete selected expenses", variant: "destructive" });
+    } else {
+      toast({ title: "Success", description: `${ids.length} expenses deleted successfully` });
+      expenseBulk.clearSelection();
+      fetchExpenses();
+    }
   };
 
   const getTotalExpenses = () => {
@@ -444,6 +460,13 @@ const ExpenseManagement = () => {
       </Card>
 
       {/* Expenses List */}
+      <BulkDeleteBar
+        selectedCount={expenseBulk.selectedCount}
+        onDelete={handleBulkDeleteExpenses}
+        onClear={expenseBulk.clearSelection}
+        itemLabel="expenses"
+      />
+
       <Card>
         <CardHeader>
           <CardTitle>Recent Expenses</CardTitle>
@@ -461,8 +484,13 @@ const ExpenseManagement = () => {
               {expenses.map(expense => {
                 const categoryInfo = categories.find(c => c.value === expense.category);
                 return (
-                  <div key={expense.id} className="flex items-center justify-between p-4 border rounded-lg hover:shadow-md transition-shadow">
+                  <div key={expense.id} className={`flex items-center justify-between p-4 border rounded-lg hover:shadow-md transition-shadow ${expenseBulk.isSelected(expense.id) ? 'ring-2 ring-primary/50 bg-primary/5' : ''}`}>
                     <div className="flex items-center gap-4">
+                      <Checkbox
+                        checked={expenseBulk.isSelected(expense.id)}
+                        onCheckedChange={() => expenseBulk.toggleOne(expense.id)}
+                        aria-label={`Select ${expense.title}`}
+                      />
                       <div className={`w-10 h-10 rounded-full ${categoryInfo?.color} flex items-center justify-center`}>
                         <FileText className="h-5 w-5 text-white" />
                       </div>

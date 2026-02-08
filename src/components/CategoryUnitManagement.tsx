@@ -5,11 +5,14 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { useBulkSelection } from "@/hooks/useBulkSelection";
+import BulkDeleteBar from "@/components/BulkDeleteBar";
 import { 
   Tag, 
   Plus, 
@@ -58,6 +61,19 @@ const CategoryUnitManagement = () => {
   const [unitType, setUnitType] = useState<'kg' | 'pcs' | 'liters' | 'meters' | 'grams' | 'boxes' | 'bottles' | 'packets' | ''>('');
 
   const { toast } = useToast();
+
+  const filteredCategories = categories.filter(cat =>
+    cat.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    cat.description?.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  const filteredUnits = units.filter(unit =>
+    unit.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    unit.symbol.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  const categoryBulk = useBulkSelection(filteredCategories);
+  const unitBulk = useBulkSelection(filteredUnits);
 
   const unitTypes = [
     { value: 'kg', label: 'Weight (kg)', icon: '⚖️' },
@@ -238,15 +254,30 @@ const CategoryUnitManagement = () => {
     setIsUnitDialogOpen(true);
   };
 
-  const filteredCategories = categories.filter(cat =>
-    cat.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    cat.description?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const handleBulkDeleteCategories = async () => {
+    const ids = Array.from(categoryBulk.selectedIds);
+    const { error } = await supabase.from('categories').delete().in('id', ids);
+    if (error) {
+      toast({ title: "Error", description: "Failed to delete selected categories", variant: "destructive" });
+    } else {
+      toast({ title: "Success", description: `${ids.length} categories deleted successfully` });
+      categoryBulk.clearSelection();
+      fetchCategories();
+    }
+  };
 
-  const filteredUnits = units.filter(unit =>
-    unit.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    unit.symbol.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const handleBulkDeleteUnits = async () => {
+    const ids = Array.from(unitBulk.selectedIds);
+    const { error } = await supabase.from('units').delete().in('id', ids);
+    if (error) {
+      toast({ title: "Error", description: "Failed to delete selected units", variant: "destructive" });
+    } else {
+      toast({ title: "Success", description: `${ids.length} units deleted successfully` });
+      unitBulk.clearSelection();
+      fetchUnits();
+    }
+  };
+
 
   const getUnitTypeInfo = (type: string) => {
     return unitTypes.find(t => t.value === type) || { value: type, label: type, icon: '📏' };
@@ -318,12 +349,24 @@ const CategoryUnitManagement = () => {
             </Button>
           </div>
 
+          <BulkDeleteBar
+            selectedCount={categoryBulk.selectedCount}
+            onDelete={handleBulkDeleteCategories}
+            onClear={categoryBulk.clearSelection}
+            itemLabel="categories"
+          />
+
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {filteredCategories.map(category => (
-              <Card key={category.id} className="hover:shadow-md transition-shadow">
+              <Card key={category.id} className={`hover:shadow-md transition-shadow ${categoryBulk.isSelected(category.id) ? 'ring-2 ring-primary/50 bg-primary/5' : ''}`}>
                 <CardHeader className="pb-3">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
+                      <Checkbox
+                        checked={categoryBulk.isSelected(category.id)}
+                        onCheckedChange={() => categoryBulk.toggleOne(category.id)}
+                        aria-label={`Select ${category.name}`}
+                      />
                       <Grid className="h-5 w-5 text-primary" />
                       <CardTitle className="text-base">{category.name}</CardTitle>
                     </div>
@@ -377,14 +420,26 @@ const CategoryUnitManagement = () => {
             </Button>
           </div>
 
+          <BulkDeleteBar
+            selectedCount={unitBulk.selectedCount}
+            onDelete={handleBulkDeleteUnits}
+            onClear={unitBulk.clearSelection}
+            itemLabel="units"
+          />
+
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             {filteredUnits.map(unit => {
               const typeInfo = getUnitTypeInfo(unit.type);
               return (
-                <Card key={unit.id} className="hover:shadow-md transition-shadow">
+                <Card key={unit.id} className={`hover:shadow-md transition-shadow ${unitBulk.isSelected(unit.id) ? 'ring-2 ring-primary/50 bg-primary/5' : ''}`}>
                   <CardHeader className="pb-3">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
+                        <Checkbox
+                          checked={unitBulk.isSelected(unit.id)}
+                          onCheckedChange={() => unitBulk.toggleOne(unit.id)}
+                          aria-label={`Select ${unit.name}`}
+                        />
                         <span className="text-lg">{typeInfo.icon}</span>
                         <CardTitle className="text-base">{unit.name}</CardTitle>
                       </div>

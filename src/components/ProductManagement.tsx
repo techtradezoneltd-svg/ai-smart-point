@@ -10,9 +10,12 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { Checkbox } from "@/components/ui/checkbox";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useCurrency } from "@/hooks/useCurrency";
+import { useBulkSelection } from "@/hooks/useBulkSelection";
+import BulkDeleteBar from "@/components/BulkDeleteBar";
 import { exportToExcel, exportToCSV, importFromCSV, importFromExcel, formatForExport } from "@/lib/exportImport";
 import { 
   Package, 
@@ -505,6 +508,24 @@ const ProductManagement = () => {
     return matchesSearch && matchesCategory && matchesStatus;
   });
 
+  const bulk = useBulkSelection(filteredProducts);
+
+  const handleBulkDelete = async () => {
+    const ids = Array.from(bulk.selectedIds);
+    const { error } = await supabase
+      .from('products')
+      .delete()
+      .in('id', ids);
+
+    if (error) {
+      toast({ title: "Error", description: "Failed to delete selected products", variant: "destructive" });
+    } else {
+      toast({ title: "Success", description: `${ids.length} products deleted successfully` });
+      bulk.clearSelection();
+      fetchProducts();
+    }
+  };
+
   const getStockStatus = (current: number, min: number) => {
     if (current <= min * 0.5) return { status: "Critical", variant: "destructive" as const };
     if (current <= min) return { status: "Low", variant: "warning" as const };
@@ -636,6 +657,14 @@ const ProductManagement = () => {
         </CardContent>
       </Card>
 
+      {/* Bulk Delete Bar */}
+      <BulkDeleteBar
+        selectedCount={bulk.selectedCount}
+        onDelete={handleBulkDelete}
+        onClear={bulk.clearSelection}
+        itemLabel="products"
+      />
+
       {/* Products Table */}
       <Card className="bg-gradient-card border-accent/30 shadow-elegant">
         <CardHeader className="pb-3">
@@ -655,6 +684,13 @@ const ProductManagement = () => {
                 <Table>
                   <TableHeader>
                     <TableRow className="bg-muted/50">
+                      <TableHead className="w-[40px]">
+                        <Checkbox
+                          checked={bulk.isAllSelected}
+                          onCheckedChange={bulk.toggleAll}
+                          aria-label="Select all"
+                        />
+                      </TableHead>
                       <TableHead className="font-semibold text-xs sm:text-sm whitespace-nowrap">Product</TableHead>
                       <TableHead className="font-semibold text-xs sm:text-sm whitespace-nowrap hidden sm:table-cell">SKU</TableHead>
                       <TableHead className="font-semibold text-xs sm:text-sm whitespace-nowrap hidden md:table-cell">Category</TableHead>
@@ -667,7 +703,7 @@ const ProductManagement = () => {
                   <TableBody>
                     {filteredProducts.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                        <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
                           <Package className="w-12 h-12 mx-auto mb-4 opacity-50" />
                           <p className="text-lg font-medium mb-2">No products found</p>
                           <p className="text-sm">Add your first product to get started</p>
@@ -677,7 +713,14 @@ const ProductManagement = () => {
                       filteredProducts.map((product) => {
                         const stockStatus = getStockStatus(product.current_stock, product.min_stock_level);
                         return (
-                          <TableRow key={product.id} className="hover:bg-muted/30 transition-colors">
+                          <TableRow key={product.id} className={`hover:bg-muted/30 transition-colors ${bulk.isSelected(product.id) ? 'bg-primary/5' : ''}`}>
+                            <TableCell>
+                              <Checkbox
+                                checked={bulk.isSelected(product.id)}
+                                onCheckedChange={() => bulk.toggleOne(product.id)}
+                                aria-label={`Select ${product.name}`}
+                              />
+                            </TableCell>
                             <TableCell className="min-w-0">
                               <div className="font-medium text-xs sm:text-sm max-w-[120px] sm:max-w-[200px] truncate">
                                 {product.name}

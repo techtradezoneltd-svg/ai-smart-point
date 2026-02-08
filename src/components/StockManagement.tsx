@@ -10,10 +10,13 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Checkbox } from "@/components/ui/checkbox";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useCurrency } from "@/hooks/useCurrency";
+import { useBulkSelection } from "@/hooks/useBulkSelection";
+import BulkDeleteBar from "@/components/BulkDeleteBar";
 import { exportToExcel, exportToCSV, importFromCSV, importFromExcel, formatForExport } from "@/lib/exportImport";
 import { 
   Package, 
@@ -231,6 +234,25 @@ const StockManagement = () => {
     if (filterType === "critical") return matchesSearch && product.current_stock <= product.min_stock_level * 0.5;
     return matchesSearch;
   });
+
+  const stockBulk = useBulkSelection(filteredProducts);
+
+  const handleBulkDeleteStock = async () => {
+    const ids = Array.from(stockBulk.selectedIds);
+    // For stock, we deactivate products (soft delete)
+    const { error } = await supabase
+      .from('products')
+      .update({ is_active: false })
+      .in('id', ids);
+
+    if (error) {
+      toast({ title: "Error", description: "Failed to deactivate selected products", variant: "destructive" });
+    } else {
+      toast({ title: "Success", description: `${ids.length} products deactivated successfully` });
+      stockBulk.clearSelection();
+      fetchProducts();
+    }
+  };
 
   const lowStockItems = products.filter(p => p.current_stock <= p.min_stock_level);
 
@@ -632,6 +654,12 @@ const StockManagement = () => {
         </TabsList>
 
         <TabsContent value="products" className="space-y-4">
+          <BulkDeleteBar
+            selectedCount={stockBulk.selectedCount}
+            onDelete={handleBulkDeleteStock}
+            onClear={stockBulk.clearSelection}
+            itemLabel="products"
+          />
           <Card>
             <CardHeader>
               <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
@@ -700,10 +728,17 @@ const StockManagement = () => {
                 </div>
               ) : (
                 <div className="rounded-md border overflow-hidden">
-                  <div className="overflow-x-auto">
+              <div className="overflow-x-auto">
                     <Table>
                       <TableHeader>
                         <TableRow className="bg-muted/50">
+                          <TableHead className="w-[40px]">
+                            <Checkbox
+                              checked={stockBulk.isAllSelected}
+                              onCheckedChange={stockBulk.toggleAll}
+                              aria-label="Select all"
+                            />
+                          </TableHead>
                           <TableHead className="font-semibold text-xs sm:text-sm whitespace-nowrap">Product</TableHead>
                           <TableHead className="font-semibold text-xs sm:text-sm whitespace-nowrap hidden sm:table-cell">SKU</TableHead>
                           <TableHead className="font-semibold text-xs sm:text-sm whitespace-nowrap hidden md:table-cell">Category</TableHead>
@@ -721,7 +756,14 @@ const StockManagement = () => {
                           const stockStatus = getStockStatus(product.current_stock, product.min_stock_level);
                           const stockValue = product.current_stock * product.cost_price;
                           return (
-                            <TableRow key={product.id} className="hover:bg-muted/50 transition-colors">
+                            <TableRow key={product.id} className={`hover:bg-muted/50 transition-colors ${stockBulk.isSelected(product.id) ? 'bg-primary/5' : ''}`}>
+                              <TableCell>
+                                <Checkbox
+                                  checked={stockBulk.isSelected(product.id)}
+                                  onCheckedChange={() => stockBulk.toggleOne(product.id)}
+                                  aria-label={`Select ${product.name}`}
+                                />
+                              </TableCell>
                               <TableCell className="min-w-0">
                                 <div className="font-medium text-xs sm:text-sm max-w-[120px] sm:max-w-[200px] truncate">
                                   {product.name}
