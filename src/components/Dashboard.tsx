@@ -7,6 +7,7 @@ import { formatCurrency as formatCurrencyUtil } from "@/lib/currency";
 import { supabase } from "@/integrations/supabase/client";
 import { useState, useEffect } from "react";
 import { startOfDay, endOfDay, startOfWeek, endOfWeek, startOfMonth, endOfMonth, startOfYear, endOfYear, format } from "date-fns";
+import DashboardMetricCards from "@/components/DashboardMetricCards";
 import { 
   BarChart3, 
   TrendingUp, 
@@ -425,6 +426,9 @@ const Dashboard = ({ onNavigate }: DashboardProps) => {
           </CardContent>
         </Card>
       </div>
+
+      {/* Business Metric Cards */}
+      <DashboardMetricCards />
 
       {/* Quick Actions */}
       <Card className="bg-gradient-card border-border">
