@@ -3,8 +3,11 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import { useCurrency } from "@/hooks/useCurrency";
+import { useBulkSelection } from "@/hooks/useBulkSelection";
+import BulkDeleteBar from "@/components/BulkDeleteBar";
 import { supabase } from "@/integrations/supabase/client";
 import { 
   Search, 
@@ -57,6 +60,11 @@ const SalesHistory = () => {
   const [selectedPayment, setSelectedPayment] = useState("all");
   const [salesRecords, setSalesRecords] = useState<SaleRecord[]>([]);
   const [loading, setLoading] = useState(true);
+
+  const {
+    selectedCount, isAllSelected, isSomeSelected,
+    toggleOne, toggleAll, clearSelection, isSelected
+  } = useBulkSelection(salesRecords);
 
   const fetchSales = async () => {
     try {
@@ -144,6 +152,18 @@ const SalesHistory = () => {
   useEffect(() => {
     fetchSales();
   }, [selectedDate]);
+
+  const handleBulkDelete = async () => {
+    const ids = salesRecords.filter(r => isSelected(r.id)).map(r => r.id);
+    const { error } = await supabase.from('sales').delete().in('id', ids);
+    if (error) {
+      toast({ title: "Error deleting sales", description: error.message, variant: "destructive" });
+    } else {
+      toast({ title: "Success", description: `${ids.length} sale(s) deleted` });
+      clearSelection();
+      fetchSales();
+    }
+  };
 
   // Filter sales based on search term
   const filteredSales = salesRecords.filter(record => 
@@ -321,6 +341,12 @@ const SalesHistory = () => {
           </CardTitle>
         </CardHeader>
         <CardContent>
+          <BulkDeleteBar
+            selectedCount={selectedCount}
+            onDelete={handleBulkDelete}
+            onClear={clearSelection}
+            itemLabel="sales"
+          />
           {loading ? (
             <div className="text-center py-8">
               <p className="text-muted-foreground">Loading sales history...</p>
@@ -332,13 +358,26 @@ const SalesHistory = () => {
             </div>
           ) : (
             <div className="space-y-4">
+              <div className="flex items-center gap-2 pb-2 border-b border-border">
+                <Checkbox
+                  checked={isAllSelected}
+                  onCheckedChange={toggleAll}
+                  aria-label="Select all"
+                />
+                <span className="text-sm text-muted-foreground">Select All</span>
+              </div>
               {filteredSales.map((record) => (
                 <div
                   key={record.id}
-                  className="border border-border rounded-lg p-6 hover:border-primary/50 transition-all"
+                  className={`border rounded-lg p-6 hover:border-primary/50 transition-all ${isSelected(record.id) ? 'border-primary bg-primary/5' : 'border-border'}`}
                 >
                   <div className="flex items-start justify-between mb-4">
                     <div className="flex items-center gap-4">
+                      <Checkbox
+                        checked={isSelected(record.id)}
+                        onCheckedChange={() => toggleOne(record.id)}
+                        aria-label={`Select ${record.sale_number}`}
+                      />
                       <div className="p-3 bg-primary/10 rounded-lg">
                         <Package className="w-6 h-6 text-primary" />
                       </div>

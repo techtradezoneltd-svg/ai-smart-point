@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -11,6 +12,8 @@ import { Separator } from "@/components/ui/separator";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useCurrency } from "@/hooks/useCurrency";
+import { useBulkSelection } from "@/hooks/useBulkSelection";
+import BulkDeleteBar from "@/components/BulkDeleteBar";
 import { 
   CreditCard, 
   AlertTriangle, 
@@ -78,6 +81,11 @@ const LoanManagement: React.FC = () => {
   });
   const [paymentAmount, setPaymentAmount] = useState('');
   const [paymentNotes, setPaymentNotes] = useState('');
+
+  const {
+    selectedCount, isAllSelected, isSomeSelected,
+    toggleOne, toggleAll, clearSelection, isSelected
+  } = useBulkSelection(loans);
 
   useEffect(() => {
     loadData();
@@ -255,6 +263,24 @@ const LoanManagement: React.FC = () => {
   const totalLoanAmount = loans.reduce((sum, loan) => sum + loan.remaining_balance, 0);
   const totalPaidAmount = loans.reduce((sum, loan) => sum + loan.paid_amount, 0);
 
+  const handleBulkDelete = async () => {
+    const ids = loans.filter(l => isSelected(l.id)).map(l => l.id);
+    // Delete related loan_payments first
+    const { error: paymentsError } = await supabase.from('loan_payments').delete().in('loan_id', ids);
+    if (paymentsError) {
+      toast({ title: "Error", description: paymentsError.message, variant: "destructive" });
+      return;
+    }
+    const { error } = await supabase.from('loans').delete().in('id', ids);
+    if (error) {
+      toast({ title: "Error deleting loans", description: error.message, variant: "destructive" });
+    } else {
+      toast({ title: "Success", description: `${ids.length} loan(s) deleted` });
+      clearSelection();
+      loadData();
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -401,6 +427,12 @@ const LoanManagement: React.FC = () => {
           </CardTitle>
         </CardHeader>
         <CardContent>
+          <BulkDeleteBar
+            selectedCount={selectedCount}
+            onDelete={handleBulkDelete}
+            onClear={clearSelection}
+            itemLabel="loans"
+          />
           <div className="space-y-4">
             {loans.length === 0 ? (
               <div className="text-center py-8 text-muted-foreground">
@@ -408,10 +440,25 @@ const LoanManagement: React.FC = () => {
                 <p>No loans found</p>
               </div>
             ) : (
-              loans.map((loan) => (
-                <div key={loan.id} className="border rounded-lg p-4 hover:bg-gray-50/50 transition-colors">
+              <>
+                <div className="flex items-center gap-2 pb-2 border-b border-border">
+                  <Checkbox
+                    checked={isAllSelected}
+                    onCheckedChange={toggleAll}
+                    aria-label="Select all"
+                  />
+                  <span className="text-sm text-muted-foreground">Select All</span>
+                </div>
+                {loans.map((loan) => (
+                <div key={loan.id} className={`border rounded-lg p-4 transition-colors ${isSelected(loan.id) ? 'border-primary bg-primary/5' : 'hover:bg-muted/50'}`}>
                   <div className="flex items-center justify-between">
-                    <div className="flex-1">
+                    <div className="flex items-center gap-3 flex-1">
+                      <Checkbox
+                        checked={isSelected(loan.id)}
+                        onCheckedChange={() => toggleOne(loan.id)}
+                        aria-label={`Select loan for ${loan.customers.name}`}
+                      />
+                      <div className="flex-1">
                       <div className="flex items-center gap-3 mb-2">
                         <h3 className="font-semibold">{loan.customers.name}</h3>
                         <Badge className={getStatusColor(loan.status)}>
@@ -453,6 +500,7 @@ const LoanManagement: React.FC = () => {
                         )}
                       </div>
                     </div>
+                    </div>
 
                     <div className="flex items-center gap-2">
                       {loan.status !== 'paid' && (
@@ -482,7 +530,8 @@ const LoanManagement: React.FC = () => {
                     </div>
                   </div>
                 </div>
-              ))
+                ))}
+              </>
             )}
           </div>
         </CardContent>
