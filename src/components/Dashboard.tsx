@@ -335,8 +335,7 @@ const Dashboard = ({ onNavigate }: DashboardProps) => {
           <CardContent>
             <div className="text-2xl font-bold text-success">{formatCurrency(todayStats.sales)}</div>
             <p className="text-xs text-muted-foreground">
-              <TrendingUp className="inline w-3 h-3 mr-1" />
-              +12% from yesterday
+              {todayStats.transactions} transactions today
             </p>
           </CardContent>
         </Card>
@@ -349,8 +348,7 @@ const Dashboard = ({ onNavigate }: DashboardProps) => {
           <CardContent>
             <div className="text-2xl font-bold text-accent">{todayStats.transactions}</div>
             <p className="text-xs text-muted-foreground">
-              <TrendingUp className="inline w-3 h-3 mr-1" />
-              +8% from yesterday
+              Completed today
             </p>
           </CardContent>
         </Card>
@@ -363,8 +361,7 @@ const Dashboard = ({ onNavigate }: DashboardProps) => {
           <CardContent>
             <div className="text-2xl font-bold text-primary">{todayStats.customers}</div>
             <p className="text-xs text-muted-foreground">
-              <TrendingUp className="inline w-3 h-3 mr-1" />
-              +15% from yesterday
+              Unique customers today
             </p>
           </CardContent>
         </Card>
