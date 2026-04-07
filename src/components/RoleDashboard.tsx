@@ -122,7 +122,14 @@ export const RoleDashboard = ({ onNavigate }: RoleDashboardProps) => {
           customers: 0,
           lowStock: 0,
           pendingLoans: loansData.data?.length || 0,
-          myTransactions
+          myTransactions,
+          totalProducts: 0,
+          totalExpenses: 0,
+          totalCustomers: 0,
+          totalSuppliers: 0,
+          stockValue: 0,
+          loanBalance: 0,
+          netProfit: 0
         });
       }
     } catch (error) {
