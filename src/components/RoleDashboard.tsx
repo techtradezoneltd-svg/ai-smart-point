@@ -16,7 +16,14 @@ import {
   AlertTriangle,
   Clock,
   CheckCircle,
-  Loader2
+  Loader2,
+  Wallet,
+  BarChart3,
+  Truck,
+  CreditCard,
+  Activity,
+  ArrowUpRight,
+  ArrowDownRight
 } from "lucide-react";
 
 interface RoleDashboardProps {
@@ -32,7 +39,14 @@ export const RoleDashboard = ({ onNavigate }: RoleDashboardProps) => {
     customers: 0,
     lowStock: 0,
     pendingLoans: 0,
-    myTransactions: 0
+    myTransactions: 0,
+    totalProducts: 0,
+    totalExpenses: 0,
+    totalCustomers: 0,
+    totalSuppliers: 0,
+    stockValue: 0,
+    loanBalance: 0,
+    netProfit: 0
   });
   const [loading, setLoading] = useState(true);
 
@@ -52,35 +66,43 @@ export const RoleDashboard = ({ onNavigate }: RoleDashboardProps) => {
       // Load data based on role
       if (permissions.isAdmin || permissions.isManager || permissions.isSupervisor) {
         // Full access to all stats
-        const [salesData, customersData, productsResult, loansData] = await Promise.all([
+        const [salesData, customersData, productsResult, loansData, expensesData, allCustomers, suppliersData, loansFullData] = await Promise.all([
           supabase.from('sales').select('total_amount').gte('created_at', startOfToday).lt('created_at', endOfToday),
           supabase.from('sales').select('customer_id').gte('created_at', startOfToday).lt('created_at', endOfToday).not('customer_id', 'is', null),
-          supabase.from('products').select('id, current_stock, min_stock_level'),
-          supabase.from('loans').select('id').in('status', ['active', 'overdue'])
+          supabase.from('products').select('id, current_stock, min_stock_level, cost_price, selling_price, is_active'),
+          supabase.from('loans').select('id').in('status', ['active', 'overdue']),
+          supabase.from('expenses').select('amount').gte('expense_date', startOfDay(today).toISOString().split('T')[0]),
+          supabase.from('customers').select('id', { count: 'exact', head: true }),
+          supabase.from('suppliers').select('id', { count: 'exact', head: true }),
+          supabase.from('loans').select('remaining_balance').in('status', ['active', 'overdue'])
         ]);
 
-        // Filter low stock products
-        const productsData = {
-          data: productsResult.data?.filter(p => 
-            p.current_stock !== null && 
-            p.min_stock_level !== null && 
-            p.current_stock <= p.min_stock_level
-          ) || []
-        };
+        const lowStockItems = productsResult.data?.filter(p => 
+          p.current_stock !== null && p.min_stock_level !== null && p.current_stock <= p.min_stock_level
+        ) || [];
 
         const totalSales = salesData.data?.reduce((sum, sale) => sum + Number(sale.total_amount), 0) || 0;
         const transactions = salesData.data?.length || 0;
         const uniqueCustomers = new Set(customersData.data?.map(s => s.customer_id)).size;
-        const lowStock = productsData.data?.length || 0;
-        const pendingLoans = loansData.data?.length || 0;
+        const totalExpenses = expensesData.data?.reduce((sum, e) => sum + Number(e.amount), 0) || 0;
+        const activeProducts = productsResult.data?.filter(p => p.is_active) || [];
+        const stockValue = activeProducts.reduce((sum, p) => sum + (Number(p.cost_price) * (p.current_stock || 0)), 0);
+        const loanBalance = loansFullData.data?.reduce((sum, l) => sum + Number(l.remaining_balance), 0) || 0;
 
         setTodayStats({
           sales: totalSales,
           transactions,
           customers: uniqueCustomers,
-          lowStock,
-          pendingLoans,
-          myTransactions: 0
+          lowStock: lowStockItems.length,
+          pendingLoans: loansData.data?.length || 0,
+          myTransactions: 0,
+          totalProducts: activeProducts.length,
+          totalExpenses,
+          totalCustomers: allCustomers.count || 0,
+          totalSuppliers: suppliersData.count || 0,
+          stockValue,
+          loanBalance,
+          netProfit: totalSales - totalExpenses
         });
       } else if (permissions.isCashier) {
         // Limited to own transactions
@@ -130,21 +152,32 @@ export const RoleDashboard = ({ onNavigate }: RoleDashboardProps) => {
           <Badge variant="outline" className="border-primary text-primary">Administrator</Badge>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          <Card>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => onNavigate('sales-history')}>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Today's Revenue</CardTitle>
-              <DollarSign className="h-4 w-4 text-success" />
+              <DollarSign className="h-4 w-4 text-green-500" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-success">{formatCurrency(todayStats.sales)}</div>
+              <div className="text-2xl font-bold text-green-500">{formatCurrency(todayStats.sales)}</div>
               <p className="text-xs text-muted-foreground">{todayStats.transactions} transactions</p>
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => onNavigate('sales-history')}>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Customers</CardTitle>
+              <CardTitle className="text-sm font-medium">Net Profit Today</CardTitle>
+              {todayStats.netProfit >= 0 ? <ArrowUpRight className="h-4 w-4 text-green-500" /> : <ArrowDownRight className="h-4 w-4 text-destructive" />}
+            </CardHeader>
+            <CardContent>
+              <div className={`text-2xl font-bold ${todayStats.netProfit >= 0 ? 'text-green-500' : 'text-destructive'}`}>{formatCurrency(todayStats.netProfit)}</div>
+              <p className="text-xs text-muted-foreground">Revenue - Expenses</p>
+            </CardContent>
+          </Card>
+
+          <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => onNavigate('customers')}>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Customers Today</CardTitle>
               <Users className="h-4 w-4 text-primary" />
             </CardHeader>
             <CardContent>
@@ -153,18 +186,18 @@ export const RoleDashboard = ({ onNavigate }: RoleDashboardProps) => {
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => onNavigate('stock')}>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Low Stock Items</CardTitle>
-              <AlertTriangle className="h-4 w-4 text-warning" />
+              <AlertTriangle className="h-4 w-4 text-orange-500" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-warning">{todayStats.lowStock}</div>
+              <div className="text-2xl font-bold text-orange-500">{todayStats.lowStock}</div>
               <p className="text-xs text-muted-foreground">Need restocking</p>
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => onNavigate('loans')}>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Active Loans</CardTitle>
               <Clock className="h-4 w-4 text-accent" />
@@ -172,6 +205,72 @@ export const RoleDashboard = ({ onNavigate }: RoleDashboardProps) => {
             <CardContent>
               <div className="text-2xl font-bold text-accent">{todayStats.pendingLoans}</div>
               <p className="text-xs text-muted-foreground">Require attention</p>
+            </CardContent>
+          </Card>
+
+          <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => onNavigate('loans')}>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Loan Balance</CardTitle>
+              <CreditCard className="h-4 w-4 text-destructive" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-destructive">{formatCurrency(todayStats.loanBalance)}</div>
+              <p className="text-xs text-muted-foreground">Outstanding amount</p>
+            </CardContent>
+          </Card>
+
+          <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => onNavigate('products')}>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Total Products</CardTitle>
+              <Package className="h-4 w-4 text-primary" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{todayStats.totalProducts}</div>
+              <p className="text-xs text-muted-foreground">Active in inventory</p>
+            </CardContent>
+          </Card>
+
+          <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => onNavigate('stock')}>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Stock Value</CardTitle>
+              <BarChart3 className="h-4 w-4 text-primary" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{formatCurrency(todayStats.stockValue)}</div>
+              <p className="text-xs text-muted-foreground">Inventory at cost</p>
+            </CardContent>
+          </Card>
+
+          <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => onNavigate('expenses')}>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Today's Expenses</CardTitle>
+              <Wallet className="h-4 w-4 text-destructive" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-destructive">{formatCurrency(todayStats.totalExpenses)}</div>
+              <p className="text-xs text-muted-foreground">Spent today</p>
+            </CardContent>
+          </Card>
+
+          <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => onNavigate('customers')}>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Total Customers</CardTitle>
+              <Users className="h-4 w-4 text-primary" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{todayStats.totalCustomers}</div>
+              <p className="text-xs text-muted-foreground">Registered customers</p>
+            </CardContent>
+          </Card>
+
+          <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => onNavigate('suppliers')}>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Suppliers</CardTitle>
+              <Truck className="h-4 w-4 text-primary" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{todayStats.totalSuppliers}</div>
+              <p className="text-xs text-muted-foreground">Active suppliers</p>
             </CardContent>
           </Card>
         </div>
