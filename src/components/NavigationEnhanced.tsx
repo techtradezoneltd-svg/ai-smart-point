@@ -369,9 +369,6 @@ const NavigationEnhanced = ({ currentView, onNavigate }: NavigationProps) => {
             ON
           </Badge>
         </div>
-        <p className="text-xs text-muted-foreground hidden md:block mt-1">
-          Processing insights
-        </p>
       </div>
 
       {/* Navigation Categories */}
@@ -443,27 +440,6 @@ const NavigationEnhanced = ({ currentView, onNavigate }: NavigationProps) => {
         <span className="text-destructive text-xs font-medium hidden sm:block">Sign Out</span>
       </Button>
 
-      {/* AI Insights Summary */}
-      <div className="mt-4 sm:mt-6 p-2 sm:p-3 bg-primary/10 border border-primary/30 rounded-md hidden lg:block">
-        <div className="flex items-center gap-1 mb-2">
-          <Brain className="w-3 h-3 text-primary animate-pulse" />
-          <span className="text-xs font-medium text-primary">AI Insights</span>
-        </div>
-        <div className="space-y-1 text-xs">
-          <div className="flex justify-between">
-            <span className="text-muted-foreground text-xs">Revenue:</span>
-            <span className="text-success font-medium text-xs">+12%</span>
-          </div>
-          <div className="flex justify-between">
-            <span className="text-muted-foreground text-xs">Alerts:</span>
-            <span className="text-warning font-medium text-xs">2</span>
-          </div>
-          <div className="flex justify-between">
-            <span className="text-muted-foreground text-xs">Insights:</span>
-            <span className="text-accent font-medium text-xs">3</span>
-          </div>
-        </div>
-      </div>
     </div>
   );
 };

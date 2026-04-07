@@ -111,6 +111,7 @@ const AuthenticatedApp = () => {
       case "expenses":
         return <ExpenseManagement />;
       case "staff":
+      case "user-roles":
         return <UserRoles />;
       case "categories":
         return <CategoryUnitManagement />;
@@ -136,8 +137,8 @@ const AuthenticatedApp = () => {
         return <Settings />;
       case "ai-voice":
         return <AIVoiceAssistant />;
-      case "user-roles":
-        return <UserRoles />;
+      case "audit-logs":
+        return <AuditLogs />;
       case "audit-logs":
         return <AuditLogs />;
       case "reports-export":

@@ -148,7 +148,7 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
           phone: '',
           email: '',
           taxId: '',
-          currency: 'USD',
+          currency: 'RWF',
           timezone: 'UTC'
         };
 
@@ -235,33 +235,29 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
 
   const updateSetting = async (key: string, value: any) => {
     try {
-      // First try to update existing setting
-      const { error: updateError } = await supabase
+      // Use upsert to handle both insert and update
+      const { error } = await supabase
         .from('settings')
-        .update({ value, updated_at: new Date().toISOString() })
-        .eq('key', key);
-
-      // If update fails, try to insert
-      if (updateError) {
-        const { error: insertError } = await supabase
-          .from('settings')
-          .insert({ 
+        .upsert(
+          { 
             key, 
             value, 
             category: key.includes('company') ? 'company' : 
                      key.includes('system') ? 'system' : 
                      key.includes('receipt') ? 'receipt' : 
-                     key.includes('notification') ? 'notifications' : 'general'
-          });
+                     key.includes('notification') ? 'notifications' : 'general',
+            updated_at: new Date().toISOString()
+          },
+          { onConflict: 'key' }
+        );
 
-        if (insertError) {
-          console.error('Error inserting setting:', insertError);
-          toast.error(`Failed to save ${key} settings`);
-          throw insertError;
-        }
+      if (error) {
+        console.error('Error saving setting:', error);
+        toast.error(`Failed to save ${key} settings`);
+        throw error;
       }
 
-      await loadSettings(); // Refresh settings after update
+      await loadSettings();
       toast.success('Settings updated successfully!');
     } catch (error) {
       console.error('Error updating setting:', error);
