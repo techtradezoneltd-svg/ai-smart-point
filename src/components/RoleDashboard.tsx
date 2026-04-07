@@ -283,7 +283,7 @@ export const RoleDashboard = ({ onNavigate }: RoleDashboardProps) => {
         </div>
 
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          <Button onClick={() => onNavigate('users')} className="h-24 flex flex-col items-center justify-center gap-2">
+          <Button onClick={() => onNavigate('staff')} className="h-24 flex flex-col items-center justify-center gap-2">
             <Users className="w-6 h-6" />
             <span>Manage Users</span>
           </Button>
@@ -295,7 +295,7 @@ export const RoleDashboard = ({ onNavigate }: RoleDashboardProps) => {
             <TrendingUp className="w-6 h-6" />
             <span>View Reports</span>
           </Button>
-          <Button onClick={() => onNavigate('audit')} className="h-24 flex flex-col items-center justify-center gap-2">
+          <Button onClick={() => onNavigate('audit-logs')} className="h-24 flex flex-col items-center justify-center gap-2">
             <CheckCircle className="w-6 h-6" />
             <span>Audit Logs</span>
           </Button>
@@ -421,7 +421,7 @@ export const RoleDashboard = ({ onNavigate }: RoleDashboardProps) => {
             <Package className="w-6 h-6" />
             <span>Inventory</span>
           </Button>
-          <Button onClick={() => onNavigate('sales-history')} className="h-24 flex flex-col items-center justify-center gap-2">
+          <Button onClick={() => onNavigate('saleshistory')} className="h-24 flex flex-col items-center justify-center gap-2">
             <ShoppingCart className="w-6 h-6" />
             <span>Sales History</span>
           </Button>
