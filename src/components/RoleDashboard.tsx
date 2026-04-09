@@ -46,7 +46,12 @@ export const RoleDashboard = ({ onNavigate }: RoleDashboardProps) => {
     totalSuppliers: 0,
     stockValue: 0,
     loanBalance: 0,
-    netProfit: 0
+    netProfit: 0,
+    yesterdaySales: 0,
+    yesterdayTransactions: 0,
+    yesterdayExpenses: 0,
+    yesterdayNetProfit: 0,
+    yesterdayCustomers: 0
   });
   const [loading, setLoading] = useState(true);
 
@@ -65,8 +70,14 @@ export const RoleDashboard = ({ onNavigate }: RoleDashboardProps) => {
 
       // Load data based on role
       if (permissions.isAdmin || permissions.isManager || permissions.isSupervisor) {
+        const yesterday = new Date(today);
+        yesterday.setDate(yesterday.getDate() - 1);
+        const startOfYesterday = startOfDay(yesterday).toISOString();
+        const endOfYesterday = endOfDay(yesterday).toISOString();
+        const yesterdayDateStr = yesterday.toISOString().split('T')[0];
+
         // Full access to all stats
-        const [salesData, customersData, productsResult, loansData, expensesData, allCustomers, suppliersData, loansFullData] = await Promise.all([
+        const [salesData, customersData, productsResult, loansData, expensesData, allCustomers, suppliersData, loansFullData, yesterdaySalesData, yesterdayCustomersData, yesterdayExpensesData] = await Promise.all([
           supabase.from('sales').select('total_amount').gte('created_at', startOfToday).lt('created_at', endOfToday),
           supabase.from('sales').select('customer_id').gte('created_at', startOfToday).lt('created_at', endOfToday).not('customer_id', 'is', null),
           supabase.from('products').select('id, current_stock, min_stock_level, cost_price, selling_price, is_active'),
@@ -74,7 +85,10 @@ export const RoleDashboard = ({ onNavigate }: RoleDashboardProps) => {
           supabase.from('expenses').select('amount').gte('expense_date', startOfDay(today).toISOString().split('T')[0]),
           supabase.from('customers').select('id', { count: 'exact', head: true }),
           supabase.from('suppliers').select('id', { count: 'exact', head: true }),
-          supabase.from('loans').select('remaining_balance').in('status', ['active', 'overdue'])
+          supabase.from('loans').select('remaining_balance').in('status', ['active', 'overdue']),
+          supabase.from('sales').select('total_amount').gte('created_at', startOfYesterday).lt('created_at', endOfYesterday),
+          supabase.from('sales').select('customer_id').gte('created_at', startOfYesterday).lt('created_at', endOfYesterday).not('customer_id', 'is', null),
+          supabase.from('expenses').select('amount').gte('expense_date', yesterdayDateStr).lte('expense_date', yesterdayDateStr)
         ]);
 
         const lowStockItems = productsResult.data?.filter(p => 
