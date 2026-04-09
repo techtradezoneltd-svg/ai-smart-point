@@ -32,11 +32,33 @@ const Dashboard = ({ onNavigate }: DashboardProps) => {
   const [profitPeriod, setProfitPeriod] = useState<string>("today");
   const [profitData, setProfitData] = useState({ profit: 0, sales: 0, change: 0 });
   const [loading, setLoading] = useState(false);
+
+  const pctChange = (current: number, previous: number) => {
+    if (previous === 0) return current > 0 ? 100 : 0;
+    return ((current - previous) / previous) * 100;
+  };
+
+  const ChangeLabel = ({ current, previous, label = "vs yesterday" }: { current: number; previous: number; label?: string }) => {
+    const change = pctChange(current, previous);
+    if (change === 0 && current === 0 && previous === 0) return <p className="text-xs text-muted-foreground">No data yet</p>;
+    return (
+      <p className="text-xs flex items-center gap-1">
+        {change >= 0 ? <TrendingUp className="w-3 h-3 text-success" /> : <TrendingDown className="w-3 h-3 text-destructive" />}
+        <span className={change >= 0 ? "text-success" : "text-destructive"}>
+          {change >= 0 ? '+' : ''}{change.toFixed(1)}%
+        </span>
+        <span className="text-muted-foreground">{label}</span>
+      </p>
+    );
+  };
   const [todayStats, setTodayStats] = useState({
     sales: 0,
     transactions: 0,
     customers: 0,
-    aiInsights: 0
+    aiInsights: 0,
+    yesterdaySales: 0,
+    yesterdayTransactions: 0,
+    yesterdayCustomers: 0
   });
   const [aiAlerts, setAiAlerts] = useState<any[]>([]);
   const [quickActions, setQuickActions] = useState<any[]>([]);
@@ -171,41 +193,37 @@ const Dashboard = ({ onNavigate }: DashboardProps) => {
   // Load real-time stats
   const loadTodayStats = async () => {
     try {
-      const today = new Date().toISOString().split('T')[0];
+      const now = new Date();
+      const today = now.toISOString().split('T')[0];
       const startOfToday = `${today}T00:00:00`;
       const endOfToday = `${today}T23:59:59`;
 
-      // Get today's sales
-      const { data: salesData } = await supabase
-        .from('sales')
-        .select('total_amount')
-        .gte('created_at', startOfToday)
-        .lt('created_at', endOfToday);
+      const yesterday = new Date(now);
+      yesterday.setDate(yesterday.getDate() - 1);
+      const yDate = yesterday.toISOString().split('T')[0];
+      const startOfYesterday = `${yDate}T00:00:00`;
+      const endOfYesterday = `${yDate}T23:59:59`;
 
-      const totalSales = salesData?.reduce((sum, sale) => sum + Number(sale.total_amount), 0) || 0;
-      const transactions = salesData?.length || 0;
+      const [salesData, customersData, recommendations, ySalesData, yCustomersData] = await Promise.all([
+        supabase.from('sales').select('total_amount').gte('created_at', startOfToday).lt('created_at', endOfToday),
+        supabase.from('sales').select('customer_id').gte('created_at', startOfToday).lt('created_at', endOfToday).not('customer_id', 'is', null),
+        supabase.from('ai_recommendations').select('id').eq('is_read', false),
+        supabase.from('sales').select('total_amount').gte('created_at', startOfYesterday).lt('created_at', endOfYesterday),
+        supabase.from('sales').select('customer_id').gte('created_at', startOfYesterday).lt('created_at', endOfYesterday).not('customer_id', 'is', null),
+      ]);
 
-      // Get unique customers today
-      const { data: customersData } = await supabase
-        .from('sales')
-        .select('customer_id')
-        .gte('created_at', startOfToday)
-        .lt('created_at', endOfToday)
-        .not('customer_id', 'is', null);
-
-      const uniqueCustomers = new Set(customersData?.map(s => s.customer_id)).size;
-
-      // Get unread AI recommendations
-      const { data: recommendations } = await supabase
-        .from('ai_recommendations')
-        .select('id')
-        .eq('is_read', false);
+      const totalSales = salesData.data?.reduce((sum, sale) => sum + Number(sale.total_amount), 0) || 0;
+      const transactions = salesData.data?.length || 0;
+      const uniqueCustomers = new Set(customersData.data?.map(s => s.customer_id)).size;
 
       setTodayStats({
         sales: totalSales,
         transactions,
         customers: uniqueCustomers,
-        aiInsights: recommendations?.length || 0
+        aiInsights: recommendations.data?.length || 0,
+        yesterdaySales: ySalesData.data?.reduce((sum, s) => sum + Number(s.total_amount), 0) || 0,
+        yesterdayTransactions: ySalesData.data?.length || 0,
+        yesterdayCustomers: new Set(yCustomersData.data?.map(s => s.customer_id)).size
       });
     } catch (error) {
       console.error('Error loading today stats:', error);
@@ -334,9 +352,7 @@ const Dashboard = ({ onNavigate }: DashboardProps) => {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-success">{formatCurrency(todayStats.sales)}</div>
-            <p className="text-xs text-muted-foreground">
-              {todayStats.transactions} transactions today
-            </p>
+            <ChangeLabel current={todayStats.sales} previous={todayStats.yesterdaySales} />
           </CardContent>
         </Card>
 
@@ -347,9 +363,7 @@ const Dashboard = ({ onNavigate }: DashboardProps) => {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-accent">{todayStats.transactions}</div>
-            <p className="text-xs text-muted-foreground">
-              Completed today
-            </p>
+            <ChangeLabel current={todayStats.transactions} previous={todayStats.yesterdayTransactions} />
           </CardContent>
         </Card>
 
@@ -360,9 +374,7 @@ const Dashboard = ({ onNavigate }: DashboardProps) => {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-primary">{todayStats.customers}</div>
-            <p className="text-xs text-muted-foreground">
-              Unique customers today
-            </p>
+            <ChangeLabel current={todayStats.customers} previous={todayStats.yesterdayCustomers} />
           </CardContent>
         </Card>
 

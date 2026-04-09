@@ -46,12 +46,36 @@ export const RoleDashboard = ({ onNavigate }: RoleDashboardProps) => {
     totalSuppliers: 0,
     stockValue: 0,
     loanBalance: 0,
-    netProfit: 0
+    netProfit: 0,
+    yesterdaySales: 0,
+    yesterdayTransactions: 0,
+    yesterdayExpenses: 0,
+    yesterdayNetProfit: 0,
+    yesterdayCustomers: 0
   });
   const [loading, setLoading] = useState(true);
 
   const currentCurrency = settings?.company.currency || 'USD';
   const formatCurrency = (amount: number) => formatCurrencyUtil(amount, currentCurrency);
+
+  const pctChange = (current: number, previous: number) => {
+    if (previous === 0) return current > 0 ? 100 : 0;
+    return ((current - previous) / previous) * 100;
+  };
+
+  const ChangeLabel = ({ current, previous, label = "vs yesterday" }: { current: number; previous: number; label?: string }) => {
+    const change = pctChange(current, previous);
+    if (change === 0 && current === 0 && previous === 0) return <p className="text-xs text-muted-foreground">No data yet</p>;
+    return (
+      <p className="text-xs flex items-center gap-1">
+        {change >= 0 ? <ArrowUpRight className="w-3 h-3 text-green-500" /> : <ArrowDownRight className="w-3 h-3 text-destructive" />}
+        <span className={change >= 0 ? "text-green-500" : "text-destructive"}>
+          {change >= 0 ? '+' : ''}{change.toFixed(1)}%
+        </span>
+        <span className="text-muted-foreground">{label}</span>
+      </p>
+    );
+  };
 
   useEffect(() => {
     loadDashboardData();
@@ -65,8 +89,14 @@ export const RoleDashboard = ({ onNavigate }: RoleDashboardProps) => {
 
       // Load data based on role
       if (permissions.isAdmin || permissions.isManager || permissions.isSupervisor) {
+        const yesterday = new Date(today);
+        yesterday.setDate(yesterday.getDate() - 1);
+        const startOfYesterday = startOfDay(yesterday).toISOString();
+        const endOfYesterday = endOfDay(yesterday).toISOString();
+        const yesterdayDateStr = yesterday.toISOString().split('T')[0];
+
         // Full access to all stats
-        const [salesData, customersData, productsResult, loansData, expensesData, allCustomers, suppliersData, loansFullData] = await Promise.all([
+        const [salesData, customersData, productsResult, loansData, expensesData, allCustomers, suppliersData, loansFullData, yesterdaySalesData, yesterdayCustomersData, yesterdayExpensesData] = await Promise.all([
           supabase.from('sales').select('total_amount').gte('created_at', startOfToday).lt('created_at', endOfToday),
           supabase.from('sales').select('customer_id').gte('created_at', startOfToday).lt('created_at', endOfToday).not('customer_id', 'is', null),
           supabase.from('products').select('id, current_stock, min_stock_level, cost_price, selling_price, is_active'),
@@ -74,7 +104,10 @@ export const RoleDashboard = ({ onNavigate }: RoleDashboardProps) => {
           supabase.from('expenses').select('amount').gte('expense_date', startOfDay(today).toISOString().split('T')[0]),
           supabase.from('customers').select('id', { count: 'exact', head: true }),
           supabase.from('suppliers').select('id', { count: 'exact', head: true }),
-          supabase.from('loans').select('remaining_balance').in('status', ['active', 'overdue'])
+          supabase.from('loans').select('remaining_balance').in('status', ['active', 'overdue']),
+          supabase.from('sales').select('total_amount').gte('created_at', startOfYesterday).lt('created_at', endOfYesterday),
+          supabase.from('sales').select('customer_id').gte('created_at', startOfYesterday).lt('created_at', endOfYesterday).not('customer_id', 'is', null),
+          supabase.from('expenses').select('amount').gte('expense_date', yesterdayDateStr).lte('expense_date', yesterdayDateStr)
         ]);
 
         const lowStockItems = productsResult.data?.filter(p => 
@@ -89,6 +122,11 @@ export const RoleDashboard = ({ onNavigate }: RoleDashboardProps) => {
         const stockValue = activeProducts.reduce((sum, p) => sum + (Number(p.cost_price) * (p.current_stock || 0)), 0);
         const loanBalance = loansFullData.data?.reduce((sum, l) => sum + Number(l.remaining_balance), 0) || 0;
 
+        const ySales = yesterdaySalesData.data?.reduce((sum, sale) => sum + Number(sale.total_amount), 0) || 0;
+        const yTransactions = yesterdaySalesData.data?.length || 0;
+        const yExpenses = yesterdayExpensesData.data?.reduce((sum, e) => sum + Number(e.amount), 0) || 0;
+        const yCustomers = new Set(yesterdayCustomersData.data?.map(s => s.customer_id)).size;
+
         setTodayStats({
           sales: totalSales,
           transactions,
@@ -102,7 +140,12 @@ export const RoleDashboard = ({ onNavigate }: RoleDashboardProps) => {
           totalSuppliers: suppliersData.count || 0,
           stockValue,
           loanBalance,
-          netProfit: totalSales - totalExpenses
+          netProfit: totalSales - totalExpenses,
+          yesterdaySales: ySales,
+          yesterdayTransactions: yTransactions,
+          yesterdayExpenses: yExpenses,
+          yesterdayNetProfit: ySales - yExpenses,
+          yesterdayCustomers: yCustomers
         });
       } else if (permissions.isCashier) {
         // Limited to own transactions
@@ -129,7 +172,12 @@ export const RoleDashboard = ({ onNavigate }: RoleDashboardProps) => {
           totalSuppliers: 0,
           stockValue: 0,
           loanBalance: 0,
-          netProfit: 0
+          netProfit: 0,
+          yesterdaySales: 0,
+          yesterdayTransactions: 0,
+          yesterdayExpenses: 0,
+          yesterdayNetProfit: 0,
+          yesterdayCustomers: 0
         });
       }
     } catch (error) {
@@ -167,7 +215,7 @@ export const RoleDashboard = ({ onNavigate }: RoleDashboardProps) => {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-green-500">{formatCurrency(todayStats.sales)}</div>
-              <p className="text-xs text-muted-foreground">{todayStats.transactions} transactions</p>
+              <ChangeLabel current={todayStats.sales} previous={todayStats.yesterdaySales} />
             </CardContent>
           </Card>
 
@@ -178,7 +226,7 @@ export const RoleDashboard = ({ onNavigate }: RoleDashboardProps) => {
             </CardHeader>
             <CardContent>
               <div className={`text-2xl font-bold ${todayStats.netProfit >= 0 ? 'text-green-500' : 'text-destructive'}`}>{formatCurrency(todayStats.netProfit)}</div>
-              <p className="text-xs text-muted-foreground">Revenue - Expenses</p>
+              <ChangeLabel current={todayStats.netProfit} previous={todayStats.yesterdayNetProfit} />
             </CardContent>
           </Card>
 
@@ -189,7 +237,7 @@ export const RoleDashboard = ({ onNavigate }: RoleDashboardProps) => {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{todayStats.customers}</div>
-              <p className="text-xs text-muted-foreground">Served today</p>
+              <ChangeLabel current={todayStats.customers} previous={todayStats.yesterdayCustomers} />
             </CardContent>
           </Card>
 
@@ -255,7 +303,7 @@ export const RoleDashboard = ({ onNavigate }: RoleDashboardProps) => {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-destructive">{formatCurrency(todayStats.totalExpenses)}</div>
-              <p className="text-xs text-muted-foreground">Spent today</p>
+              <ChangeLabel current={todayStats.totalExpenses} previous={todayStats.yesterdayExpenses} />
             </CardContent>
           </Card>
 
