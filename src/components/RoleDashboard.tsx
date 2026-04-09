@@ -215,7 +215,7 @@ export const RoleDashboard = ({ onNavigate }: RoleDashboardProps) => {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-green-500">{formatCurrency(todayStats.sales)}</div>
-              <p className="text-xs text-muted-foreground">{todayStats.transactions} transactions</p>
+              <ChangeLabel current={todayStats.sales} previous={todayStats.yesterdaySales} />
             </CardContent>
           </Card>
 
