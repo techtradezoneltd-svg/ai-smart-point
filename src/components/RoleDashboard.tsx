@@ -103,6 +103,11 @@ export const RoleDashboard = ({ onNavigate }: RoleDashboardProps) => {
         const stockValue = activeProducts.reduce((sum, p) => sum + (Number(p.cost_price) * (p.current_stock || 0)), 0);
         const loanBalance = loansFullData.data?.reduce((sum, l) => sum + Number(l.remaining_balance), 0) || 0;
 
+        const ySales = yesterdaySalesData.data?.reduce((sum, sale) => sum + Number(sale.total_amount), 0) || 0;
+        const yTransactions = yesterdaySalesData.data?.length || 0;
+        const yExpenses = yesterdayExpensesData.data?.reduce((sum, e) => sum + Number(e.amount), 0) || 0;
+        const yCustomers = new Set(yesterdayCustomersData.data?.map(s => s.customer_id)).size;
+
         setTodayStats({
           sales: totalSales,
           transactions,
@@ -116,7 +121,12 @@ export const RoleDashboard = ({ onNavigate }: RoleDashboardProps) => {
           totalSuppliers: suppliersData.count || 0,
           stockValue,
           loanBalance,
-          netProfit: totalSales - totalExpenses
+          netProfit: totalSales - totalExpenses,
+          yesterdaySales: ySales,
+          yesterdayTransactions: yTransactions,
+          yesterdayExpenses: yExpenses,
+          yesterdayNetProfit: ySales - yExpenses,
+          yesterdayCustomers: yCustomers
         });
       } else if (permissions.isCashier) {
         // Limited to own transactions
@@ -143,7 +153,12 @@ export const RoleDashboard = ({ onNavigate }: RoleDashboardProps) => {
           totalSuppliers: 0,
           stockValue: 0,
           loanBalance: 0,
-          netProfit: 0
+          netProfit: 0,
+          yesterdaySales: 0,
+          yesterdayTransactions: 0,
+          yesterdayExpenses: 0,
+          yesterdayNetProfit: 0,
+          yesterdayCustomers: 0
         });
       }
     } catch (error) {
