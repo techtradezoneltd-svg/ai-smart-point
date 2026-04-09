@@ -174,41 +174,37 @@ const Dashboard = ({ onNavigate }: DashboardProps) => {
   // Load real-time stats
   const loadTodayStats = async () => {
     try {
-      const today = new Date().toISOString().split('T')[0];
+      const now = new Date();
+      const today = now.toISOString().split('T')[0];
       const startOfToday = `${today}T00:00:00`;
       const endOfToday = `${today}T23:59:59`;
 
-      // Get today's sales
-      const { data: salesData } = await supabase
-        .from('sales')
-        .select('total_amount')
-        .gte('created_at', startOfToday)
-        .lt('created_at', endOfToday);
+      const yesterday = new Date(now);
+      yesterday.setDate(yesterday.getDate() - 1);
+      const yDate = yesterday.toISOString().split('T')[0];
+      const startOfYesterday = `${yDate}T00:00:00`;
+      const endOfYesterday = `${yDate}T23:59:59`;
 
-      const totalSales = salesData?.reduce((sum, sale) => sum + Number(sale.total_amount), 0) || 0;
-      const transactions = salesData?.length || 0;
+      const [salesData, customersData, recommendations, ySalesData, yCustomersData] = await Promise.all([
+        supabase.from('sales').select('total_amount').gte('created_at', startOfToday).lt('created_at', endOfToday),
+        supabase.from('sales').select('customer_id').gte('created_at', startOfToday).lt('created_at', endOfToday).not('customer_id', 'is', null),
+        supabase.from('ai_recommendations').select('id').eq('is_read', false),
+        supabase.from('sales').select('total_amount').gte('created_at', startOfYesterday).lt('created_at', endOfYesterday),
+        supabase.from('sales').select('customer_id').gte('created_at', startOfYesterday).lt('created_at', endOfYesterday).not('customer_id', 'is', null),
+      ]);
 
-      // Get unique customers today
-      const { data: customersData } = await supabase
-        .from('sales')
-        .select('customer_id')
-        .gte('created_at', startOfToday)
-        .lt('created_at', endOfToday)
-        .not('customer_id', 'is', null);
-
-      const uniqueCustomers = new Set(customersData?.map(s => s.customer_id)).size;
-
-      // Get unread AI recommendations
-      const { data: recommendations } = await supabase
-        .from('ai_recommendations')
-        .select('id')
-        .eq('is_read', false);
+      const totalSales = salesData.data?.reduce((sum, sale) => sum + Number(sale.total_amount), 0) || 0;
+      const transactions = salesData.data?.length || 0;
+      const uniqueCustomers = new Set(customersData.data?.map(s => s.customer_id)).size;
 
       setTodayStats({
         sales: totalSales,
         transactions,
         customers: uniqueCustomers,
-        aiInsights: recommendations?.length || 0
+        aiInsights: recommendations.data?.length || 0,
+        yesterdaySales: ySalesData.data?.reduce((sum, s) => sum + Number(s.total_amount), 0) || 0,
+        yesterdayTransactions: ySalesData.data?.length || 0,
+        yesterdayCustomers: new Set(yCustomersData.data?.map(s => s.customer_id)).size
       });
     } catch (error) {
       console.error('Error loading today stats:', error);
