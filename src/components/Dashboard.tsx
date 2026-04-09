@@ -32,6 +32,25 @@ const Dashboard = ({ onNavigate }: DashboardProps) => {
   const [profitPeriod, setProfitPeriod] = useState<string>("today");
   const [profitData, setProfitData] = useState({ profit: 0, sales: 0, change: 0 });
   const [loading, setLoading] = useState(false);
+
+  const pctChange = (current: number, previous: number) => {
+    if (previous === 0) return current > 0 ? 100 : 0;
+    return ((current - previous) / previous) * 100;
+  };
+
+  const ChangeLabel = ({ current, previous, label = "vs yesterday" }: { current: number; previous: number; label?: string }) => {
+    const change = pctChange(current, previous);
+    if (change === 0 && current === 0 && previous === 0) return <p className="text-xs text-muted-foreground">No data yet</p>;
+    return (
+      <p className="text-xs flex items-center gap-1">
+        {change >= 0 ? <TrendingUp className="w-3 h-3 text-success" /> : <TrendingDown className="w-3 h-3 text-destructive" />}
+        <span className={change >= 0 ? "text-success" : "text-destructive"}>
+          {change >= 0 ? '+' : ''}{change.toFixed(1)}%
+        </span>
+        <span className="text-muted-foreground">{label}</span>
+      </p>
+    );
+  };
   const [todayStats, setTodayStats] = useState({
     sales: 0,
     transactions: 0,
