@@ -352,9 +352,7 @@ const Dashboard = ({ onNavigate }: DashboardProps) => {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-success">{formatCurrency(todayStats.sales)}</div>
-            <p className="text-xs text-muted-foreground">
-              {todayStats.transactions} transactions today
-            </p>
+            <ChangeLabel current={todayStats.sales} previous={todayStats.yesterdaySales} />
           </CardContent>
         </Card>
 
@@ -365,9 +363,7 @@ const Dashboard = ({ onNavigate }: DashboardProps) => {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-accent">{todayStats.transactions}</div>
-            <p className="text-xs text-muted-foreground">
-              Completed today
-            </p>
+            <ChangeLabel current={todayStats.transactions} previous={todayStats.yesterdayTransactions} />
           </CardContent>
         </Card>
 
@@ -378,9 +374,7 @@ const Dashboard = ({ onNavigate }: DashboardProps) => {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-primary">{todayStats.customers}</div>
-            <p className="text-xs text-muted-foreground">
-              Unique customers today
-            </p>
+            <ChangeLabel current={todayStats.customers} previous={todayStats.yesterdayCustomers} />
           </CardContent>
         </Card>
 
