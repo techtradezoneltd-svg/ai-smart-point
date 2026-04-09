@@ -58,6 +58,25 @@ export const RoleDashboard = ({ onNavigate }: RoleDashboardProps) => {
   const currentCurrency = settings?.company.currency || 'USD';
   const formatCurrency = (amount: number) => formatCurrencyUtil(amount, currentCurrency);
 
+  const pctChange = (current: number, previous: number) => {
+    if (previous === 0) return current > 0 ? 100 : 0;
+    return ((current - previous) / previous) * 100;
+  };
+
+  const ChangeLabel = ({ current, previous, label = "vs yesterday" }: { current: number; previous: number; label?: string }) => {
+    const change = pctChange(current, previous);
+    if (change === 0 && current === 0 && previous === 0) return <p className="text-xs text-muted-foreground">No data yet</p>;
+    return (
+      <p className="text-xs flex items-center gap-1">
+        {change >= 0 ? <ArrowUpRight className="w-3 h-3 text-green-500" /> : <ArrowDownRight className="w-3 h-3 text-destructive" />}
+        <span className={change >= 0 ? "text-green-500" : "text-destructive"}>
+          {change >= 0 ? '+' : ''}{change.toFixed(1)}%
+        </span>
+        <span className="text-muted-foreground">{label}</span>
+      </p>
+    );
+  };
+
   useEffect(() => {
     loadDashboardData();
   }, [permissions.role]);
