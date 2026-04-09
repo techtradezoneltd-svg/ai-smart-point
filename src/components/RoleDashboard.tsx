@@ -226,7 +226,7 @@ export const RoleDashboard = ({ onNavigate }: RoleDashboardProps) => {
             </CardHeader>
             <CardContent>
               <div className={`text-2xl font-bold ${todayStats.netProfit >= 0 ? 'text-green-500' : 'text-destructive'}`}>{formatCurrency(todayStats.netProfit)}</div>
-              <p className="text-xs text-muted-foreground">Revenue - Expenses</p>
+              <ChangeLabel current={todayStats.netProfit} previous={todayStats.yesterdayNetProfit} />
             </CardContent>
           </Card>
 
@@ -237,7 +237,7 @@ export const RoleDashboard = ({ onNavigate }: RoleDashboardProps) => {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{todayStats.customers}</div>
-              <p className="text-xs text-muted-foreground">Served today</p>
+              <ChangeLabel current={todayStats.customers} previous={todayStats.yesterdayCustomers} />
             </CardContent>
           </Card>
 
@@ -303,7 +303,7 @@ export const RoleDashboard = ({ onNavigate }: RoleDashboardProps) => {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-destructive">{formatCurrency(todayStats.totalExpenses)}</div>
-              <p className="text-xs text-muted-foreground">Spent today</p>
+              <ChangeLabel current={todayStats.totalExpenses} previous={todayStats.yesterdayExpenses} />
             </CardContent>
           </Card>
 
