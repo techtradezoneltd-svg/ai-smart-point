@@ -36,7 +36,10 @@ const Dashboard = ({ onNavigate }: DashboardProps) => {
     sales: 0,
     transactions: 0,
     customers: 0,
-    aiInsights: 0
+    aiInsights: 0,
+    yesterdaySales: 0,
+    yesterdayTransactions: 0,
+    yesterdayCustomers: 0
   });
   const [aiAlerts, setAiAlerts] = useState<any[]>([]);
   const [quickActions, setQuickActions] = useState<any[]>([]);
