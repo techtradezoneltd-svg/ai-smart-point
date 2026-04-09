@@ -1,5 +1,5 @@
 import { ReactNode } from 'react';
-import { usePermissions } from '@/hooks/usePermissions';
+import { usePermissions } from '@/contexts/PermissionsContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { AlertTriangle } from 'lucide-react';
 

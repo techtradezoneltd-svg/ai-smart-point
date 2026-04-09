@@ -9,6 +9,7 @@ import { AuthProvider, useAuth } from "@/components/AuthProvider";
 import LoginForm from "@/components/LoginForm";
 import LoadingSpinner from "@/components/LoadingSpinner";
 import ErrorBoundary from "@/components/ErrorBoundary";
+import { PermissionsProvider } from "@/contexts/PermissionsContext";
 
 const queryClient = new QueryClient();
 
@@ -36,11 +37,13 @@ const App = () => (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
         <AuthProvider>
-          <Toaster />
-          <Sonner />
-          <BrowserRouter>
-            <AuthenticatedApp />
-          </BrowserRouter>
+          <PermissionsProvider>
+            <Toaster />
+            <Sonner />
+            <BrowserRouter>
+              <AuthenticatedApp />
+            </BrowserRouter>
+          </PermissionsProvider>
         </AuthProvider>
       </TooltipProvider>
     </QueryClientProvider>

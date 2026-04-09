@@ -25,7 +25,7 @@ import NotificationCenter from "@/components/NotificationCenter";
 import FloatingRoleSwitcher from "@/components/FloatingRoleSwitcher";
 // AuthProvider is already in App.tsx - removed duplicate import
 import { SettingsProvider } from "@/contexts/SettingsContext";
-import { usePermissions } from "@/hooks/usePermissions";
+import { usePermissions } from "@/contexts/PermissionsContext";
 import { Loader2 } from "lucide-react";
 
 // Permission mapping for each view
