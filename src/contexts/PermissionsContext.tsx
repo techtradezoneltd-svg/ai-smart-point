@@ -76,7 +76,33 @@ export const PermissionsProvider = ({ children }: { children: ReactNode }) => {
   });
 
   useEffect(() => {
-    loadPermissions();
+    let profileChannel: ReturnType<typeof supabase.channel> | null = null;
+
+    const setup = async () => {
+      await loadPermissions();
+
+      // Get current user to subscribe to their profile changes
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        profileChannel = supabase
+          .channel('profile-role-changes')
+          .on(
+            'postgres_changes',
+            {
+              event: 'UPDATE',
+              schema: 'public',
+              table: 'profiles',
+              filter: `id=eq.${user.id}`,
+            },
+            () => {
+              loadPermissions();
+            }
+          )
+          .subscribe();
+      }
+    };
+
+    setup();
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(() => {
       loadPermissions();
@@ -84,6 +110,9 @@ export const PermissionsProvider = ({ children }: { children: ReactNode }) => {
 
     return () => {
       subscription.unsubscribe();
+      if (profileChannel) {
+        supabase.removeChannel(profileChannel);
+      }
     };
   }, []);
 
