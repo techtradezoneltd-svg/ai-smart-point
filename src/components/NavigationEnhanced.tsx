@@ -4,7 +4,7 @@ import { Separator } from "@/components/ui/separator";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { useState, useMemo } from "react";
 import { useAuth } from "@/components/AuthProvider";
-import { usePermissions, UserRole } from "@/hooks/usePermissions";
+import { usePermissions, UserRole } from "@/contexts/PermissionsContext";
 import RoleSwitcher from "@/components/RoleSwitcher";
 import { 
   LayoutDashboard, 

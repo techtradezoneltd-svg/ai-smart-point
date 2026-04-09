@@ -1,4 +1,4 @@
-import { usePermissions, UserRole } from '@/hooks/usePermissions';
+import { usePermissions, UserRole } from '@/contexts/PermissionsContext';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import {
