@@ -108,7 +108,8 @@ const AuthenticatedApp = () => {
 
     switch (currentView) {
       case "pos":
-        return <EnhancedPOSInterface onNavigate={handleNavigate} />;
+        navigate('/pos');
+        return null;
       case "inventory":
         return <ProductManagement />;
       case "stock":
