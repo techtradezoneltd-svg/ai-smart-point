@@ -28,6 +28,7 @@ const AuthenticatedApp = () => {
   return (
     <Routes>
       <Route path="/" element={<Index />} />
+      <Route path="/pos" element={<POS />} />
       <Route path="*" element={<NotFound />} />
     </Routes>
   );
