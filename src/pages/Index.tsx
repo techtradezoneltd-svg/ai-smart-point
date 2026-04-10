@@ -89,10 +89,13 @@ const AuthenticatedApp = () => {
 
   // Safe navigation that checks permissions
   const handleNavigate = (view: string) => {
+    if (view === 'pos') {
+      navigate('/pos');
+      return;
+    }
     if (hasAccessToView(view)) {
       setCurrentView(view);
     } else {
-      // Fallback to dashboard if no access
       setCurrentView("dashboard");
     }
   };
