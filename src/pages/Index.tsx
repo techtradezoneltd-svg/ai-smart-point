@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import NavigationEnhanced from "@/components/NavigationEnhanced";
 import Dashboard from "@/components/Dashboard";
 import RoleDashboard from "@/components/RoleDashboard";
@@ -56,6 +57,7 @@ const viewPermissions: Record<string, { requiredPermission?: string; allowedRole
 const AuthenticatedApp = () => {
   const [currentView, setCurrentView] = useState("dashboard");
   const permissions = usePermissions();
+  const navigate = useNavigate();
 
   // Check if user has access to the current view
   const hasAccessToView = (view: string): boolean => {
@@ -87,10 +89,13 @@ const AuthenticatedApp = () => {
 
   // Safe navigation that checks permissions
   const handleNavigate = (view: string) => {
+    if (view === 'pos') {
+      navigate('/pos');
+      return;
+    }
     if (hasAccessToView(view)) {
       setCurrentView(view);
     } else {
-      // Fallback to dashboard if no access
       setCurrentView("dashboard");
     }
   };
@@ -103,7 +108,8 @@ const AuthenticatedApp = () => {
 
     switch (currentView) {
       case "pos":
-        return <EnhancedPOSInterface onNavigate={handleNavigate} />;
+        navigate('/pos');
+        return null;
       case "inventory":
         return <ProductManagement />;
       case "stock":
