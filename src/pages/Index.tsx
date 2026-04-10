@@ -58,7 +58,6 @@ const AuthenticatedApp = () => {
   const [currentView, setCurrentView] = useState("dashboard");
   const permissions = usePermissions();
   const navigate = useNavigate();
-  const permissions = usePermissions();
 
   // Check if user has access to the current view
   const hasAccessToView = (view: string): boolean => {
