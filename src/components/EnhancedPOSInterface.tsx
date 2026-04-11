@@ -5,12 +5,14 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useCurrency } from "@/hooks/useCurrency";
 import { useNavigate } from "react-router-dom";
+import { useIsMobile } from "@/hooks/use-mobile";
 import ReceiptPreview from "./ReceiptPreview";
 import { 
   Receipt, 
@@ -32,7 +34,8 @@ import {
   XCircle,
   Pause,
   Play,
-  RotateCcw
+  RotateCcw,
+  ChevronUp
 } from "lucide-react";
 
 interface CartItem {
@@ -81,8 +84,10 @@ const EnhancedPOSInterface: React.FC<EnhancedPOSInterfaceProps> = ({ onNavigate 
   const { toast } = useToast();
   const { formatCurrency } = useCurrency();
   const navigate = useNavigate();
+  const isMobile = useIsMobile();
   const barcodeBufferRef = useRef("");
   const barcodeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [mobileCartOpen, setMobileCartOpen] = useState(false);
 
   // State management
   const [cart, setCart] = useState<CartItem[]>([]);
@@ -410,42 +415,141 @@ const EnhancedPOSInterface: React.FC<EnhancedPOSInterfaceProps> = ({ onNavigate 
   const tax = subtotal * 0.08;
   const total = subtotal + tax;
 
+  // Cart content shared between desktop sidebar and mobile sheet
+  const cartContent = (
+    <>
+      <div className="px-3 py-2 border-b border-border flex items-center justify-between shrink-0">
+        <div className="flex items-center gap-2">
+          <ShoppingCart className="w-4 h-4" />
+          <span className="font-semibold text-sm">Cart ({cart.length})</span>
+        </div>
+        {cart.length > 0 && (
+          <Button variant="ghost" size="sm" onClick={clearCart} className="h-6 px-2 text-destructive hover:text-destructive text-xs">
+            <XCircle className="w-3.5 h-3.5 mr-1" />
+            Clear
+          </Button>
+        )}
+      </div>
+
+      {cart.length === 0 ? (
+        <div className="flex-1 flex items-center justify-center text-muted-foreground py-12">
+          <div className="text-center">
+            <ShoppingCart className="w-10 h-10 mx-auto mb-2 opacity-30" />
+            <p className="text-sm">Cart is empty</p>
+            <p className="text-xs mt-1 opacity-60">Scan barcode or tap products</p>
+          </div>
+        </div>
+      ) : (
+        <>
+          <div className="flex-1 overflow-y-auto">
+            {/* Mobile: card-style items / Desktop: table */}
+            <div className="md:hidden divide-y divide-border/50">
+              {cart.map((item) => (
+                <div key={item.id} className="px-3 py-2.5 flex items-center gap-3">
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium text-sm truncate">{item.name}</p>
+                    <p className="text-xs text-muted-foreground">{formatCurrency(item.price)} each</p>
+                  </div>
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <Button variant="outline" size="sm" onClick={() => updateQuantity(item.id, item.quantity - 1)} className="h-7 w-7 p-0 rounded-full">
+                      <Minus className="w-3 h-3" />
+                    </Button>
+                    <span className="font-semibold text-sm w-6 text-center">{item.quantity}</span>
+                    <Button variant="outline" size="sm" onClick={() => updateQuantity(item.id, item.quantity + 1)} className="h-7 w-7 p-0 rounded-full">
+                      <Plus className="w-3 h-3" />
+                    </Button>
+                  </div>
+                  <span className="font-bold text-sm w-16 text-right shrink-0">{formatCurrency(item.price * item.quantity)}</span>
+                  <Button variant="ghost" size="sm" onClick={() => removeFromCart(item.id)} className="h-7 w-7 p-0 text-destructive hover:text-destructive shrink-0">
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </Button>
+                </div>
+              ))}
+            </div>
+            {/* Desktop table */}
+            <table className="w-full text-xs hidden md:table">
+              <thead className="border-b sticky top-0 bg-card">
+                <tr className="text-muted-foreground">
+                  <th className="text-left py-2 px-3 font-medium">Product</th>
+                  <th className="text-center py-2 font-medium w-24">Qty</th>
+                  <th className="text-right py-2 font-medium">Price</th>
+                  <th className="text-right py-2 px-3 font-medium">Total</th>
+                  <th className="w-8 px-1"></th>
+                </tr>
+              </thead>
+              <tbody>
+                {cart.map((item) => (
+                  <tr key={item.id} className="border-b border-border/50 hover:bg-accent/50">
+                    <td className="py-2 px-3 font-medium truncate max-w-[120px]">{item.name}</td>
+                    <td className="py-2">
+                      <div className="flex items-center justify-center gap-1">
+                        <Button variant="ghost" size="sm" onClick={() => updateQuantity(item.id, item.quantity - 1)} className="h-5 w-5 p-0">
+                          <Minus className="w-2.5 h-2.5" />
+                        </Button>
+                        <span className="font-medium w-5 text-center">{item.quantity}</span>
+                        <Button variant="ghost" size="sm" onClick={() => updateQuantity(item.id, item.quantity + 1)} className="h-5 w-5 p-0">
+                          <Plus className="w-2.5 h-2.5" />
+                        </Button>
+                      </div>
+                    </td>
+                    <td className="py-2 text-right text-muted-foreground">{formatCurrency(item.price)}</td>
+                    <td className="py-2 px-3 text-right font-semibold">{formatCurrency(item.price * item.quantity)}</td>
+                    <td className="py-2 px-1">
+                      <Button variant="ghost" size="sm" onClick={() => removeFromCart(item.id)} className="h-5 w-5 p-0 text-destructive hover:text-destructive">
+                        <Trash2 className="w-3 h-3" />
+                      </Button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Cart footer with total + pay (mobile only) */}
+          <div className="md:hidden border-t border-border p-3 space-y-2 shrink-0 bg-card">
+            <div className="flex justify-between items-center">
+              <span className="text-sm text-muted-foreground">Total</span>
+              <span className="text-xl font-bold text-primary">{formatCurrency(total)}</span>
+            </div>
+            <Button
+              onClick={() => { setMobileCartOpen(false); setShowPaymentDialog(true); }}
+              disabled={cart.length === 0}
+              className="w-full h-12 text-base bg-green-600 hover:bg-green-700 text-white font-semibold"
+            >
+              <Wallet className="w-5 h-5 mr-2" />
+              Pay {formatCurrency(total)}
+            </Button>
+          </div>
+        </>
+      )}
+    </>
+  );
+
   return (
-    <div className="h-screen flex flex-col" style={{ background: '#e8e8e8' }}>
-      {/* Header */}
-      <div className="bg-card border-b border-border px-4 py-2 flex items-center justify-between shrink-0">
-        <div className="flex items-center gap-3">
-          <Button variant="outline" size="sm" onClick={handleBack} className="h-8">
+    <div className="h-screen flex flex-col bg-muted/60">
+      {/* Header - responsive */}
+      <div className="bg-card border-b border-border px-2 sm:px-4 py-2 flex items-center justify-between shrink-0">
+        <div className="flex items-center gap-2 sm:gap-3">
+          <Button variant="outline" size="sm" onClick={handleBack} className="h-8 w-8 p-0 sm:w-auto sm:px-3">
             <ArrowLeft className="w-4 h-4" />
           </Button>
           <div className="w-7 h-7 bg-primary rounded-lg flex items-center justify-center">
             <Receipt className="w-4 h-4 text-primary-foreground" />
           </div>
-          <h1 className="text-base font-bold">POS</h1>
+          <h1 className="text-sm sm:text-base font-bold">POS</h1>
         </div>
 
-        <div className="flex items-center gap-2">
-          {/* Hold Order */}
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={holdOrder}
-            disabled={cart.length === 0}
-            className="h-8 text-xs"
-          >
-            <Pause className="w-3.5 h-3.5 mr-1" />
-            Hold
+        <div className="flex items-center gap-1.5 sm:gap-2">
+          {/* Hold */}
+          <Button variant="outline" size="sm" onClick={holdOrder} disabled={cart.length === 0} className="h-8 text-xs px-2 sm:px-3">
+            <Pause className="w-3.5 h-3.5 sm:mr-1" />
+            <span className="hidden sm:inline">Hold</span>
           </Button>
 
-          {/* Recall Orders */}
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setShowHeldOrdersDialog(true)}
-            className="h-8 text-xs relative"
-          >
-            <Play className="w-3.5 h-3.5 mr-1" />
-            Recall
+          {/* Recall */}
+          <Button variant="outline" size="sm" onClick={() => setShowHeldOrdersDialog(true)} className="h-8 text-xs relative px-2 sm:px-3">
+            <Play className="w-3.5 h-3.5 sm:mr-1" />
+            <span className="hidden sm:inline">Recall</span>
             {heldOrders.length > 0 && (
               <Badge className="absolute -top-1.5 -right-1.5 h-4 w-4 p-0 flex items-center justify-center text-[10px]">
                 {heldOrders.length}
@@ -453,17 +557,17 @@ const EnhancedPOSInterface: React.FC<EnhancedPOSInterfaceProps> = ({ onNavigate 
             )}
           </Button>
 
-          {/* Total */}
-          <div className="flex items-center gap-2 bg-primary/10 rounded-lg px-4 py-1.5">
+          {/* Total - hidden on mobile (shown in cart sheet instead) */}
+          <div className="hidden md:flex items-center gap-2 bg-primary/10 rounded-lg px-4 py-1.5">
             <span className="text-xs text-muted-foreground">Total:</span>
             <span className="font-bold text-primary text-lg">{formatCurrency(total)}</span>
           </div>
 
-          {/* Pay Button */}
+          {/* Pay Button - desktop only (mobile has it in cart sheet) */}
           <Button
             onClick={() => setShowPaymentDialog(true)}
             disabled={cart.length === 0}
-            className="h-9 px-6 bg-green-600 hover:bg-green-700 text-white font-semibold"
+            className="hidden md:flex h-9 px-6 bg-green-600 hover:bg-green-700 text-white font-semibold"
           >
             <Wallet className="w-4 h-4 mr-2" />
             Pay
@@ -473,39 +577,39 @@ const EnhancedPOSInterface: React.FC<EnhancedPOSInterfaceProps> = ({ onNavigate 
       
       {/* Main content */}
       <div className="flex-1 flex overflow-hidden">
-        {/* Product Selection */}
-        <div className="flex-1 flex flex-col p-3 overflow-hidden">
-          {/* Search with barcode support */}
-          <div className="relative mb-3 shrink-0">
+        {/* Product Selection - takes full width on mobile */}
+        <div className="flex-1 flex flex-col p-2 sm:p-3 overflow-hidden">
+          {/* Search */}
+          <div className="relative mb-2 sm:mb-3 shrink-0">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             <Input
               placeholder="Search or scan barcode..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               onKeyDown={handleSearchKeyDown}
-              className="pl-9 pr-10 h-9 bg-card"
+              className="pl-9 pr-10 h-9 sm:h-10 bg-card"
             />
             <Scan className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground opacity-50" />
           </div>
 
-          {/* Products Grid */}
+          {/* Products Grid - responsive columns */}
           <div className="flex-1 overflow-y-auto">
             {loading ? (
-              <div className="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-2">
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-2">
                 {[...Array(12)].map((_, i) => (
-                  <div key={i} className="bg-card animate-pulse rounded-lg h-20"></div>
+                  <div key={i} className="bg-card animate-pulse rounded-lg h-24 sm:h-20"></div>
                 ))}
               </div>
             ) : (
-              <div className="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-2">
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-1.5 sm:gap-2">
                 {filteredProducts.map((product) => (
                   <div
                     key={product.id}
                     onClick={() => addToCart(product)}
-                    className="border rounded-lg p-2 hover:shadow-md transition-all cursor-pointer bg-card hover:bg-accent group"
+                    className="border rounded-lg p-2 hover:shadow-md transition-all cursor-pointer bg-card hover:bg-accent group active:scale-95"
                   >
                     {product.image_url && (
-                      <div className="w-full h-12 mb-1 rounded overflow-hidden bg-muted">
+                      <div className="w-full h-14 sm:h-12 mb-1 rounded overflow-hidden bg-muted">
                         <img src={product.image_url} alt={product.name}
                           className="w-full h-full object-cover group-hover:scale-105 transition-transform" />
                       </div>
@@ -524,73 +628,50 @@ const EnhancedPOSInterface: React.FC<EnhancedPOSInterfaceProps> = ({ onNavigate 
           </div>
         </div>
 
-        {/* Shopping Cart - full height */}
-        <div className="w-80 lg:w-96 border-l border-border bg-card flex flex-col overflow-hidden">
-          <div className="px-3 py-2 border-b border-border flex items-center justify-between shrink-0">
-            <div className="flex items-center gap-2">
-              <ShoppingCart className="w-4 h-4" />
-              <span className="font-semibold text-sm">Cart ({cart.length})</span>
-            </div>
-            {cart.length > 0 && (
-              <Button variant="ghost" size="sm" onClick={clearCart} className="h-6 px-2 text-destructive hover:text-destructive text-xs">
-                <XCircle className="w-3.5 h-3.5 mr-1" />
-                Clear
-              </Button>
-            )}
-          </div>
-
-          {cart.length === 0 ? (
-            <div className="flex-1 flex items-center justify-center text-muted-foreground">
-              <div className="text-center">
-                <ShoppingCart className="w-10 h-10 mx-auto mb-2 opacity-30" />
-                <p className="text-sm">Cart is empty</p>
-                <p className="text-xs mt-1 opacity-60">Scan barcode or click products</p>
-              </div>
-            </div>
-          ) : (
-            <div className="flex-1 overflow-y-auto">
-              <table className="w-full text-xs">
-                <thead className="border-b sticky top-0 bg-card">
-                  <tr className="text-muted-foreground">
-                    <th className="text-left py-2 px-3 font-medium">Product</th>
-                    <th className="text-center py-2 font-medium w-24">Qty</th>
-                    <th className="text-right py-2 font-medium">Price</th>
-                    <th className="text-right py-2 px-3 font-medium">Total</th>
-                    <th className="w-8 px-1"></th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {cart.map((item) => (
-                    <tr key={item.id} className="border-b border-border/50 hover:bg-accent/50">
-                      <td className="py-2 px-3 font-medium truncate max-w-[120px]">{item.name}</td>
-                      <td className="py-2">
-                        <div className="flex items-center justify-center gap-1">
-                          <Button variant="ghost" size="sm" onClick={() => updateQuantity(item.id, item.quantity - 1)} className="h-5 w-5 p-0">
-                            <Minus className="w-2.5 h-2.5" />
-                          </Button>
-                          <span className="font-medium w-5 text-center">{item.quantity}</span>
-                          <Button variant="ghost" size="sm" onClick={() => updateQuantity(item.id, item.quantity + 1)} className="h-5 w-5 p-0">
-                            <Plus className="w-2.5 h-2.5" />
-                          </Button>
-                        </div>
-                      </td>
-                      <td className="py-2 text-right text-muted-foreground">{formatCurrency(item.price)}</td>
-                      <td className="py-2 px-3 text-right font-semibold">{formatCurrency(item.price * item.quantity)}</td>
-                      <td className="py-2 px-1">
-                        <Button variant="ghost" size="sm" onClick={() => removeFromCart(item.id)} className="h-5 w-5 p-0 text-destructive hover:text-destructive">
-                          <Trash2 className="w-3 h-3" />
-                        </Button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
+        {/* Desktop Cart Sidebar - hidden on mobile */}
+        <div className="hidden md:flex w-80 lg:w-96 border-l border-border bg-card flex-col overflow-hidden">
+          {cartContent}
         </div>
       </div>
 
-      {/* Payment Dialog */}
+      {/* Mobile floating cart bar */}
+      <div className="md:hidden fixed bottom-0 left-0 right-0 z-40">
+        <Sheet open={mobileCartOpen} onOpenChange={setMobileCartOpen}>
+          <SheetTrigger asChild>
+            <button className="w-full bg-card border-t border-border px-4 py-3 flex items-center justify-between shadow-lg active:bg-accent transition-colors">
+              <div className="flex items-center gap-3">
+                <div className="relative">
+                  <ShoppingCart className="w-5 h-5" />
+                  {cart.length > 0 && (
+                    <Badge className="absolute -top-2 -right-2 h-4 w-4 p-0 flex items-center justify-center text-[10px]">
+                      {cart.length}
+                    </Badge>
+                  )}
+                </div>
+                <span className="font-medium text-sm">
+                  {cart.length === 0 ? 'Cart is empty' : `${cart.length} item${cart.length > 1 ? 's' : ''}`}
+                </span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="font-bold text-primary text-lg">{formatCurrency(total)}</span>
+                <ChevronUp className="w-4 h-4 text-muted-foreground" />
+              </div>
+            </button>
+          </SheetTrigger>
+          <SheetContent side="bottom" className="h-[85vh] p-0 flex flex-col rounded-t-2xl">
+            <SheetHeader className="sr-only">
+              <SheetTitle>Shopping Cart</SheetTitle>
+            </SheetHeader>
+            <div className="w-12 h-1 bg-muted-foreground/30 rounded-full mx-auto mt-2 mb-1 shrink-0" />
+            <div className="flex-1 flex flex-col overflow-hidden">
+              {cartContent}
+            </div>
+          </SheetContent>
+        </Sheet>
+      </div>
+
+      {/* Add bottom padding on mobile so products aren't hidden behind cart bar */}
+      <div className="md:hidden h-16 shrink-0" />
       <Dialog open={showPaymentDialog} onOpenChange={setShowPaymentDialog}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
