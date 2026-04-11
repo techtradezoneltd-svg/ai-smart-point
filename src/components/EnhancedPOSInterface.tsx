@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -28,7 +28,11 @@ import {
   AlertCircle,
   ArrowLeft,
   Home,
-  Wallet
+  Wallet,
+  XCircle,
+  Pause,
+  Play,
+  RotateCcw
 } from "lucide-react";
 
 interface CartItem {
@@ -61,6 +65,14 @@ interface Customer {
   email?: string;
 }
 
+interface HeldOrder {
+  id: string;
+  name: string;
+  cart: CartItem[];
+  customer: Customer | null;
+  timestamp: number;
+}
+
 interface EnhancedPOSInterfaceProps {
   onNavigate?: (view: string) => void;
 }
@@ -69,10 +81,11 @@ const EnhancedPOSInterface: React.FC<EnhancedPOSInterfaceProps> = ({ onNavigate 
   const { toast } = useToast();
   const { formatCurrency } = useCurrency();
   const navigate = useNavigate();
+  const barcodeBufferRef = useRef("");
+  const barcodeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // State management
   const [cart, setCart] = useState<CartItem[]>([]);
-  const [barcodeInput, setBarcodeInput] = useState("");
   const [products, setProducts] = useState<Product[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
@@ -83,6 +96,14 @@ const EnhancedPOSInterface: React.FC<EnhancedPOSInterfaceProps> = ({ onNavigate 
   const [paymentType, setPaymentType] = useState<'full' | 'partial' | 'loan_only'>('full');
   const [showPaymentDialog, setShowPaymentDialog] = useState(false);
   
+  // Hold/Recall
+  const [heldOrders, setHeldOrders] = useState<HeldOrder[]>(() => {
+    try {
+      return JSON.parse(localStorage.getItem('pos_held_orders') || '[]');
+    } catch { return []; }
+  });
+  const [showHeldOrdersDialog, setShowHeldOrdersDialog] = useState(false);
+
   // Loan-specific states
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
   const [showCustomerDialog, setShowCustomerDialog] = useState(false);
@@ -96,15 +117,55 @@ const EnhancedPOSInterface: React.FC<EnhancedPOSInterfaceProps> = ({ onNavigate 
     fetchCustomers();
   }, []);
 
+  // Persist held orders
+  useEffect(() => {
+    localStorage.setItem('pos_held_orders', JSON.stringify(heldOrders));
+  }, [heldOrders]);
+
+  // Barcode scanner listener - listens for rapid keystrokes globally
+  const handleBarcodeInput = useCallback((e: KeyboardEvent) => {
+    // Ignore if user is typing in an input field (except barcode-specific)
+    const target = e.target as HTMLElement;
+    if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT') return;
+
+    if (e.key === 'Enter' && barcodeBufferRef.current.length >= 3) {
+      const barcode = barcodeBufferRef.current;
+      barcodeBufferRef.current = "";
+      
+      // Find product by barcode or SKU
+      const product = products.find(
+        p => p.barcode === barcode || p.sku === barcode
+      );
+      if (product) {
+        addToCart(product);
+        toast({ title: "Scanned", description: `${product.name} added to cart` });
+      } else {
+        toast({ title: "Not Found", description: `No product with barcode "${barcode}"`, variant: "destructive" });
+      }
+      return;
+    }
+
+    // Only accept printable characters
+    if (e.key.length === 1) {
+      barcodeBufferRef.current += e.key;
+      
+      if (barcodeTimeoutRef.current) clearTimeout(barcodeTimeoutRef.current);
+      barcodeTimeoutRef.current = setTimeout(() => {
+        barcodeBufferRef.current = "";
+      }, 100); // Scanners type fast, clear buffer after 100ms pause
+    }
+  }, [products]);
+
+  useEffect(() => {
+    window.addEventListener('keydown', handleBarcodeInput);
+    return () => window.removeEventListener('keydown', handleBarcodeInput);
+  }, [handleBarcodeInput]);
+
   const fetchProducts = async () => {
     try {
       const { data, error } = await supabase
         .from('products')
-        .select(`
-          *,
-          categories (name),
-          units (name)
-        `)
+        .select(`*, categories (name), units (name)`)
         .eq('is_active', true)
         .gt('current_stock', 0)
         .order('name');
@@ -112,11 +173,7 @@ const EnhancedPOSInterface: React.FC<EnhancedPOSInterfaceProps> = ({ onNavigate 
       if (error) throw error;
       setProducts(data || []);
     } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive"
-      });
+      toast({ title: "Error", description: error.message, variant: "destructive" });
     } finally {
       setLoading(false);
     }
@@ -124,12 +181,7 @@ const EnhancedPOSInterface: React.FC<EnhancedPOSInterfaceProps> = ({ onNavigate 
 
   const fetchCustomers = async () => {
     try {
-      const { data, error } = await supabase
-        .from('customers')
-        .select('*')
-        .eq('is_active', true)
-        .order('name');
-
+      const { data, error } = await supabase.from('customers').select('*').eq('is_active', true).order('name');
       if (error) throw error;
       setCustomers(data || []);
     } catch (error: any) {
@@ -138,126 +190,114 @@ const EnhancedPOSInterface: React.FC<EnhancedPOSInterfaceProps> = ({ onNavigate 
   };
 
   const addToCart = (product: Product) => {
-    const existingItem = cart.find(item => item.id === product.id);
-    
-    if (existingItem) {
-      if (existingItem.quantity >= product.current_stock) {
-        toast({
-          title: "Stock Limit",
-          description: "Cannot add more items than available in stock",
-          variant: "destructive"
-        });
-        return;
+    setCart(prev => {
+      const existing = prev.find(item => item.id === product.id);
+      if (existing) {
+        if (existing.quantity >= product.current_stock) {
+          toast({ title: "Stock Limit", description: "Cannot add more than available stock", variant: "destructive" });
+          return prev;
+        }
+        return prev.map(item => item.id === product.id ? { ...item, quantity: item.quantity + 1 } : item);
       }
-      setCart(cart.map(item =>
-        item.id === product.id
-          ? { ...item, quantity: item.quantity + 1 }
-          : item
-      ));
-    } else {
-      const newItem: CartItem = {
-        id: product.id,
-        name: product.name,
-        price: product.selling_price,
-        quantity: 1,
-        category: product.categories?.name || "Unknown",
-        stock: product.current_stock,
-        sku: product.sku
-      };
-      setCart([...cart, newItem]);
-    }
+      return [...prev, {
+        id: product.id, name: product.name, price: product.selling_price,
+        quantity: 1, category: product.categories?.name || "Unknown",
+        stock: product.current_stock, sku: product.sku
+      }];
+    });
   };
 
   const updateQuantity = (id: string, newQuantity: number) => {
-    if (newQuantity === 0) {
-      removeFromCart(id);
-      return;
-    }
-
+    if (newQuantity === 0) { removeFromCart(id); return; }
     const item = cart.find(item => item.id === id);
     if (item && newQuantity > item.stock) {
-      toast({
-        title: "Stock Limit",
-        description: "Cannot exceed available stock",
-        variant: "destructive"
-      });
+      toast({ title: "Stock Limit", description: "Cannot exceed available stock", variant: "destructive" });
       return;
     }
-
-    setCart(cart.map(item =>
-      item.id === id ? { ...item, quantity: newQuantity } : item
-    ));
+    setCart(cart.map(item => item.id === id ? { ...item, quantity: newQuantity } : item));
   };
 
-  const removeFromCart = (id: string) => {
-    setCart(cart.filter(item => item.id !== id));
+  const removeFromCart = (id: string) => setCart(cart.filter(item => item.id !== id));
+
+  const clearCart = () => {
+    if (cart.length === 0) return;
+    setCart([]);
+    setSelectedCustomer(null);
+    toast({ title: "Cart Cleared", description: "All items removed from cart" });
+  };
+
+  // Hold current order
+  const holdOrder = () => {
+    if (cart.length === 0) return;
+    const order: HeldOrder = {
+      id: `HOLD-${Date.now()}`,
+      name: `Order #${heldOrders.length + 1}`,
+      cart: [...cart],
+      customer: selectedCustomer,
+      timestamp: Date.now()
+    };
+    setHeldOrders(prev => [...prev, order]);
+    setCart([]);
+    setSelectedCustomer(null);
+    toast({ title: "Order Held", description: `${order.name} saved for later` });
+  };
+
+  // Recall a held order
+  const recallOrder = (order: HeldOrder) => {
+    // If current cart has items, hold them first
+    if (cart.length > 0) {
+      const currentOrder: HeldOrder = {
+        id: `HOLD-${Date.now()}`,
+        name: `Order #${heldOrders.length + 1}`,
+        cart: [...cart],
+        customer: selectedCustomer,
+        timestamp: Date.now()
+      };
+      setHeldOrders(prev => [...prev.filter(o => o.id !== order.id), currentOrder]);
+    } else {
+      setHeldOrders(prev => prev.filter(o => o.id !== order.id));
+    }
+    setCart(order.cart);
+    setSelectedCustomer(order.customer);
+    setShowHeldOrdersDialog(false);
+    toast({ title: "Order Recalled", description: `${order.name} restored to cart` });
+  };
+
+  const deleteHeldOrder = (orderId: string) => {
+    setHeldOrders(prev => prev.filter(o => o.id !== orderId));
   };
 
   const addCustomer = async () => {
     if (!newCustomer.name || !newCustomer.phone) {
-      toast({
-        title: "Error",
-        description: "Name and phone are required",
-        variant: "destructive"
-      });
+      toast({ title: "Error", description: "Name and phone are required", variant: "destructive" });
       return;
     }
-
     try {
-      const { data, error } = await supabase
-        .from('customers')
-        .insert([newCustomer])
-        .select()
-        .single();
-
+      const { data, error } = await supabase.from('customers').insert([newCustomer]).select().single();
       if (error) throw error;
-
       setSelectedCustomer(data);
       setCustomers([...customers, data]);
       setNewCustomer({ name: '', phone: '', email: '' });
       setShowCustomerDialog(false);
-      
-      toast({
-        title: "Success",
-        description: "Customer added successfully"
-      });
+      toast({ title: "Success", description: "Customer added successfully" });
     } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive"
-      });
+      toast({ title: "Error", description: error.message, variant: "destructive" });
     }
   };
 
   const showReceiptAndCompleteSale = (paymentMethod: string) => {
     if (paymentType !== 'full' && !selectedCustomer) {
-      toast({
-        title: "Customer Required",
-        description: "Please select a customer for partial payments or loans",
-        variant: "destructive"
-      });
+      toast({ title: "Customer Required", description: "Please select a customer for partial payments or loans", variant: "destructive" });
       return;
     }
-
     if (paymentType === 'partial' && (!partialAmount || parseFloat(partialAmount) >= total)) {
-      toast({
-        title: "Invalid Partial Amount",
-        description: "Partial amount must be less than total amount",
-        variant: "destructive"
-      });
+      toast({ title: "Invalid Partial Amount", description: "Partial amount must be less than total amount", variant: "destructive" });
       return;
     }
-
     if ((paymentType === 'partial' || paymentType === 'loan_only') && !dueDate) {
-      toast({
-        title: "Due Date Required",
-        description: "Please set a due date for the loan",
-        variant: "destructive"
-      });
+      toast({ title: "Due Date Required", description: "Please set a due date for the loan", variant: "destructive" });
       return;
     }
-
     setSelectedPaymentMethod(paymentMethod);
     setShowPaymentDialog(false);
     setShowReceiptPreview(true);
@@ -265,12 +305,10 @@ const EnhancedPOSInterface: React.FC<EnhancedPOSInterfaceProps> = ({ onNavigate 
 
   const completeSale = async () => {
     if (cart.length === 0) return;
-    
     setProcessing(true);
     try {
       const saleNumber = `SALE-${Date.now()}`;
-      const paidAmount = paymentType === 'full' ? total : 
-                         paymentType === 'partial' ? parseFloat(partialAmount) : 0;
+      const paidAmount = paymentType === 'full' ? total : paymentType === 'partial' ? parseFloat(partialAmount) : 0;
       
       const { data: saleData, error: saleError } = await supabase
         .from('sales')
@@ -279,71 +317,49 @@ const EnhancedPOSInterface: React.FC<EnhancedPOSInterfaceProps> = ({ onNavigate 
           customer_name: selectedCustomer?.name || null,
           customer_phone: selectedCustomer?.phone || null,
           customer_id: selectedCustomer?.id || null,
-          subtotal: subtotal,
-          tax_amount: tax,
-          discount_amount: 0,
-          total_amount: total,
-          payment_method: selectedPaymentMethod,
-          payment_type: paymentType,
+          subtotal, tax_amount: tax, discount_amount: 0, total_amount: total,
+          payment_method: selectedPaymentMethod, payment_type: paymentType,
           created_by: (await supabase.auth.getUser()).data.user?.id
         })
-        .select()
-        .single();
+        .select().single();
 
       if (saleError) throw saleError;
 
       for (const item of cart) {
-        const { error: itemError } = await supabase
-          .from('sale_items')
-          .insert({
-            sale_id: saleData.id,
-            product_id: item.id,
-            quantity: item.quantity,
-            unit_price: item.price,
-            total_price: item.price * item.quantity
-          });
-
+        const { error: itemError } = await supabase.from('sale_items').insert({
+          sale_id: saleData.id, product_id: item.id, quantity: item.quantity,
+          unit_price: item.price, total_price: item.price * item.quantity
+        });
         if (itemError) throw itemError;
       }
 
       if (paymentType !== 'full' && selectedCustomer) {
         const loanAmount = total - paidAmount;
-        
         const { data: loanData, error: loanError } = await supabase
           .from('loans')
           .insert({
-            customer_id: selectedCustomer.id,
-            sale_id: saleData.id,
-            total_amount: loanAmount,
-            paid_amount: 0,
-            remaining_balance: loanAmount,
+            customer_id: selectedCustomer.id, sale_id: saleData.id,
+            total_amount: loanAmount, paid_amount: 0, remaining_balance: loanAmount,
             due_date: dueDate,
             agreement_terms: agreementTerms || `Loan agreement for sale ${saleNumber}. Amount: ${formatCurrency(loanAmount)}. Due: ${dueDate}`,
             created_by: (await supabase.auth.getUser()).data.user?.id
-          })
-          .select()
-          .single();
+          }).select().single();
 
         if (loanError) throw loanError;
 
         if (paymentType === 'partial' && paidAmount > 0) {
-          const { error: paymentError } = await supabase
-            .from('loan_payments')
-            .insert({
-              loan_id: loanData.id,
-              amount: paidAmount,
-              notes: `Initial payment for sale ${saleNumber}`,
-              created_by: (await supabase.auth.getUser()).data.user?.id
-            });
-
+          const { error: paymentError } = await supabase.from('loan_payments').insert({
+            loan_id: loanData.id, amount: paidAmount,
+            notes: `Initial payment for sale ${saleNumber}`,
+            created_by: (await supabase.auth.getUser()).data.user?.id
+          });
           if (paymentError) throw paymentError;
         }
 
         try {
           await supabase.functions.invoke('whatsapp-notification', {
             body: {
-              phone: selectedCustomer.phone,
-              title: 'Loan Agreement',
+              phone: selectedCustomer.phone, title: 'Loan Agreement',
               message: `Dear ${selectedCustomer.name}, your loan agreement for ${formatCurrency(loanAmount)} has been created. Due date: ${dueDate}. ${paymentType === 'partial' ? `Initial payment of ${formatCurrency(paidAmount)} received.` : ''}`,
               type: 'alert'
             }
@@ -353,43 +369,41 @@ const EnhancedPOSInterface: React.FC<EnhancedPOSInterfaceProps> = ({ onNavigate 
         }
       }
 
-      toast({
-        title: "Sale Completed",
-        description: `Sale ${saleNumber} completed successfully${paymentType !== 'full' ? ' with loan created' : ''}`
-      });
+      toast({ title: "Sale Completed", description: `Sale ${saleNumber} completed successfully${paymentType !== 'full' ? ' with loan created' : ''}` });
 
-      setCart([]);
-      setShowReceiptPreview(false);
-      setSelectedPaymentMethod("");
-      setPaymentType('full');
-      setSelectedCustomer(null);
-      setPartialAmount('');
-      setDueDate('');
-      setAgreementTerms('');
+      setCart([]); setShowReceiptPreview(false); setSelectedPaymentMethod("");
+      setPaymentType('full'); setSelectedCustomer(null); setPartialAmount('');
+      setDueDate(''); setAgreementTerms('');
       fetchProducts();
-      
     } catch (error: any) {
-      toast({
-        title: "Sale Failed",
-        description: error.message,
-        variant: "destructive"
-      });
+      toast({ title: "Sale Failed", description: error.message, variant: "destructive" });
     } finally {
       setProcessing(false);
     }
   };
 
   const handleBack = () => {
-    if (onNavigate) {
-      onNavigate('dashboard');
-    } else {
-      navigate('/');
+    if (onNavigate) { onNavigate('dashboard'); } else { navigate('/'); }
+  };
+
+  // Barcode search in search input
+  const handleSearchKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter' && searchTerm.trim()) {
+      const product = products.find(
+        p => p.barcode === searchTerm.trim() || p.sku === searchTerm.trim()
+      );
+      if (product) {
+        addToCart(product);
+        setSearchTerm("");
+        toast({ title: "Added", description: `${product.name} added to cart` });
+      }
     }
   };
 
   const filteredProducts = products.filter(product =>
     product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    product.sku.toLowerCase().includes(searchTerm.toLowerCase())
+    product.sku.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (product.barcode && product.barcode.includes(searchTerm))
   );
 
   const subtotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
@@ -401,12 +415,7 @@ const EnhancedPOSInterface: React.FC<EnhancedPOSInterfaceProps> = ({ onNavigate 
       {/* Header */}
       <div className="bg-card border-b border-border px-4 py-2 flex items-center justify-between shrink-0">
         <div className="flex items-center gap-3">
-          <Button 
-            variant="outline" 
-            size="sm"
-            onClick={handleBack}
-            className="h-8"
-          >
+          <Button variant="outline" size="sm" onClick={handleBack} className="h-8">
             <ArrowLeft className="w-4 h-4" />
           </Button>
           <div className="w-7 h-7 bg-primary rounded-lg flex items-center justify-center">
@@ -415,7 +424,35 @@ const EnhancedPOSInterface: React.FC<EnhancedPOSInterfaceProps> = ({ onNavigate 
           <h1 className="text-base font-bold">POS</h1>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2">
+          {/* Hold Order */}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={holdOrder}
+            disabled={cart.length === 0}
+            className="h-8 text-xs"
+          >
+            <Pause className="w-3.5 h-3.5 mr-1" />
+            Hold
+          </Button>
+
+          {/* Recall Orders */}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setShowHeldOrdersDialog(true)}
+            className="h-8 text-xs relative"
+          >
+            <Play className="w-3.5 h-3.5 mr-1" />
+            Recall
+            {heldOrders.length > 0 && (
+              <Badge className="absolute -top-1.5 -right-1.5 h-4 w-4 p-0 flex items-center justify-center text-[10px]">
+                {heldOrders.length}
+              </Badge>
+            )}
+          </Button>
+
           {/* Total */}
           <div className="flex items-center gap-2 bg-primary/10 rounded-lg px-4 py-1.5">
             <span className="text-xs text-muted-foreground">Total:</span>
@@ -438,15 +475,17 @@ const EnhancedPOSInterface: React.FC<EnhancedPOSInterfaceProps> = ({ onNavigate 
       <div className="flex-1 flex overflow-hidden">
         {/* Product Selection */}
         <div className="flex-1 flex flex-col p-3 overflow-hidden">
-          {/* Search */}
+          {/* Search with barcode support */}
           <div className="relative mb-3 shrink-0">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             <Input
-              placeholder="Search products by name or SKU..."
+              placeholder="Search or scan barcode..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-9 h-9 bg-card"
+              onKeyDown={handleSearchKeyDown}
+              className="pl-9 pr-10 h-9 bg-card"
             />
+            <Scan className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground opacity-50" />
           </div>
 
           {/* Products Grid */}
@@ -467,11 +506,8 @@ const EnhancedPOSInterface: React.FC<EnhancedPOSInterfaceProps> = ({ onNavigate 
                   >
                     {product.image_url && (
                       <div className="w-full h-12 mb-1 rounded overflow-hidden bg-muted">
-                        <img 
-                          src={product.image_url} 
-                          alt={product.name}
-                          className="w-full h-full object-cover group-hover:scale-105 transition-transform"
-                        />
+                        <img src={product.image_url} alt={product.name}
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform" />
                       </div>
                     )}
                     <h3 className="font-medium text-xs truncate">{product.name}</h3>
@@ -490,9 +526,17 @@ const EnhancedPOSInterface: React.FC<EnhancedPOSInterfaceProps> = ({ onNavigate 
 
         {/* Shopping Cart - full height */}
         <div className="w-80 lg:w-96 border-l border-border bg-card flex flex-col overflow-hidden">
-          <div className="px-3 py-2 border-b border-border flex items-center gap-2 shrink-0">
-            <ShoppingCart className="w-4 h-4" />
-            <span className="font-semibold text-sm">Cart ({cart.length})</span>
+          <div className="px-3 py-2 border-b border-border flex items-center justify-between shrink-0">
+            <div className="flex items-center gap-2">
+              <ShoppingCart className="w-4 h-4" />
+              <span className="font-semibold text-sm">Cart ({cart.length})</span>
+            </div>
+            {cart.length > 0 && (
+              <Button variant="ghost" size="sm" onClick={clearCart} className="h-6 px-2 text-destructive hover:text-destructive text-xs">
+                <XCircle className="w-3.5 h-3.5 mr-1" />
+                Clear
+              </Button>
+            )}
           </div>
 
           {cart.length === 0 ? (
@@ -500,6 +544,7 @@ const EnhancedPOSInterface: React.FC<EnhancedPOSInterfaceProps> = ({ onNavigate 
               <div className="text-center">
                 <ShoppingCart className="w-10 h-10 mx-auto mb-2 opacity-30" />
                 <p className="text-sm">Cart is empty</p>
+                <p className="text-xs mt-1 opacity-60">Scan barcode or click products</p>
               </div>
             </div>
           ) : (
@@ -520,21 +565,11 @@ const EnhancedPOSInterface: React.FC<EnhancedPOSInterfaceProps> = ({ onNavigate 
                       <td className="py-2 px-3 font-medium truncate max-w-[120px]">{item.name}</td>
                       <td className="py-2">
                         <div className="flex items-center justify-center gap-1">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => updateQuantity(item.id, item.quantity - 1)}
-                            className="h-5 w-5 p-0"
-                          >
+                          <Button variant="ghost" size="sm" onClick={() => updateQuantity(item.id, item.quantity - 1)} className="h-5 w-5 p-0">
                             <Minus className="w-2.5 h-2.5" />
                           </Button>
                           <span className="font-medium w-5 text-center">{item.quantity}</span>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => updateQuantity(item.id, item.quantity + 1)}
-                            className="h-5 w-5 p-0"
-                          >
+                          <Button variant="ghost" size="sm" onClick={() => updateQuantity(item.id, item.quantity + 1)} className="h-5 w-5 p-0">
                             <Plus className="w-2.5 h-2.5" />
                           </Button>
                         </div>
@@ -542,12 +577,7 @@ const EnhancedPOSInterface: React.FC<EnhancedPOSInterfaceProps> = ({ onNavigate 
                       <td className="py-2 text-right text-muted-foreground">{formatCurrency(item.price)}</td>
                       <td className="py-2 px-3 text-right font-semibold">{formatCurrency(item.price * item.quantity)}</td>
                       <td className="py-2 px-1">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => removeFromCart(item.id)}
-                          className="h-5 w-5 p-0 text-destructive hover:text-destructive"
-                        >
+                        <Button variant="ghost" size="sm" onClick={() => removeFromCart(item.id)} className="h-5 w-5 p-0 text-destructive hover:text-destructive">
                           <Trash2 className="w-3 h-3" />
                         </Button>
                       </td>
@@ -565,25 +595,19 @@ const EnhancedPOSInterface: React.FC<EnhancedPOSInterfaceProps> = ({ onNavigate 
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <Wallet className="w-5 h-5" />
-              Payment
+              <Wallet className="w-5 h-5" /> Payment
             </DialogTitle>
           </DialogHeader>
-          
           <div className="space-y-4">
-            {/* Total display */}
             <div className="text-center bg-primary/10 rounded-lg p-4">
               <p className="text-sm text-muted-foreground">Total Amount</p>
               <p className="text-3xl font-bold text-primary">{formatCurrency(total)}</p>
             </div>
 
-            {/* Payment Type */}
             <div className="space-y-2">
               <Label className="text-sm">Payment Type</Label>
               <Select value={paymentType} onValueChange={(value: any) => setPaymentType(value)}>
-                <SelectTrigger className="h-10">
-                  <SelectValue />
-                </SelectTrigger>
+                <SelectTrigger className="h-10"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="full">Full Payment</SelectItem>
                   <SelectItem value="partial">Partial Payment</SelectItem>
@@ -592,24 +616,18 @@ const EnhancedPOSInterface: React.FC<EnhancedPOSInterfaceProps> = ({ onNavigate 
               </Select>
             </div>
 
-            {/* Customer Selection for loans */}
             {paymentType !== 'full' && (
               <>
                 <div className="space-y-2">
                   <Label className="text-sm">Customer</Label>
                   <div className="flex gap-2">
                     <Select value={selectedCustomer?.id || ''} onValueChange={(value) => {
-                      const customer = customers.find(c => c.id === value);
-                      setSelectedCustomer(customer || null);
+                      setSelectedCustomer(customers.find(c => c.id === value) || null);
                     }}>
-                      <SelectTrigger className="flex-1 h-10">
-                        <SelectValue placeholder="Select customer" />
-                      </SelectTrigger>
+                      <SelectTrigger className="flex-1 h-10"><SelectValue placeholder="Select customer" /></SelectTrigger>
                       <SelectContent>
                         {customers.map((customer) => (
-                          <SelectItem key={customer.id} value={customer.id}>
-                            {customer.name} - {customer.phone}
-                          </SelectItem>
+                          <SelectItem key={customer.id} value={customer.id}>{customer.name} - {customer.phone}</SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
@@ -635,18 +653,13 @@ const EnhancedPOSInterface: React.FC<EnhancedPOSInterfaceProps> = ({ onNavigate 
 
             <Separator />
 
-            {/* Payment Method Buttons */}
             <div className="space-y-2">
               <Label className="text-sm">Choose Payment Method</Label>
               <div className="grid grid-cols-1 gap-2">
-                <Button
-                  onClick={() => showReceiptAndCompleteSale("cash")}
-                  className="h-12 text-base bg-green-600 hover:bg-green-700"
-                >
+                <Button onClick={() => showReceiptAndCompleteSale("cash")} className="h-12 text-base bg-green-600 hover:bg-green-700">
                   <DollarSign className="w-5 h-5 mr-2" />
                   {paymentType === 'full' ? 'Pay with Cash' : paymentType === 'partial' ? 'Partial Cash' : 'Create Loan'}
                 </Button>
-                
                 {paymentType === 'full' && (
                   <div className="grid grid-cols-2 gap-2">
                     <Button onClick={() => showReceiptAndCompleteSale("card")} variant="outline" className="h-11">
@@ -663,48 +676,68 @@ const EnhancedPOSInterface: React.FC<EnhancedPOSInterfaceProps> = ({ onNavigate 
         </DialogContent>
       </Dialog>
 
+      {/* Held Orders Dialog */}
+      <Dialog open={showHeldOrdersDialog} onOpenChange={setShowHeldOrdersDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <RotateCcw className="w-5 h-5" /> Held Orders
+            </DialogTitle>
+          </DialogHeader>
+          {heldOrders.length === 0 ? (
+            <div className="text-center py-8 text-muted-foreground">
+              <Pause className="w-10 h-10 mx-auto mb-2 opacity-30" />
+              <p className="text-sm">No held orders</p>
+            </div>
+          ) : (
+            <div className="space-y-2 max-h-[400px] overflow-y-auto">
+              {heldOrders.map((order) => (
+                <div key={order.id} className="border rounded-lg p-3 flex items-center justify-between hover:bg-accent/50">
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium text-sm">{order.name}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {order.cart.length} items · {formatCurrency(order.cart.reduce((s, i) => s + i.price * i.quantity, 0))}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {new Date(order.timestamp).toLocaleTimeString()}
+                      {order.customer && ` · ${order.customer.name}`}
+                    </p>
+                  </div>
+                  <div className="flex gap-1 ml-2">
+                    <Button size="sm" onClick={() => recallOrder(order)} className="h-7 text-xs px-3">
+                      Recall
+                    </Button>
+                    <Button variant="ghost" size="sm" onClick={() => deleteHeldOrder(order.id)} className="h-7 w-7 p-0 text-destructive hover:text-destructive">
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
       {/* Add Customer Dialog */}
       <Dialog open={showCustomerDialog} onOpenChange={setShowCustomerDialog}>
         <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Add New Customer</DialogTitle>
-          </DialogHeader>
+          <DialogHeader><DialogTitle>Add New Customer</DialogTitle></DialogHeader>
           <div className="space-y-4">
             <div>
               <Label htmlFor="customer-name">Name *</Label>
-              <Input
-                id="customer-name"
-                value={newCustomer.name}
-                onChange={(e) => setNewCustomer({ ...newCustomer, name: e.target.value })}
-                placeholder="Customer name"
-              />
+              <Input id="customer-name" value={newCustomer.name} onChange={(e) => setNewCustomer({ ...newCustomer, name: e.target.value })} placeholder="Customer name" />
             </div>
             <div>
               <Label htmlFor="customer-phone">Phone *</Label>
-              <Input
-                id="customer-phone"
-                value={newCustomer.phone}
-                onChange={(e) => setNewCustomer({ ...newCustomer, phone: e.target.value })}
-                placeholder="Phone number"
-              />
+              <Input id="customer-phone" value={newCustomer.phone} onChange={(e) => setNewCustomer({ ...newCustomer, phone: e.target.value })} placeholder="Phone number" />
             </div>
             <div>
               <Label htmlFor="customer-email">Email</Label>
-              <Input
-                id="customer-email"
-                type="email"
-                value={newCustomer.email}
-                onChange={(e) => setNewCustomer({ ...newCustomer, email: e.target.value })}
-                placeholder="Email address"
-              />
+              <Input id="customer-email" type="email" value={newCustomer.email} onChange={(e) => setNewCustomer({ ...newCustomer, email: e.target.value })} placeholder="Email address" />
             </div>
             <div className="flex gap-2">
-              <Button variant="outline" onClick={() => setShowCustomerDialog(false)} className="flex-1">
-                Cancel
-              </Button>
-              <Button onClick={addCustomer} className="flex-1">
-                Add Customer
-              </Button>
+              <Button variant="outline" onClick={() => setShowCustomerDialog(false)} className="flex-1">Cancel</Button>
+              <Button onClick={addCustomer} className="flex-1">Add Customer</Button>
             </div>
           </div>
         </DialogContent>
