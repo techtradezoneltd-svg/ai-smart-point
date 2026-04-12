@@ -87,6 +87,7 @@ const EnhancedPOSInterface: React.FC<EnhancedPOSInterfaceProps> = ({ onNavigate 
   const isMobile = useIsMobile();
   const barcodeBufferRef = useRef("");
   const barcodeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
   const [mobileCartOpen, setMobileCartOpen] = useState(false);
 
   // State management
@@ -129,7 +130,14 @@ const EnhancedPOSInterface: React.FC<EnhancedPOSInterfaceProps> = ({ onNavigate 
 
   // Barcode scanner listener - listens for rapid keystrokes globally
   const handleBarcodeInput = useCallback((e: KeyboardEvent) => {
-    // Ignore if user is typing in an input field (except barcode-specific)
+    // Keyboard shortcuts (work even in input fields)
+    if (e.key === 'F2') { e.preventDefault(); holdOrder(); return; }
+    if (e.key === 'F3') { e.preventDefault(); setShowHeldOrdersDialog(true); return; }
+    if (e.key === 'F9') { e.preventDefault(); if (cart.length > 0) setShowPaymentDialog(true); return; }
+    if (e.key === 'Escape') { e.preventDefault(); clearCart(); return; }
+    if (e.key === 'F4') { e.preventDefault(); searchInputRef.current?.focus(); return; }
+
+    // Ignore barcode input if user is typing in an input field
     const target = e.target as HTMLElement;
     if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT') return;
 
@@ -157,9 +165,9 @@ const EnhancedPOSInterface: React.FC<EnhancedPOSInterfaceProps> = ({ onNavigate 
       if (barcodeTimeoutRef.current) clearTimeout(barcodeTimeoutRef.current);
       barcodeTimeoutRef.current = setTimeout(() => {
         barcodeBufferRef.current = "";
-      }, 100); // Scanners type fast, clear buffer after 100ms pause
+      }, 100);
     }
-  }, [products]);
+  }, [products, cart.length]);
 
   useEffect(() => {
     window.addEventListener('keydown', handleBarcodeInput);
@@ -541,15 +549,17 @@ const EnhancedPOSInterface: React.FC<EnhancedPOSInterfaceProps> = ({ onNavigate 
 
         <div className="flex items-center gap-1.5 sm:gap-2">
           {/* Hold */}
-          <Button variant="outline" size="sm" onClick={holdOrder} disabled={cart.length === 0} className="h-8 text-xs px-2 sm:px-3">
+          <Button variant="outline" size="sm" onClick={holdOrder} disabled={cart.length === 0} className="h-8 text-xs px-2 sm:px-3" title="Hold Order (F2)">
             <Pause className="w-3.5 h-3.5 sm:mr-1" />
             <span className="hidden sm:inline">Hold</span>
+            <kbd className="hidden lg:inline ml-1 text-[10px] text-muted-foreground">F2</kbd>
           </Button>
 
           {/* Recall */}
-          <Button variant="outline" size="sm" onClick={() => setShowHeldOrdersDialog(true)} className="h-8 text-xs relative px-2 sm:px-3">
+          <Button variant="outline" size="sm" onClick={() => setShowHeldOrdersDialog(true)} className="h-8 text-xs relative px-2 sm:px-3" title="Recall Order (F3)">
             <Play className="w-3.5 h-3.5 sm:mr-1" />
             <span className="hidden sm:inline">Recall</span>
+            <kbd className="hidden lg:inline ml-1 text-[10px] text-muted-foreground">F3</kbd>
             {heldOrders.length > 0 && (
               <Badge className="absolute -top-1.5 -right-1.5 h-4 w-4 p-0 flex items-center justify-center text-[10px]">
                 {heldOrders.length}
@@ -583,7 +593,8 @@ const EnhancedPOSInterface: React.FC<EnhancedPOSInterfaceProps> = ({ onNavigate 
           <div className="relative mb-2 sm:mb-3 shrink-0">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             <Input
-              placeholder="Search or scan barcode..."
+              ref={searchInputRef}
+              placeholder="Search or scan barcode... (F4)"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               onKeyDown={handleSearchKeyDown}
