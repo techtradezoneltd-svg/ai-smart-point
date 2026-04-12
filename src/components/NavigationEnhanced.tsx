@@ -4,6 +4,7 @@ import { Separator } from "@/components/ui/separator";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { useState, useMemo } from "react";
 import { useAuth } from "@/components/AuthProvider";
+import { useSettings } from "@/contexts/SettingsContext";
 import { usePermissions, UserRole } from "@/contexts/PermissionsContext";
 import RoleSwitcher from "@/components/RoleSwitcher";
 import { 
@@ -54,8 +55,9 @@ interface NavCategory {
 }
 
 const NavigationEnhanced = ({ currentView, onNavigate }: NavigationProps) => {
-  const { signOut, user } = useAuth();
-  const permissions = usePermissions();
+  const { settings } = useSettings();
+  const appName = settings?.company?.appName || 'SmartPOS';
+  const appTagline = settings?.company?.appTagline || 'AI System';
   const [expandedCategories, setExpandedCategories] = useState<string[]>([
     "main", "sales", "inventory"
   ]);
