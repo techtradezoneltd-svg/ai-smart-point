@@ -2,11 +2,14 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
 import { useSettings } from "@/contexts/SettingsContext";
 import { formatCurrency as formatCurrencyUtil } from "@/lib/currency";
 import { supabase } from "@/integrations/supabase/client";
 import { useState, useEffect } from "react";
 import { startOfDay, endOfDay, startOfWeek, endOfWeek, startOfMonth, endOfMonth, startOfYear, endOfYear, format } from "date-fns";
+import { cn } from "@/lib/utils";
 import DashboardMetricCards from "@/components/DashboardMetricCards";
 import { 
   BarChart3, 
@@ -20,8 +23,9 @@ import {
   ShoppingCart,
   Eye,
   TrendingDown,
-  Calendar
+  Calendar as CalendarIcon
 } from "lucide-react";
+import type { DateRange } from "react-day-picker";
 
 interface DashboardProps {
   onNavigate: (view: string) => void;
@@ -32,6 +36,10 @@ const Dashboard = ({ onNavigate }: DashboardProps) => {
   const [profitPeriod, setProfitPeriod] = useState<string>("today");
   const [profitData, setProfitData] = useState({ profit: 0, sales: 0, change: 0 });
   const [loading, setLoading] = useState(false);
+  const [dateRange, setDateRange] = useState<DateRange | undefined>({
+    from: startOfDay(new Date()),
+    to: endOfDay(new Date()),
+  });
 
   const pctChange = (current: number, previous: number) => {
     if (previous === 0) return current > 0 ? 100 : 0;
