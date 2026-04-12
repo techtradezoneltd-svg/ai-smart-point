@@ -55,6 +55,8 @@ interface NavCategory {
 }
 
 const NavigationEnhanced = ({ currentView, onNavigate }: NavigationProps) => {
+  const { signOut, user } = useAuth();
+  const permissions = usePermissions();
   const { settings } = useSettings();
   const appName = settings?.company?.appName || 'SmartPOS';
   const appTagline = settings?.company?.appTagline || 'AI System';
