@@ -132,7 +132,7 @@ const EnhancedPOSInterface: React.FC<EnhancedPOSInterfaceProps> = ({ onNavigate 
   const handleBarcodeInput = useCallback((e: KeyboardEvent) => {
     // Keyboard shortcuts (work even in input fields)
     if (e.key === 'F2') { e.preventDefault(); holdOrder(); return; }
-    if (e.key === 'F3') { e.preventDefault(); setShowRecallDialog(true); return; }
+    if (e.key === 'F3') { e.preventDefault(); setShowHeldOrdersDialog(true); return; }
     if (e.key === 'F9') { e.preventDefault(); if (cart.length > 0) setShowPaymentDialog(true); return; }
     if (e.key === 'Escape') { e.preventDefault(); clearCart(); return; }
     if (e.key === 'F4') { e.preventDefault(); searchInputRef.current?.focus(); return; }
