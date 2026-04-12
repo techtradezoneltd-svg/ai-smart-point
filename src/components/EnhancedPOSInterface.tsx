@@ -129,7 +129,14 @@ const EnhancedPOSInterface: React.FC<EnhancedPOSInterfaceProps> = ({ onNavigate 
 
   // Barcode scanner listener - listens for rapid keystrokes globally
   const handleBarcodeInput = useCallback((e: KeyboardEvent) => {
-    // Ignore if user is typing in an input field (except barcode-specific)
+    // Keyboard shortcuts (work even in input fields)
+    if (e.key === 'F2') { e.preventDefault(); holdOrder(); return; }
+    if (e.key === 'F3') { e.preventDefault(); setShowRecallDialog(true); return; }
+    if (e.key === 'F9') { e.preventDefault(); if (cart.length > 0) setShowPaymentDialog(true); return; }
+    if (e.key === 'Escape') { e.preventDefault(); clearCart(); return; }
+    if (e.key === 'F4') { e.preventDefault(); searchInputRef.current?.focus(); return; }
+
+    // Ignore barcode input if user is typing in an input field
     const target = e.target as HTMLElement;
     if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT') return;
 
@@ -157,9 +164,9 @@ const EnhancedPOSInterface: React.FC<EnhancedPOSInterfaceProps> = ({ onNavigate 
       if (barcodeTimeoutRef.current) clearTimeout(barcodeTimeoutRef.current);
       barcodeTimeoutRef.current = setTimeout(() => {
         barcodeBufferRef.current = "";
-      }, 100); // Scanners type fast, clear buffer after 100ms pause
+      }, 100);
     }
-  }, [products]);
+  }, [products, cart.length]);
 
   useEffect(() => {
     window.addEventListener('keydown', handleBarcodeInput);
