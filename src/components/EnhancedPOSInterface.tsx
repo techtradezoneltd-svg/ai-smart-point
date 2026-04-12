@@ -549,15 +549,17 @@ const EnhancedPOSInterface: React.FC<EnhancedPOSInterfaceProps> = ({ onNavigate 
 
         <div className="flex items-center gap-1.5 sm:gap-2">
           {/* Hold */}
-          <Button variant="outline" size="sm" onClick={holdOrder} disabled={cart.length === 0} className="h-8 text-xs px-2 sm:px-3">
+          <Button variant="outline" size="sm" onClick={holdOrder} disabled={cart.length === 0} className="h-8 text-xs px-2 sm:px-3" title="Hold Order (F2)">
             <Pause className="w-3.5 h-3.5 sm:mr-1" />
             <span className="hidden sm:inline">Hold</span>
+            <kbd className="hidden lg:inline ml-1 text-[10px] text-muted-foreground">F2</kbd>
           </Button>
 
           {/* Recall */}
-          <Button variant="outline" size="sm" onClick={() => setShowHeldOrdersDialog(true)} className="h-8 text-xs relative px-2 sm:px-3">
+          <Button variant="outline" size="sm" onClick={() => setShowHeldOrdersDialog(true)} className="h-8 text-xs relative px-2 sm:px-3" title="Recall Order (F3)">
             <Play className="w-3.5 h-3.5 sm:mr-1" />
             <span className="hidden sm:inline">Recall</span>
+            <kbd className="hidden lg:inline ml-1 text-[10px] text-muted-foreground">F3</kbd>
             {heldOrders.length > 0 && (
               <Badge className="absolute -top-1.5 -right-1.5 h-4 w-4 p-0 flex items-center justify-center text-[10px]">
                 {heldOrders.length}
