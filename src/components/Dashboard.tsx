@@ -201,23 +201,24 @@ const Dashboard = ({ onNavigate }: DashboardProps) => {
   // Load real-time stats
   const loadTodayStats = async () => {
     try {
-      const now = new Date();
-      const today = now.toISOString().split('T')[0];
-      const startOfToday = `${today}T00:00:00`;
-      const endOfToday = `${today}T23:59:59`;
+      const rangeFrom = dateRange?.from || new Date();
+      const rangeTo = dateRange?.to || rangeFrom;
+      const startOfRange = startOfDay(rangeFrom).toISOString();
+      const endOfRange = endOfDay(rangeTo).toISOString();
 
-      const yesterday = new Date(now);
-      yesterday.setDate(yesterday.getDate() - 1);
-      const yDate = yesterday.toISOString().split('T')[0];
-      const startOfYesterday = `${yDate}T00:00:00`;
-      const endOfYesterday = `${yDate}T23:59:59`;
+      // Previous period for comparison (same duration before the range)
+      const rangeDuration = rangeTo.getTime() - rangeFrom.getTime();
+      const prevEnd = new Date(rangeFrom.getTime() - 1);
+      const prevStart = new Date(prevEnd.getTime() - rangeDuration);
+      const startOfPrev = startOfDay(prevStart).toISOString();
+      const endOfPrev = endOfDay(prevEnd).toISOString();
 
       const [salesData, customersData, recommendations, ySalesData, yCustomersData] = await Promise.all([
-        supabase.from('sales').select('total_amount').gte('created_at', startOfToday).lt('created_at', endOfToday),
-        supabase.from('sales').select('customer_id').gte('created_at', startOfToday).lt('created_at', endOfToday).not('customer_id', 'is', null),
+        supabase.from('sales').select('total_amount').gte('created_at', startOfRange).lte('created_at', endOfRange),
+        supabase.from('sales').select('customer_id').gte('created_at', startOfRange).lte('created_at', endOfRange).not('customer_id', 'is', null),
         supabase.from('ai_recommendations').select('id').eq('is_read', false),
-        supabase.from('sales').select('total_amount').gte('created_at', startOfYesterday).lt('created_at', endOfYesterday),
-        supabase.from('sales').select('customer_id').gte('created_at', startOfYesterday).lt('created_at', endOfYesterday).not('customer_id', 'is', null),
+        supabase.from('sales').select('total_amount').gte('created_at', startOfPrev).lte('created_at', endOfPrev),
+        supabase.from('sales').select('customer_id').gte('created_at', startOfPrev).lte('created_at', endOfPrev).not('customer_id', 'is', null),
       ]);
 
       const totalSales = salesData.data?.reduce((sum, sale) => sum + Number(sale.total_amount), 0) || 0;
