@@ -87,6 +87,7 @@ const EnhancedPOSInterface: React.FC<EnhancedPOSInterfaceProps> = ({ onNavigate 
   const isMobile = useIsMobile();
   const barcodeBufferRef = useRef("");
   const barcodeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
   const [mobileCartOpen, setMobileCartOpen] = useState(false);
 
   // State management
