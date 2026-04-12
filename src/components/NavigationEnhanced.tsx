@@ -332,9 +332,9 @@ const NavigationEnhanced = ({ currentView, onNavigate }: NavigationProps) => {
           </div>
           <div className="hidden sm:block">
             <h1 className="font-medium text-sm sm:text-base bg-gradient-primary bg-clip-text text-transparent">
-              SmartPOS
+              {appName}
             </h1>
-            <p className="text-xs text-muted-foreground">AI System</p>
+            <p className="text-xs text-muted-foreground">{appTagline}</p>
           </div>
         </div>
       </div>

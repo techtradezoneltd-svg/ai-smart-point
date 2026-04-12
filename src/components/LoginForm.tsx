@@ -5,10 +5,14 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAuth } from '@/components/AuthProvider';
+import { useSettings } from '@/contexts/SettingsContext';
 import { Brain, Mail, Lock, User, Eye, EyeOff } from 'lucide-react';
 
 const LoginForm = () => {
   const { signIn, signUp, resetPassword, loading } = useAuth();
+  const { settings } = useSettings();
+  const appName = settings?.company?.appName || 'SmartPOS';
+  const appTagline = settings?.company?.appTagline || 'AI-Powered System';
   const [showPassword, setShowPassword] = useState(false);
   const [formData, setFormData] = useState({
     email: '',
@@ -63,9 +67,9 @@ const LoginForm = () => {
             </div>
             <div>
               <h1 className="text-2xl font-bold bg-gradient-primary bg-clip-text text-transparent">
-                SmartPOS
+                {appName}
               </h1>
-              <p className="text-sm text-muted-foreground">AI-Powered System</p>
+              <p className="text-sm text-muted-foreground">{appTagline}</p>
             </div>
           </div>
           <CardTitle className="text-xl">Welcome Back</CardTitle>
