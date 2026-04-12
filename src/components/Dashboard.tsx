@@ -2,11 +2,14 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
 import { useSettings } from "@/contexts/SettingsContext";
 import { formatCurrency as formatCurrencyUtil } from "@/lib/currency";
 import { supabase } from "@/integrations/supabase/client";
 import { useState, useEffect } from "react";
 import { startOfDay, endOfDay, startOfWeek, endOfWeek, startOfMonth, endOfMonth, startOfYear, endOfYear, format } from "date-fns";
+import { cn } from "@/lib/utils";
 import DashboardMetricCards from "@/components/DashboardMetricCards";
 import { 
   BarChart3, 
@@ -20,8 +23,9 @@ import {
   ShoppingCart,
   Eye,
   TrendingDown,
-  Calendar
+  Calendar as CalendarIcon
 } from "lucide-react";
+import type { DateRange } from "react-day-picker";
 
 interface DashboardProps {
   onNavigate: (view: string) => void;
@@ -32,6 +36,10 @@ const Dashboard = ({ onNavigate }: DashboardProps) => {
   const [profitPeriod, setProfitPeriod] = useState<string>("today");
   const [profitData, setProfitData] = useState({ profit: 0, sales: 0, change: 0 });
   const [loading, setLoading] = useState(false);
+  const [dateRange, setDateRange] = useState<DateRange | undefined>({
+    from: startOfDay(new Date()),
+    to: endOfDay(new Date()),
+  });
 
   const pctChange = (current: number, previous: number) => {
     if (previous === 0) return current > 0 ? 100 : 0;
@@ -193,23 +201,24 @@ const Dashboard = ({ onNavigate }: DashboardProps) => {
   // Load real-time stats
   const loadTodayStats = async () => {
     try {
-      const now = new Date();
-      const today = now.toISOString().split('T')[0];
-      const startOfToday = `${today}T00:00:00`;
-      const endOfToday = `${today}T23:59:59`;
+      const rangeFrom = dateRange?.from || new Date();
+      const rangeTo = dateRange?.to || rangeFrom;
+      const startOfRange = startOfDay(rangeFrom).toISOString();
+      const endOfRange = endOfDay(rangeTo).toISOString();
 
-      const yesterday = new Date(now);
-      yesterday.setDate(yesterday.getDate() - 1);
-      const yDate = yesterday.toISOString().split('T')[0];
-      const startOfYesterday = `${yDate}T00:00:00`;
-      const endOfYesterday = `${yDate}T23:59:59`;
+      // Previous period for comparison (same duration before the range)
+      const rangeDuration = rangeTo.getTime() - rangeFrom.getTime();
+      const prevEnd = new Date(rangeFrom.getTime() - 1);
+      const prevStart = new Date(prevEnd.getTime() - rangeDuration);
+      const startOfPrev = startOfDay(prevStart).toISOString();
+      const endOfPrev = endOfDay(prevEnd).toISOString();
 
       const [salesData, customersData, recommendations, ySalesData, yCustomersData] = await Promise.all([
-        supabase.from('sales').select('total_amount').gte('created_at', startOfToday).lt('created_at', endOfToday),
-        supabase.from('sales').select('customer_id').gte('created_at', startOfToday).lt('created_at', endOfToday).not('customer_id', 'is', null),
+        supabase.from('sales').select('total_amount').gte('created_at', startOfRange).lte('created_at', endOfRange),
+        supabase.from('sales').select('customer_id').gte('created_at', startOfRange).lte('created_at', endOfRange).not('customer_id', 'is', null),
         supabase.from('ai_recommendations').select('id').eq('is_read', false),
-        supabase.from('sales').select('total_amount').gte('created_at', startOfYesterday).lt('created_at', endOfYesterday),
-        supabase.from('sales').select('customer_id').gte('created_at', startOfYesterday).lt('created_at', endOfYesterday).not('customer_id', 'is', null),
+        supabase.from('sales').select('total_amount').gte('created_at', startOfPrev).lte('created_at', endOfPrev),
+        supabase.from('sales').select('customer_id').gte('created_at', startOfPrev).lte('created_at', endOfPrev).not('customer_id', 'is', null),
       ]);
 
       const totalSales = salesData.data?.reduce((sum, sale) => sum + Number(sale.total_amount), 0) || 0;
@@ -312,7 +321,7 @@ const Dashboard = ({ onNavigate }: DashboardProps) => {
       supabase.removeChannel(salesChannel);
       supabase.removeChannel(recommendationsChannel);
     };
-  }, [profitPeriod]);
+  }, [profitPeriod, dateRange]);
 
   const getPeriodLabel = (period: string) => {
     switch (period) {
@@ -325,17 +334,44 @@ const Dashboard = ({ onNavigate }: DashboardProps) => {
   };
 
 
+  const appName = settings?.company?.appName || 'SmartPOS';
+
+  const dateRangeLabel = dateRange?.from
+    ? dateRange.to && dateRange.from.toDateString() !== dateRange.to.toDateString()
+      ? `${format(dateRange.from, "MMM d")} - ${format(dateRange.to, "MMM d, yyyy")}`
+      : format(dateRange.from, "MMM d, yyyy")
+    : "Pick dates";
+
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
         <div>
           <h1 className="text-3xl font-bold bg-gradient-primary bg-clip-text text-transparent">
-            AI-Powered POS Dashboard
+            {appName} Dashboard
           </h1>
           <p className="text-muted-foreground">Intelligent retail management system</p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button variant="outline" className={cn("justify-start text-left font-normal", !dateRange && "text-muted-foreground")}>
+                <CalendarIcon className="mr-2 h-4 w-4" />
+                {dateRangeLabel}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0" align="end">
+              <Calendar
+                initialFocus
+                mode="range"
+                defaultMonth={dateRange?.from}
+                selected={dateRange}
+                onSelect={setDateRange}
+                numberOfMonths={2}
+                className={cn("p-3 pointer-events-auto")}
+              />
+            </PopoverContent>
+          </Popover>
           <Brain className="w-5 h-5 text-primary animate-pulse-glow" />
           <Badge variant="outline" className="border-primary text-primary">
             AI Active
@@ -347,7 +383,7 @@ const Dashboard = ({ onNavigate }: DashboardProps) => {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
         <Card className="bg-gradient-card border-primary/20 hover:shadow-glow transition-all duration-300">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Today's Sales</CardTitle>
+            <CardTitle className="text-sm font-medium">Sales</CardTitle>
             <DollarSign className="h-4 w-4 text-success" />
           </CardHeader>
           <CardContent>

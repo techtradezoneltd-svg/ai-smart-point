@@ -285,6 +285,31 @@ const Settings = () => {
             <CardContent className="space-y-6 p-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
+                  <Label htmlFor="app-name">Application Name</Label>
+                  <Input
+                    id="app-name"
+                    value={companyForm.appName || 'SmartPOS'}
+                    onChange={(e) => setCompanyForm(prev => prev ? { ...prev, appName: e.target.value } : null)}
+                    placeholder="e.g. SmartPOS"
+                  />
+                  <p className="text-xs text-muted-foreground">Displayed in navigation, login, and loading screens</p>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="app-tagline">Application Tagline</Label>
+                  <Input
+                    id="app-tagline"
+                    value={companyForm.appTagline || 'AI System'}
+                    onChange={(e) => setCompanyForm(prev => prev ? { ...prev, appTagline: e.target.value } : null)}
+                    placeholder="e.g. AI System"
+                  />
+                  <p className="text-xs text-muted-foreground">Short subtitle shown below the app name</p>
+                </div>
+              </div>
+
+              <Separator />
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
                   <Label htmlFor="company-name">Company Name</Label>
                   <Input
                     id="company-name"

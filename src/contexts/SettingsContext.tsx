@@ -11,6 +11,8 @@ export interface CompanySettings {
   taxId: string;
   currency: string;
   timezone: string;
+  appName: string;
+  appTagline: string;
 }
 
 export interface SystemSettings {
@@ -149,7 +151,9 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
           email: '',
           taxId: '',
           currency: 'RWF',
-          timezone: 'UTC'
+          timezone: 'UTC',
+          appName: 'SmartPOS',
+          appTagline: 'AI System'
         };
 
         setSettings({
