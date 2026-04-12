@@ -321,7 +321,7 @@ const Dashboard = ({ onNavigate }: DashboardProps) => {
       supabase.removeChannel(salesChannel);
       supabase.removeChannel(recommendationsChannel);
     };
-  }, [profitPeriod]);
+  }, [profitPeriod, dateRange]);
 
   const getPeriodLabel = (period: string) => {
     switch (period) {
@@ -334,17 +334,44 @@ const Dashboard = ({ onNavigate }: DashboardProps) => {
   };
 
 
+  const appName = settings?.company?.appName || 'SmartPOS';
+
+  const dateRangeLabel = dateRange?.from
+    ? dateRange.to && dateRange.from.toDateString() !== dateRange.to.toDateString()
+      ? `${format(dateRange.from, "MMM d")} - ${format(dateRange.to, "MMM d, yyyy")}`
+      : format(dateRange.from, "MMM d, yyyy")
+    : "Pick dates";
+
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
         <div>
           <h1 className="text-3xl font-bold bg-gradient-primary bg-clip-text text-transparent">
-            AI-Powered POS Dashboard
+            {appName} Dashboard
           </h1>
           <p className="text-muted-foreground">Intelligent retail management system</p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button variant="outline" className={cn("justify-start text-left font-normal", !dateRange && "text-muted-foreground")}>
+                <CalendarIcon className="mr-2 h-4 w-4" />
+                {dateRangeLabel}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0" align="end">
+              <Calendar
+                initialFocus
+                mode="range"
+                defaultMonth={dateRange?.from}
+                selected={dateRange}
+                onSelect={setDateRange}
+                numberOfMonths={2}
+                className={cn("p-3 pointer-events-auto")}
+              />
+            </PopoverContent>
+          </Popover>
           <Brain className="w-5 h-5 text-primary animate-pulse-glow" />
           <Badge variant="outline" className="border-primary text-primary">
             AI Active
