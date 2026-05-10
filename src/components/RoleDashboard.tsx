@@ -84,7 +84,11 @@ export const RoleDashboard = ({ onNavigate }: RoleDashboardProps) => {
     };
   });
 
-  // Reload saved range when the role becomes available / changes
+  // Track which role's range is currently loaded so we don't persist
+  // the previous role's range under the new role's key during a switch.
+  const loadedRoleRef = useRef<string | null>(null);
+
+  // Reload saved range whenever the role becomes available or changes
   useEffect(() => {
     if (!permissions.role) return;
     try {
@@ -96,16 +100,26 @@ export const RoleDashboard = ({ onNavigate }: RoleDashboardProps) => {
             from: new Date(parsed.from),
             to: parsed.to ? new Date(parsed.to) : undefined,
           });
+        } else {
+          setDateRange({ from: startOfDay(new Date()), to: endOfDay(new Date()) });
         }
+      } else {
+        // No saved value for this role yet — reset to today instantly
+        setDateRange({ from: startOfDay(new Date()), to: endOfDay(new Date()) });
       }
     } catch (e) {
       console.warn("Failed to restore date range", e);
+      setDateRange({ from: startOfDay(new Date()), to: endOfDay(new Date()) });
+    } finally {
+      loadedRoleRef.current = permissions.role;
     }
   }, [permissions.role]);
 
-  // Persist on change
+  // Persist on change — only after the role's saved range has been loaded,
+  // so a role switch never overwrites the new role's key with old data.
   useEffect(() => {
     if (!permissions.role) return;
+    if (loadedRoleRef.current !== permissions.role) return;
     try {
       localStorage.setItem(
         dateRangeStorageKey,
