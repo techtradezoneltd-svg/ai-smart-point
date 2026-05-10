@@ -269,22 +269,55 @@ export const RoleDashboard = ({ onNavigate }: RoleDashboardProps) => {
             <Button
               variant="outline"
               className={cn(
-                "w-full sm:w-[260px] justify-start text-left font-normal",
-                !dateRange && "text-muted-foreground"
+                "w-full sm:w-[160px] justify-start text-left font-normal",
+                !dateRange?.from && "text-muted-foreground"
               )}
             >
               <CalendarIcon className="mr-2 h-4 w-4" />
-              {dateRangeLabel}
+              {dateRange?.from ? format(dateRange.from, "MMM d, yyyy") : "From"}
             </Button>
           </PopoverTrigger>
           <PopoverContent className="w-auto p-0" align="end">
             <Calendar
-              initialFocus
-              mode="range"
+              mode="single"
+              selected={dateRange?.from}
               defaultMonth={dateRange?.from}
-              selected={dateRange}
-              onSelect={setDateRange}
-              numberOfMonths={2}
+              onSelect={(d) =>
+                setDateRange((prev) => ({
+                  from: d,
+                  to: prev?.to && d && prev.to < d ? d : prev?.to,
+                }))
+              }
+              initialFocus
+              className={cn("p-3 pointer-events-auto")}
+            />
+          </PopoverContent>
+        </Popover>
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button
+              variant="outline"
+              className={cn(
+                "w-full sm:w-[160px] justify-start text-left font-normal",
+                !dateRange?.to && "text-muted-foreground"
+              )}
+            >
+              <CalendarIcon className="mr-2 h-4 w-4" />
+              {dateRange?.to ? format(dateRange.to, "MMM d, yyyy") : "To"}
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-auto p-0" align="end">
+            <Calendar
+              mode="single"
+              selected={dateRange?.to}
+              defaultMonth={dateRange?.to || dateRange?.from}
+              onSelect={(d) =>
+                setDateRange((prev) => ({
+                  from: prev?.from && d && d < prev.from ? d : prev?.from,
+                  to: d,
+                }))
+              }
+              initialFocus
               className={cn("p-3 pointer-events-auto")}
             />
           </PopoverContent>
