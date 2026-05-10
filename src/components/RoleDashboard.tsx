@@ -401,6 +401,16 @@ export const RoleDashboard = ({ onNavigate }: RoleDashboardProps) => {
             />
           </PopoverContent>
         </Popover>
+        {restoredFromSaved && (
+          <Badge
+            variant="outline"
+            className="border-primary/40 bg-primary/10 text-primary gap-1 animate-in fade-in slide-in-from-top-1"
+            title="Date range restored from your saved preferences for this role"
+          >
+            <Clock className="w-3 h-3" />
+            Restored saved range
+          </Badge>
+        )}
         <Badge variant="outline" className={badgeClassName}>
           {badgeLabel}
         </Badge>
