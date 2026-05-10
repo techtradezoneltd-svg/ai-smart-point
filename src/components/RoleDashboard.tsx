@@ -58,10 +58,66 @@ export const RoleDashboard = ({ onNavigate }: RoleDashboardProps) => {
     yesterdayCustomers: 0,
   });
   const [loading, setLoading] = useState(true);
-  const [dateRange, setDateRange] = useState<DateRange | undefined>({
-    from: startOfDay(new Date()),
-    to: endOfDay(new Date()),
+
+  const dateRangeStorageKey = `dashboard:dateRange:${permissions.role || "default"}`;
+
+  const [dateRange, setDateRange] = useState<DateRange | undefined>(() => {
+    try {
+      if (typeof window !== "undefined" && permissions.role) {
+        const saved = localStorage.getItem(`dashboard:dateRange:${permissions.role}`);
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (parsed?.from) {
+            return {
+              from: new Date(parsed.from),
+              to: parsed.to ? new Date(parsed.to) : undefined,
+            };
+          }
+        }
+      }
+    } catch (e) {
+      console.warn("Failed to restore date range", e);
+    }
+    return {
+      from: startOfDay(new Date()),
+      to: endOfDay(new Date()),
+    };
   });
+
+  // Reload saved range when the role becomes available / changes
+  useEffect(() => {
+    if (!permissions.role) return;
+    try {
+      const saved = localStorage.getItem(`dashboard:dateRange:${permissions.role}`);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed?.from) {
+          setDateRange({
+            from: new Date(parsed.from),
+            to: parsed.to ? new Date(parsed.to) : undefined,
+          });
+        }
+      }
+    } catch (e) {
+      console.warn("Failed to restore date range", e);
+    }
+  }, [permissions.role]);
+
+  // Persist on change
+  useEffect(() => {
+    if (!permissions.role) return;
+    try {
+      localStorage.setItem(
+        dateRangeStorageKey,
+        JSON.stringify({
+          from: dateRange?.from?.toISOString() ?? null,
+          to: dateRange?.to?.toISOString() ?? null,
+        })
+      );
+    } catch (e) {
+      console.warn("Failed to persist date range", e);
+    }
+  }, [dateRange, permissions.role, dateRangeStorageKey]);
 
   const currentCurrency = settings?.company.currency || "USD";
   const formatCurrency = (amount: number) => formatCurrencyUtil(amount, currentCurrency);
