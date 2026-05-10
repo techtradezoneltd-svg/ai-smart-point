@@ -88,9 +88,12 @@ export const RoleDashboard = ({ onNavigate }: RoleDashboardProps) => {
   // the previous role's range under the new role's key during a switch.
   const loadedRoleRef = useRef<string | null>(null);
 
+  const [restoredFromSaved, setRestoredFromSaved] = useState(false);
+
   // Reload saved range whenever the role becomes available or changes
   useEffect(() => {
     if (!permissions.role) return;
+    let didRestore = false;
     try {
       const saved = localStorage.getItem(`dashboard:dateRange:${permissions.role}`);
       if (saved) {
@@ -100,6 +103,7 @@ export const RoleDashboard = ({ onNavigate }: RoleDashboardProps) => {
             from: new Date(parsed.from),
             to: parsed.to ? new Date(parsed.to) : undefined,
           });
+          didRestore = true;
         } else {
           setDateRange({ from: startOfDay(new Date()), to: endOfDay(new Date()) });
         }
@@ -112,6 +116,11 @@ export const RoleDashboard = ({ onNavigate }: RoleDashboardProps) => {
       setDateRange({ from: startOfDay(new Date()), to: endOfDay(new Date()) });
     } finally {
       loadedRoleRef.current = permissions.role;
+    }
+    setRestoredFromSaved(didRestore);
+    if (didRestore) {
+      const t = setTimeout(() => setRestoredFromSaved(false), 4000);
+      return () => clearTimeout(t);
     }
   }, [permissions.role]);
 
