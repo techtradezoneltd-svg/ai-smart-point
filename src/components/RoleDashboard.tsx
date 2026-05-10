@@ -408,7 +408,12 @@ export const RoleDashboard = ({ onNavigate }: RoleDashboardProps) => {
             title="Date range restored from your saved preferences for this role"
           >
             <Clock className="w-3 h-3" />
-            Restored saved range
+            <span>
+              Restored:{" "}
+              {dateRange?.from ? format(dateRange.from, "MMM d, yyyy") : "—"}
+              {" → "}
+              {dateRange?.to ? format(dateRange.to, "MMM d, yyyy") : "—"}
+            </span>
           </Badge>
         )}
         <Badge variant="outline" className={badgeClassName}>
