@@ -8,7 +8,7 @@ import { useSettings } from "@/contexts/SettingsContext";
 import { formatCurrency as formatCurrencyUtil } from "@/lib/currency";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { startOfDay, endOfDay, format } from "date-fns";
 import type { DateRange } from "react-day-picker";
 import {
