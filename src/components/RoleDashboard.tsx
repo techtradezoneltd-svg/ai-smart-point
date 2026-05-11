@@ -423,13 +423,42 @@ export const RoleDashboard = ({ onNavigate }: RoleDashboardProps) => {
               onClick={async (e) => {
                 e.stopPropagation();
                 const text = `${dateRange?.from ? format(dateRange.from, "MMM d, yyyy") : "—"} → ${dateRange?.to ? format(dateRange.to, "MMM d, yyyy") : "—"}`;
+                const fallbackCopy = (value: string): boolean => {
+                  try {
+                    const ta = document.createElement("textarea");
+                    ta.value = value;
+                    ta.setAttribute("readonly", "");
+                    ta.style.position = "fixed";
+                    ta.style.top = "0";
+                    ta.style.left = "0";
+                    ta.style.opacity = "0";
+                    document.body.appendChild(ta);
+                    ta.focus();
+                    ta.select();
+                    const ok = document.execCommand("copy");
+                    document.body.removeChild(ta);
+                    return ok;
+                  } catch {
+                    return false;
+                  }
+                };
+                let success = false;
                 try {
-                  await navigator.clipboard.writeText(text);
+                  if (navigator.clipboard?.writeText && window.isSecureContext) {
+                    await navigator.clipboard.writeText(text);
+                    success = true;
+                  } else {
+                    success = fallbackCopy(text);
+                  }
+                } catch {
+                  success = fallbackCopy(text);
+                }
+                if (success) {
                   setCopiedRange(true);
                   toast({ title: "Copied", description: text });
                   setTimeout(() => setCopiedRange(false), 2000);
-                } catch {
-                  toast({ title: "Copy failed", variant: "destructive" });
+                } else {
+                  toast({ title: "Copy failed", description: text, variant: "destructive" });
                 }
               }}
               className="ml-1 p-0.5 rounded hover:bg-primary/20 transition-colors"
