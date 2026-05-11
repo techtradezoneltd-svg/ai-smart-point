@@ -92,6 +92,7 @@ export const RoleDashboard = ({ onNavigate }: RoleDashboardProps) => {
   const loadedRoleRef = useRef<string | null>(null);
 
   const [restoredFromSaved, setRestoredFromSaved] = useState(false);
+  const [copiedRange, setCopiedRange] = useState(false);
 
   // Reload saved range whenever the role becomes available or changes
   useEffect(() => {
