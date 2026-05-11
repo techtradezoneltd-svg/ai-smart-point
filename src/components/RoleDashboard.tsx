@@ -417,6 +417,26 @@ export const RoleDashboard = ({ onNavigate }: RoleDashboardProps) => {
               {" → "}
               {dateRange?.to ? format(dateRange.to, "MMM d, yyyy") : "—"}
             </span>
+            <button
+              type="button"
+              onClick={async (e) => {
+                e.stopPropagation();
+                const text = `${dateRange?.from ? format(dateRange.from, "MMM d, yyyy") : "—"} → ${dateRange?.to ? format(dateRange.to, "MMM d, yyyy") : "—"}`;
+                try {
+                  await navigator.clipboard.writeText(text);
+                  setCopiedRange(true);
+                  toast({ title: "Copied", description: text });
+                  setTimeout(() => setCopiedRange(false), 2000);
+                } catch {
+                  toast({ title: "Copy failed", variant: "destructive" });
+                }
+              }}
+              className="ml-1 p-0.5 rounded hover:bg-primary/20 transition-colors"
+              title="Copy date range to clipboard"
+              aria-label="Copy date range"
+            >
+              {copiedRange ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
+            </button>
           </Badge>
         )}
         <Badge variant="outline" className={badgeClassName}>
