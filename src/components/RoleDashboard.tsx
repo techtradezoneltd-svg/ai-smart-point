@@ -28,7 +28,10 @@ import {
   ArrowUpRight,
   ArrowDownRight,
   Calendar as CalendarIcon,
+  Copy,
+  Check,
 } from "lucide-react";
+import { toast } from "@/hooks/use-toast";
 
 interface RoleDashboardProps {
   onNavigate: (view: string) => void;
