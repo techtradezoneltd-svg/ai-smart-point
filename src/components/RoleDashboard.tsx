@@ -424,6 +424,7 @@ export const RoleDashboard = ({ onNavigate }: RoleDashboardProps) => {
                 e.stopPropagation();
                 const text = `${dateRange?.from ? format(dateRange.from, "MMM d, yyyy") : "—"} → ${dateRange?.to ? format(dateRange.to, "MMM d, yyyy") : "—"}`;
                 const fallbackCopy = (value: string): boolean => {
+                  const prevActive = document.activeElement as HTMLElement | null;
                   try {
                     const ta = document.createElement("textarea");
                     ta.value = value;
@@ -437,6 +438,15 @@ export const RoleDashboard = ({ onNavigate }: RoleDashboardProps) => {
                     ta.select();
                     const ok = document.execCommand("copy");
                     document.body.removeChild(ta);
+                    // Clear any residual selection left by the copy operation
+                    const sel = window.getSelection();
+                    if (sel) {
+                      if (typeof sel.removeAllRanges === "function") sel.removeAllRanges();
+                      else if (typeof sel.empty === "function") sel.empty();
+                    }
+                    if (prevActive && typeof prevActive.focus === "function") {
+                      prevActive.focus();
+                    }
                     return ok;
                   } catch {
                     return false;
