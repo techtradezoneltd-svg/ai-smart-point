@@ -422,30 +422,28 @@ export const RoleDashboard = ({ onNavigate }: RoleDashboardProps) => {
               type="button"
               onClick={async (e) => {
                 e.stopPropagation();
+                const triggerBtn = e.currentTarget;
                 const text = `${dateRange?.from ? format(dateRange.from, "MMM d, yyyy") : "—"} → ${dateRange?.to ? format(dateRange.to, "MMM d, yyyy") : "—"}`;
                 const fallbackCopy = (value: string): boolean => {
-                  const prevActive = document.activeElement as HTMLElement | null;
                   try {
                     const ta = document.createElement("textarea");
                     ta.value = value;
                     ta.setAttribute("readonly", "");
+                    ta.setAttribute("aria-hidden", "true");
+                    ta.tabIndex = -1;
                     ta.style.position = "fixed";
                     ta.style.top = "0";
                     ta.style.left = "0";
                     ta.style.opacity = "0";
                     document.body.appendChild(ta);
-                    ta.focus();
+                    ta.focus({ preventScroll: true });
                     ta.select();
                     const ok = document.execCommand("copy");
                     document.body.removeChild(ta);
-                    // Clear any residual selection left by the copy operation
                     const sel = window.getSelection();
                     if (sel) {
                       if (typeof sel.removeAllRanges === "function") sel.removeAllRanges();
                       else if (typeof sel.empty === "function") sel.empty();
-                    }
-                    if (prevActive && typeof prevActive.focus === "function") {
-                      prevActive.focus();
                     }
                     return ok;
                   } catch {
@@ -463,6 +461,10 @@ export const RoleDashboard = ({ onNavigate }: RoleDashboardProps) => {
                 } catch {
                   success = fallbackCopy(text);
                 }
+                // Always restore focus to the trigger so keyboard users stay in place
+                if (triggerBtn && typeof triggerBtn.focus === "function") {
+                  triggerBtn.focus({ preventScroll: true });
+                }
                 if (success) {
                   setCopiedRange(true);
                   toast({ title: "Copied", description: text });
@@ -471,11 +473,17 @@ export const RoleDashboard = ({ onNavigate }: RoleDashboardProps) => {
                   toast({ title: "Copy failed", description: text, variant: "destructive" });
                 }
               }}
-              className="ml-1 p-0.5 rounded hover:bg-primary/20 transition-colors"
+              onKeyDown={(e) => {
+                // Space/Enter already trigger onClick on <button>; ensure no scroll on Space
+                if (e.key === " ") e.preventDefault();
+              }}
+              className="ml-1 p-0.5 rounded hover:bg-primary/20 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1 focus-visible:ring-offset-background"
               title="Copy date range to clipboard"
-              aria-label="Copy date range"
+              aria-label={copiedRange ? "Date range copied" : "Copy date range to clipboard"}
+              aria-live="polite"
+              aria-pressed={copiedRange}
             >
-              {copiedRange ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
+              {copiedRange ? <Check className="w-3 h-3" aria-hidden="true" /> : <Copy className="w-3 h-3" aria-hidden="true" />}
             </button>
           </Badge>
         )}
