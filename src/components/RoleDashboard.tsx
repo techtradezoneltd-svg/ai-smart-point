@@ -461,17 +461,35 @@ export const RoleDashboard = ({ onNavigate }: RoleDashboardProps) => {
                 } catch {
                   success = fallbackCopy(text);
                 }
-                // Always restore focus to the trigger so keyboard users stay in place
-                if (triggerBtn && typeof triggerBtn.focus === "function") {
-                  triggerBtn.focus({ preventScroll: true });
-                }
+                // Restore focus to the trigger button and keep it pinned across the
+                // toast lifecycle (Radix toasts can move focus on mount/unmount).
+                const refocus = () => {
+                  if (
+                    triggerBtn &&
+                    document.contains(triggerBtn) &&
+                    document.activeElement !== triggerBtn
+                  ) {
+                    triggerBtn.focus({ preventScroll: true });
+                  }
+                };
+                refocus();
                 if (success) {
                   setCopiedRange(true);
                   toast({ title: "Copied", description: text });
-                  setTimeout(() => setCopiedRange(false), 2000);
                 } else {
                   toast({ title: "Copy failed", description: text, variant: "destructive" });
                 }
+                // Re-assert focus after the toast mounts and again shortly after,
+                // so focus never drifts away from the copy button.
+                requestAnimationFrame(refocus);
+                const t1 = window.setTimeout(refocus, 50);
+                const t2 = window.setTimeout(refocus, 300);
+                const t3 = window.setTimeout(() => {
+                  setCopiedRange(false);
+                  refocus();
+                }, 2000);
+                // Best-effort cleanup if the component unmounts mid-flight
+                void t1; void t2; void t3;
               }}
               onKeyDown={(e) => {
                 // Space/Enter already trigger onClick on <button>; ensure no scroll on Space
