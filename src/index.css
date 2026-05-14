@@ -280,3 +280,57 @@ All colors MUST be HSL.
   background-color: hsl(var(--foreground)) !important;
   color: hsl(var(--accent)) !important;
 }
+
+/* ================================================================
+   POS — Portaled Radix content (dialogs, popovers, selects, dropdowns,
+   tooltips, toasts) renders OUTSIDE .pos-brutalist via React portal.
+   When the POS route is active we tag <body> with .pos-brutalist-active
+   so the same typography rules apply to that portaled content.
+   ================================================================ */
+body.pos-brutalist-active [role="dialog"],
+body.pos-brutalist-active [role="alertdialog"],
+body.pos-brutalist-active [role="menu"],
+body.pos-brutalist-active [role="listbox"],
+body.pos-brutalist-active [role="tooltip"],
+body.pos-brutalist-active [data-radix-popper-content-wrapper],
+body.pos-brutalist-active [data-sonner-toaster],
+body.pos-brutalist-active [data-sonner-toast],
+body.pos-brutalist-active [role="dialog"] *,
+body.pos-brutalist-active [role="alertdialog"] *,
+body.pos-brutalist-active [role="menu"] *,
+body.pos-brutalist-active [role="listbox"] *,
+body.pos-brutalist-active [role="tooltip"] *,
+body.pos-brutalist-active [data-radix-popper-content-wrapper] *,
+body.pos-brutalist-active [data-sonner-toast] * {
+  font-family: 'Karla', system-ui, sans-serif;
+}
+
+body.pos-brutalist-active [role="dialog"] h1,
+body.pos-brutalist-active [role="dialog"] h2,
+body.pos-brutalist-active [role="dialog"] h3,
+body.pos-brutalist-active [role="dialog"] h4,
+body.pos-brutalist-active [role="dialog"] h5,
+body.pos-brutalist-active [role="dialog"] h6,
+body.pos-brutalist-active [role="alertdialog"] h1,
+body.pos-brutalist-active [role="alertdialog"] h2,
+body.pos-brutalist-active [role="alertdialog"] h3,
+body.pos-brutalist-active [role="alertdialog"] h4,
+body.pos-brutalist-active [data-radix-dialog-title],
+body.pos-brutalist-active [data-radix-alert-dialog-title],
+body.pos-brutalist-active [role="dialog"] .text-xl,
+body.pos-brutalist-active [role="dialog"] .text-2xl,
+body.pos-brutalist-active [role="dialog"] .text-3xl,
+body.pos-brutalist-active [role="alertdialog"] .text-xl,
+body.pos-brutalist-active [role="alertdialog"] .text-2xl {
+  font-family: 'Cormorant Garamond', Georgia, serif !important;
+  letter-spacing: -0.01em;
+  font-weight: 600;
+}
+
+/* Hard edges for portaled surfaces too */
+body.pos-brutalist-active [role="dialog"],
+body.pos-brutalist-active [role="alertdialog"],
+body.pos-brutalist-active [data-radix-popper-content-wrapper] > *,
+body.pos-brutalist-active [data-sonner-toast] {
+  border-radius: 0 !important;
+}
