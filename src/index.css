@@ -150,3 +150,108 @@ All colors MUST be HSL.
     font-size: 10px;
   }
 }
+/* ================================================================
+   POS — Berlin Brutalist scoped theme
+   White / Black / Orange (#ff5722) / Yellow (#ffeb3b)
+   Cormorant Garamond headings + Karla body
+   ================================================================ */
+.pos-brutalist {
+  --background: 0 0% 100%;
+  --foreground: 0 0% 4%;
+  --card: 0 0% 100%;
+  --card-foreground: 0 0% 4%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 0 0% 4%;
+  --primary: 14 100% 57%;            /* #ff5722 */
+  --primary-foreground: 0 0% 100%;
+  --primary-glow: 14 100% 65%;
+  --secondary: 0 0% 96%;
+  --secondary-foreground: 0 0% 4%;
+  --muted: 0 0% 96%;
+  --muted-foreground: 0 0% 30%;
+  --accent: 54 100% 62%;             /* #ffeb3b */
+  --accent-foreground: 0 0% 4%;
+  --accent-glow: 54 100% 70%;
+  --destructive: 0 84% 50%;
+  --destructive-foreground: 0 0% 100%;
+  --border: 0 0% 4%;
+  --input: 0 0% 4%;
+  --ring: 14 100% 57%;
+  --radius: 0;
+
+  font-family: 'Karla', system-ui, sans-serif;
+  background: hsl(var(--background));
+  color: hsl(var(--foreground));
+}
+
+.pos-brutalist h1,
+.pos-brutalist h2,
+.pos-brutalist h3,
+.pos-brutalist h4,
+.pos-brutalist h5,
+.pos-brutalist h6,
+.pos-brutalist [data-pos-display] {
+  font-family: 'Cormorant Garamond', Georgia, serif;
+  letter-spacing: -0.01em;
+  font-weight: 600;
+}
+
+/* Hard edges + thick borders for the brutalist feel */
+.pos-brutalist .rounded-lg,
+.pos-brutalist .rounded-md,
+.pos-brutalist .rounded-xl,
+.pos-brutalist .rounded-2xl,
+.pos-brutalist .rounded-full,
+.pos-brutalist .rounded {
+  border-radius: 0 !important;
+}
+
+.pos-brutalist button,
+.pos-brutalist input,
+.pos-brutalist select,
+.pos-brutalist textarea,
+.pos-brutalist [role="dialog"] > * {
+  border-radius: 0 !important;
+}
+
+.pos-brutalist .border,
+.pos-brutalist .border-b,
+.pos-brutalist .border-t,
+.pos-brutalist .border-l,
+.pos-brutalist .border-r {
+  border-color: hsl(var(--foreground));
+}
+
+.pos-brutalist .shadow-sm,
+.pos-brutalist .shadow,
+.pos-brutalist .shadow-md,
+.pos-brutalist .shadow-lg {
+  box-shadow: 4px 4px 0 0 hsl(var(--foreground)) !important;
+}
+
+/* Bold accent for primary buttons */
+.pos-brutalist .bg-primary {
+  background-color: hsl(var(--primary));
+  color: hsl(var(--primary-foreground));
+}
+
+.pos-brutalist .bg-card,
+.pos-brutalist .bg-background {
+  background-color: hsl(var(--background));
+}
+
+.pos-brutalist .bg-muted\/60,
+.pos-brutalist .bg-muted {
+  background-color: hsl(var(--background));
+}
+
+/* Override the green checkout button to brand orange */
+.pos-brutalist .bg-green-600 {
+  background-color: hsl(var(--primary)) !important;
+  color: hsl(var(--primary-foreground)) !important;
+  border: 2px solid hsl(var(--foreground));
+}
+.pos-brutalist .hover\:bg-green-700:hover {
+  background-color: hsl(var(--foreground)) !important;
+  color: hsl(var(--accent)) !important;
+}
