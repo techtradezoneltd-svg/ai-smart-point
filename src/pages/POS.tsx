@@ -4,7 +4,9 @@ import EnhancedPOSInterface from "@/components/EnhancedPOSInterface";
 const POS = () => {
   return (
     <SettingsProvider>
-      <EnhancedPOSInterface />
+      <div className="pos-brutalist min-h-screen">
+        <EnhancedPOSInterface />
+      </div>
     </SettingsProvider>
   );
 };
