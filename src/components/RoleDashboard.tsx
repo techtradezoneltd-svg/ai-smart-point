@@ -523,35 +523,24 @@ export const RoleDashboard = ({ onNavigate }: RoleDashboardProps) => {
                 } catch {
                   success = fallbackCopy(text);
                 }
-                // Restore focus to the trigger button and keep it pinned across the
-                // toast lifecycle (Radix toasts can move focus on mount/unmount).
-                const refocus = () => {
-                  if (
-                    triggerBtn &&
-                    document.contains(triggerBtn) &&
-                    document.activeElement !== triggerBtn
-                  ) {
-                    triggerBtn.focus({ preventScroll: true });
-                  }
-                };
-                refocus();
+                // Pin focus to the trigger across the entire toast lifecycle
+                // (Radix toasts can move focus on mount/unmount). The pinner
+                // tracks its own timeouts and clears them on unmount.
+                pinFocus(triggerBtn);
                 if (success) {
                   setCopiedRange(true);
                   toast({ title: "Copied", description: text });
                 } else {
                   toast({ title: "Copy failed", description: text, variant: "destructive" });
                 }
-                // Re-assert focus after the toast mounts and again shortly after,
-                // so focus never drifts away from the copy button.
-                requestAnimationFrame(refocus);
-                const t1 = window.setTimeout(refocus, 50);
-                const t2 = window.setTimeout(refocus, 300);
-                const t3 = window.setTimeout(() => {
+                if (copyResetTimeoutRef.current !== null) {
+                  window.clearTimeout(copyResetTimeoutRef.current);
+                }
+                copyResetTimeoutRef.current = window.setTimeout(() => {
+                  copyResetTimeoutRef.current = null;
                   setCopiedRange(false);
-                  refocus();
+                  pinFocus(triggerBtn, [0]);
                 }, 2000);
-                // Best-effort cleanup if the component unmounts mid-flight
-                void t1; void t2; void t3;
               }}
               onKeyDown={(e) => {
                 // Space/Enter already trigger onClick on <button>; ensure no scroll on Space
