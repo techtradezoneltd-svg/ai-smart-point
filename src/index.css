@@ -184,14 +184,39 @@ All colors MUST be HSL.
   color: hsl(var(--foreground));
 }
 
+/* Force Karla body font everywhere inside POS */
+.pos-brutalist,
+.pos-brutalist *,
+.pos-brutalist button,
+.pos-brutalist input,
+.pos-brutalist select,
+.pos-brutalist textarea,
+.pos-brutalist label,
+.pos-brutalist span,
+.pos-brutalist p,
+.pos-brutalist div,
+.pos-brutalist [role="dialog"],
+.pos-brutalist [role="dialog"] * {
+  font-family: 'Karla', system-ui, sans-serif;
+}
+
+/* Cormorant Garamond for ALL headings & display text in POS */
 .pos-brutalist h1,
 .pos-brutalist h2,
 .pos-brutalist h3,
 .pos-brutalist h4,
 .pos-brutalist h5,
 .pos-brutalist h6,
-.pos-brutalist [data-pos-display] {
-  font-family: 'Cormorant Garamond', Georgia, serif;
+.pos-brutalist [data-pos-display],
+.pos-brutalist [role="dialog"] h1,
+.pos-brutalist [role="dialog"] h2,
+.pos-brutalist [role="dialog"] h3,
+.pos-brutalist [data-radix-dialog-title],
+.pos-brutalist .text-2xl,
+.pos-brutalist .text-3xl,
+.pos-brutalist .text-4xl,
+.pos-brutalist .text-xl {
+  font-family: 'Cormorant Garamond', Georgia, serif !important;
   letter-spacing: -0.01em;
   font-weight: 600;
 }
