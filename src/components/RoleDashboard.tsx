@@ -37,6 +37,58 @@ interface RoleDashboardProps {
   onNavigate: (view: string) => void;
 }
 
+/**
+ * useFocusPinner
+ * Keeps focus pinned on a target element across an async UI lifecycle
+ * (e.g. a Radix toast mounting/unmounting that may steal focus).
+ * All scheduled timeouts and animation frames are tracked and cleared
+ * on unmount to avoid leaks or focus calls on detached nodes.
+ */
+function useFocusPinner() {
+  const timeoutsRef = useRef<Set<number>>(new Set());
+  const rafsRef = useRef<Set<number>>(new Set());
+
+  useEffect(() => {
+    return () => {
+      timeoutsRef.current.forEach((id) => window.clearTimeout(id));
+      timeoutsRef.current.clear();
+      rafsRef.current.forEach((id) => window.cancelAnimationFrame(id));
+      rafsRef.current.clear();
+    };
+  }, []);
+
+  const pin = (
+    target: HTMLElement | null,
+    schedule: number[] = [0, 50, 300, 1000, 2000],
+  ) => {
+    if (!target) return;
+    const refocus = () => {
+      if (
+        target &&
+        document.contains(target) &&
+        document.activeElement !== target
+      ) {
+        target.focus({ preventScroll: true });
+      }
+    };
+    refocus();
+    const rafId = window.requestAnimationFrame(() => {
+      rafsRef.current.delete(rafId);
+      refocus();
+    });
+    rafsRef.current.add(rafId);
+    schedule.forEach((delay) => {
+      const id = window.setTimeout(() => {
+        timeoutsRef.current.delete(id);
+        refocus();
+      }, delay);
+      timeoutsRef.current.add(id);
+    });
+  };
+
+  return pin;
+}
+
 export const RoleDashboard = ({ onNavigate }: RoleDashboardProps) => {
   const permissions = usePermissions();
   const { settings } = useSettings();
