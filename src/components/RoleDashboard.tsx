@@ -37,6 +37,58 @@ interface RoleDashboardProps {
   onNavigate: (view: string) => void;
 }
 
+/**
+ * useFocusPinner
+ * Keeps focus pinned on a target element across an async UI lifecycle
+ * (e.g. a Radix toast mounting/unmounting that may steal focus).
+ * All scheduled timeouts and animation frames are tracked and cleared
+ * on unmount to avoid leaks or focus calls on detached nodes.
+ */
+function useFocusPinner() {
+  const timeoutsRef = useRef<Set<number>>(new Set());
+  const rafsRef = useRef<Set<number>>(new Set());
+
+  useEffect(() => {
+    return () => {
+      timeoutsRef.current.forEach((id) => window.clearTimeout(id));
+      timeoutsRef.current.clear();
+      rafsRef.current.forEach((id) => window.cancelAnimationFrame(id));
+      rafsRef.current.clear();
+    };
+  }, []);
+
+  const pin = (
+    target: HTMLElement | null,
+    schedule: number[] = [0, 50, 300, 1000, 2000],
+  ) => {
+    if (!target) return;
+    const refocus = () => {
+      if (
+        target &&
+        document.contains(target) &&
+        document.activeElement !== target
+      ) {
+        target.focus({ preventScroll: true });
+      }
+    };
+    refocus();
+    const rafId = window.requestAnimationFrame(() => {
+      rafsRef.current.delete(rafId);
+      refocus();
+    });
+    rafsRef.current.add(rafId);
+    schedule.forEach((delay) => {
+      const id = window.setTimeout(() => {
+        timeoutsRef.current.delete(id);
+        refocus();
+      }, delay);
+      timeoutsRef.current.add(id);
+    });
+  };
+
+  return pin;
+}
+
 export const RoleDashboard = ({ onNavigate }: RoleDashboardProps) => {
   const permissions = usePermissions();
   const { settings } = useSettings();
@@ -93,6 +145,16 @@ export const RoleDashboard = ({ onNavigate }: RoleDashboardProps) => {
 
   const [restoredFromSaved, setRestoredFromSaved] = useState(false);
   const [copiedRange, setCopiedRange] = useState(false);
+  const pinFocus = useFocusPinner();
+  const copyResetTimeoutRef = useRef<number | null>(null);
+  useEffect(() => {
+    return () => {
+      if (copyResetTimeoutRef.current !== null) {
+        window.clearTimeout(copyResetTimeoutRef.current);
+        copyResetTimeoutRef.current = null;
+      }
+    };
+  }, []);
 
   // Reload saved range whenever the role becomes available or changes
   useEffect(() => {
@@ -461,35 +523,24 @@ export const RoleDashboard = ({ onNavigate }: RoleDashboardProps) => {
                 } catch {
                   success = fallbackCopy(text);
                 }
-                // Restore focus to the trigger button and keep it pinned across the
-                // toast lifecycle (Radix toasts can move focus on mount/unmount).
-                const refocus = () => {
-                  if (
-                    triggerBtn &&
-                    document.contains(triggerBtn) &&
-                    document.activeElement !== triggerBtn
-                  ) {
-                    triggerBtn.focus({ preventScroll: true });
-                  }
-                };
-                refocus();
+                // Pin focus to the trigger across the entire toast lifecycle
+                // (Radix toasts can move focus on mount/unmount). The pinner
+                // tracks its own timeouts and clears them on unmount.
+                pinFocus(triggerBtn);
                 if (success) {
                   setCopiedRange(true);
                   toast({ title: "Copied", description: text });
                 } else {
                   toast({ title: "Copy failed", description: text, variant: "destructive" });
                 }
-                // Re-assert focus after the toast mounts and again shortly after,
-                // so focus never drifts away from the copy button.
-                requestAnimationFrame(refocus);
-                const t1 = window.setTimeout(refocus, 50);
-                const t2 = window.setTimeout(refocus, 300);
-                const t3 = window.setTimeout(() => {
+                if (copyResetTimeoutRef.current !== null) {
+                  window.clearTimeout(copyResetTimeoutRef.current);
+                }
+                copyResetTimeoutRef.current = window.setTimeout(() => {
+                  copyResetTimeoutRef.current = null;
                   setCopiedRange(false);
-                  refocus();
+                  pinFocus(triggerBtn, [0]);
                 }, 2000);
-                // Best-effort cleanup if the component unmounts mid-flight
-                void t1; void t2; void t3;
               }}
               onKeyDown={(e) => {
                 // Space/Enter already trigger onClick on <button>; ensure no scroll on Space
