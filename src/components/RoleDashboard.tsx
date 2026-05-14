@@ -145,6 +145,16 @@ export const RoleDashboard = ({ onNavigate }: RoleDashboardProps) => {
 
   const [restoredFromSaved, setRestoredFromSaved] = useState(false);
   const [copiedRange, setCopiedRange] = useState(false);
+  const pinFocus = useFocusPinner();
+  const copyResetTimeoutRef = useRef<number | null>(null);
+  useEffect(() => {
+    return () => {
+      if (copyResetTimeoutRef.current !== null) {
+        window.clearTimeout(copyResetTimeoutRef.current);
+        copyResetTimeoutRef.current = null;
+      }
+    };
+  }, []);
 
   // Reload saved range whenever the role becomes available or changes
   useEffect(() => {
