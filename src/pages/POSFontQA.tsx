@@ -237,17 +237,31 @@ const POSFontQA = () => {
                   <th className="text-left p-2">Heading font</th>
                   <th className="text-left p-2">Heading</th>
                   <th className="text-left p-2">Radius 0</th>
+                  <th className="text-left p-2">Evidence</th>
                 </tr>
               </thead>
               <tbody>
                 {rows.map((r) => (
-                  <tr key={r.surface} className="border-b border-foreground">
+                  <tr key={r.surface} className="border-b border-foreground align-top">
                     <td className="p-2 font-bold">{r.surface}</td>
                     <td className="p-2 font-mono text-xs">{r.bodyFont}</td>
                     <td className="p-2"><Status ok={r.bodyOk} /></td>
                     <td className="p-2 font-mono text-xs">{r.headingFont}</td>
                     <td className="p-2"><Status ok={r.headingOk} /></td>
                     <td className="p-2"><Status ok={r.radiusOk} /></td>
+                    <td className="p-2">
+                      {r.screenshot ? (
+                        <a href={r.screenshot} target="_blank" rel="noreferrer" title="Open full-size">
+                          <img
+                            src={r.screenshot}
+                            alt={`${r.surface} screenshot`}
+                            className="max-w-[180px] max-h-[120px] border-2 border-foreground"
+                          />
+                        </a>
+                      ) : (
+                        <span className="text-muted-foreground">— none —</span>
+                      )}
+                    </td>
                   </tr>
                 ))}
               </tbody>
