@@ -18,6 +18,7 @@ import {
   DropdownMenuSeparator, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
+import { toPng } from "html-to-image";
 
 const KARLA = /Karla/i;
 const CORMORANT = /Cormorant Garamond/i;
@@ -30,6 +31,7 @@ type Row = {
   bodyOk: boolean;
   headingOk: boolean | null; // null = N/A
   radiusOk: boolean;
+  screenshot: string | null;
 };
 
 const surfaces: Array<{
@@ -56,42 +58,56 @@ const POSFontQA = () => {
     };
   }, []);
 
-  const scan = useCallback(() => {
-    const results: Row[] = surfaces.map(({ surface, selector, headingSelector }) => {
-      const el = document.querySelector(selector) as HTMLElement | null;
-      if (!el) {
+  const scan = useCallback(async () => {
+    const results: Row[] = await Promise.all(
+      surfaces.map(async ({ surface, selector, headingSelector }) => {
+        const el = document.querySelector(selector) as HTMLElement | null;
+        if (!el) {
+          return {
+            surface, selector,
+            bodyFont: "— not mounted —",
+            headingFont: "—",
+            bodyOk: false,
+            headingOk: headingSelector ? false : null,
+            radiusOk: false,
+            screenshot: null,
+          };
+        }
+        const bodyFont = getComputedStyle(el).fontFamily;
+        const radiusOk = parseFloat(getComputedStyle(el).borderTopLeftRadius) === 0;
+        let headingFont = "—";
+        let headingOk: boolean | null = null;
+        if (headingSelector) {
+          const h = document.querySelector(headingSelector) as HTMLElement | null;
+          if (h) {
+            headingFont = getComputedStyle(h).fontFamily;
+            headingOk = CORMORANT.test(headingFont);
+          } else {
+            headingFont = "— heading not found —";
+            headingOk = false;
+          }
+        }
+        let screenshot: string | null = null;
+        try {
+          screenshot = await toPng(el, {
+            cacheBust: true,
+            pixelRatio: 1,
+            backgroundColor: "#ffffff",
+          });
+        } catch {
+          screenshot = null;
+        }
         return {
           surface, selector,
-          bodyFont: "— not mounted —",
-          headingFont: "—",
-          bodyOk: false,
-          headingOk: headingSelector ? false : null,
-          radiusOk: false,
+          bodyFont,
+          headingFont,
+          bodyOk: KARLA.test(bodyFont),
+          headingOk,
+          radiusOk,
+          screenshot,
         };
-      }
-      const bodyFont = getComputedStyle(el).fontFamily;
-      const radiusOk = parseFloat(getComputedStyle(el).borderTopLeftRadius) === 0;
-      let headingFont = "—";
-      let headingOk: boolean | null = null;
-      if (headingSelector) {
-        const h = document.querySelector(headingSelector) as HTMLElement | null;
-        if (h) {
-          headingFont = getComputedStyle(h).fontFamily;
-          headingOk = CORMORANT.test(headingFont);
-        } else {
-          headingFont = "— heading not found —";
-          headingOk = false;
-        }
-      }
-      return {
-        surface, selector,
-        bodyFont,
-        headingFont,
-        bodyOk: KARLA.test(bodyFont),
-        headingOk,
-        radiusOk,
-      };
-    });
+      })
+    );
     setRows(results);
   }, []);
 
@@ -221,17 +237,31 @@ const POSFontQA = () => {
                   <th className="text-left p-2">Heading font</th>
                   <th className="text-left p-2">Heading</th>
                   <th className="text-left p-2">Radius 0</th>
+                  <th className="text-left p-2">Evidence</th>
                 </tr>
               </thead>
               <tbody>
                 {rows.map((r) => (
-                  <tr key={r.surface} className="border-b border-foreground">
+                  <tr key={r.surface} className="border-b border-foreground align-top">
                     <td className="p-2 font-bold">{r.surface}</td>
                     <td className="p-2 font-mono text-xs">{r.bodyFont}</td>
                     <td className="p-2"><Status ok={r.bodyOk} /></td>
                     <td className="p-2 font-mono text-xs">{r.headingFont}</td>
                     <td className="p-2"><Status ok={r.headingOk} /></td>
                     <td className="p-2"><Status ok={r.radiusOk} /></td>
+                    <td className="p-2">
+                      {r.screenshot ? (
+                        <a href={r.screenshot} target="_blank" rel="noreferrer" title="Open full-size">
+                          <img
+                            src={r.screenshot}
+                            alt={`${r.surface} screenshot`}
+                            className="max-w-[180px] max-h-[120px] border-2 border-foreground"
+                          />
+                        </a>
+                      ) : (
+                        <span className="text-muted-foreground">— none —</span>
+                      )}
+                    </td>
                   </tr>
                 ))}
               </tbody>
