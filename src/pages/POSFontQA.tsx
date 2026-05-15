@@ -58,42 +58,56 @@ const POSFontQA = () => {
     };
   }, []);
 
-  const scan = useCallback(() => {
-    const results: Row[] = surfaces.map(({ surface, selector, headingSelector }) => {
-      const el = document.querySelector(selector) as HTMLElement | null;
-      if (!el) {
+  const scan = useCallback(async () => {
+    const results: Row[] = await Promise.all(
+      surfaces.map(async ({ surface, selector, headingSelector }) => {
+        const el = document.querySelector(selector) as HTMLElement | null;
+        if (!el) {
+          return {
+            surface, selector,
+            bodyFont: "— not mounted —",
+            headingFont: "—",
+            bodyOk: false,
+            headingOk: headingSelector ? false : null,
+            radiusOk: false,
+            screenshot: null,
+          };
+        }
+        const bodyFont = getComputedStyle(el).fontFamily;
+        const radiusOk = parseFloat(getComputedStyle(el).borderTopLeftRadius) === 0;
+        let headingFont = "—";
+        let headingOk: boolean | null = null;
+        if (headingSelector) {
+          const h = document.querySelector(headingSelector) as HTMLElement | null;
+          if (h) {
+            headingFont = getComputedStyle(h).fontFamily;
+            headingOk = CORMORANT.test(headingFont);
+          } else {
+            headingFont = "— heading not found —";
+            headingOk = false;
+          }
+        }
+        let screenshot: string | null = null;
+        try {
+          screenshot = await toPng(el, {
+            cacheBust: true,
+            pixelRatio: 1,
+            backgroundColor: "#ffffff",
+          });
+        } catch {
+          screenshot = null;
+        }
         return {
           surface, selector,
-          bodyFont: "— not mounted —",
-          headingFont: "—",
-          bodyOk: false,
-          headingOk: headingSelector ? false : null,
-          radiusOk: false,
+          bodyFont,
+          headingFont,
+          bodyOk: KARLA.test(bodyFont),
+          headingOk,
+          radiusOk,
+          screenshot,
         };
-      }
-      const bodyFont = getComputedStyle(el).fontFamily;
-      const radiusOk = parseFloat(getComputedStyle(el).borderTopLeftRadius) === 0;
-      let headingFont = "—";
-      let headingOk: boolean | null = null;
-      if (headingSelector) {
-        const h = document.querySelector(headingSelector) as HTMLElement | null;
-        if (h) {
-          headingFont = getComputedStyle(h).fontFamily;
-          headingOk = CORMORANT.test(headingFont);
-        } else {
-          headingFont = "— heading not found —";
-          headingOk = false;
-        }
-      }
-      return {
-        surface, selector,
-        bodyFont,
-        headingFont,
-        bodyOk: KARLA.test(bodyFont),
-        headingOk,
-        radiusOk,
-      };
-    });
+      })
+    );
     setRows(results);
   }, []);
 
