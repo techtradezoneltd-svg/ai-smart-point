@@ -18,6 +18,7 @@ import {
   DropdownMenuSeparator, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
+import { toPng } from "html-to-image";
 
 const KARLA = /Karla/i;
 const CORMORANT = /Cormorant Garamond/i;
@@ -30,6 +31,7 @@ type Row = {
   bodyOk: boolean;
   headingOk: boolean | null; // null = N/A
   radiusOk: boolean;
+  screenshot: string | null;
 };
 
 const surfaces: Array<{
