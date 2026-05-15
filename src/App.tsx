@@ -30,6 +30,7 @@ const AuthenticatedApp = () => {
     <Routes>
       <Route path="/" element={<Index />} />
       <Route path="/pos" element={<POS />} />
+      <Route path="/pos-font-qa" element={<POSFontQA />} />
       <Route path="*" element={<NotFound />} />
     </Routes>
   );
