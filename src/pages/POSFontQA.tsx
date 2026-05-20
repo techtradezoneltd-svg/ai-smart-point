@@ -48,15 +48,43 @@ const surfaces: Array<{
   { surface: "Sonner Toast", selector: '[data-sonner-toast]', headingSelector: '[data-sonner-toast] [data-title]' },
 ];
 
+type ScanRun = {
+  id: string;
+  timestamp: number;
+  label?: string;
+  rows: Row[];
+  summary: { total: number; bodyPass: number; headingPass: number; radiusPass: number };
+};
+
+const HISTORY_KEY = "pos-font-qa-history";
+const MAX_HISTORY = 25;
+
 const POSFontQA = () => {
   const [rows, setRows] = useState<Row[]>([]);
+  const [history, setHistory] = useState<ScanRun[]>([]);
+  const [selectedRunId, setSelectedRunId] = useState<string | null>(null);
 
   useEffect(() => {
     document.body.classList.add("pos-brutalist-active");
+    try {
+      const raw = localStorage.getItem(HISTORY_KEY);
+      if (raw) setHistory(JSON.parse(raw));
+    } catch {
+      // ignore
+    }
     return () => {
       document.body.classList.remove("pos-brutalist-active");
     };
   }, []);
+
+  const persistHistory = (next: ScanRun[]) => {
+    setHistory(next);
+    try {
+      localStorage.setItem(HISTORY_KEY, JSON.stringify(next));
+    } catch (e) {
+      console.warn("Could not persist scan history (likely quota).", e);
+    }
+  };
 
   const scan = useCallback(async () => {
     const results: Row[] = await Promise.all(
