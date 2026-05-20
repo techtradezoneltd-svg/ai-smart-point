@@ -1,12 +1,11 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import {
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger,
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription,
 } from "@/components/ui/dialog";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
-  AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
@@ -23,35 +22,48 @@ import { toPng } from "html-to-image";
 const KARLA = /Karla/i;
 const CORMORANT = /Cormorant Garamond/i;
 
+type SurfaceKey =
+  | "dialog"
+  | "alertdialog"
+  | "select"
+  | "popover"
+  | "tooltip"
+  | "dropdown"
+  | "sonner";
+
 type Row = {
   surface: string;
   selector: string;
   bodyFont: string;
   headingFont: string;
   bodyOk: boolean;
-  headingOk: boolean | null; // null = N/A
+  headingOk: boolean | null;
   radiusOk: boolean;
   screenshot: string | null;
 };
 
-const surfaces: Array<{
+type SurfaceDef = {
+  key: SurfaceKey;
   surface: string;
   selector: string;
-  headingSelector?: string; // optional — null means N/A
-}> = [
-  { surface: "Dialog", selector: '[data-qa-surface="dialog"]', headingSelector: '[data-qa-surface="dialog"] [data-qa-heading]' },
-  { surface: "AlertDialog", selector: '[data-qa-surface="alertdialog"]', headingSelector: '[data-qa-surface="alertdialog"] [data-qa-heading]' },
-  { surface: "Select", selector: '[data-qa-surface="select"]' },
-  { surface: "Popover", selector: '[data-qa-surface="popover"]', headingSelector: '[data-qa-surface="popover"] [data-qa-heading]' },
-  { surface: "Tooltip", selector: '[data-qa-surface="tooltip"]' },
-  { surface: "DropdownMenu", selector: '[data-qa-surface="dropdown"]' },
-  { surface: "Sonner Toast", selector: '[data-sonner-toast]', headingSelector: '[data-sonner-toast] [data-title]' },
+  headingSelector?: string;
+  /** Render delay (ms) after opening — gives Radix portal + animation time to settle. */
+  renderDelayMs: number;
+};
+
+const surfaces: SurfaceDef[] = [
+  { key: "dialog",      surface: "Dialog",       selector: '[data-qa-surface="dialog"]',      headingSelector: '[data-qa-surface="dialog"] [data-qa-heading]',      renderDelayMs: 350 },
+  { key: "alertdialog", surface: "AlertDialog",  selector: '[data-qa-surface="alertdialog"]', headingSelector: '[data-qa-surface="alertdialog"] [data-qa-heading]', renderDelayMs: 350 },
+  { key: "select",      surface: "Select",       selector: '[data-qa-surface="select"]',                                                                              renderDelayMs: 300 },
+  { key: "popover",     surface: "Popover",      selector: '[data-qa-surface="popover"]',     headingSelector: '[data-qa-surface="popover"] [data-qa-heading]',     renderDelayMs: 300 },
+  { key: "tooltip",     surface: "Tooltip",      selector: '[data-qa-surface="tooltip"]',                                                                             renderDelayMs: 300 },
+  { key: "dropdown",    surface: "DropdownMenu", selector: '[data-qa-surface="dropdown"]',                                                                            renderDelayMs: 300 },
+  { key: "sonner",      surface: "Sonner Toast", selector: '[data-sonner-toast]',             headingSelector: '[data-sonner-toast] [data-title]',                  renderDelayMs: 450 },
 ];
 
 type ScanRun = {
   id: string;
   timestamp: number;
-  label?: string;
   rows: Row[];
   summary: { total: number; bodyPass: number; headingPass: number; radiusPass: number };
 };
@@ -59,19 +71,41 @@ type ScanRun = {
 const HISTORY_KEY = "pos-font-qa-history";
 const MAX_HISTORY = 25;
 
+const sleep = (ms: number) => new Promise<void>((res) => setTimeout(res, ms));
+const nextFrame = () =>
+  new Promise<void>((res) => requestAnimationFrame(() => requestAnimationFrame(() => res())));
+
+const waitForElement = async (selector: string, timeoutMs = 1500): Promise<HTMLElement | null> => {
+  const start = performance.now();
+  while (performance.now() - start < timeoutMs) {
+    const el = document.querySelector(selector) as HTMLElement | null;
+    if (el) return el;
+    await sleep(50);
+  }
+  return null;
+};
+
 const POSFontQA = () => {
   const [rows, setRows] = useState<Row[]>([]);
   const [history, setHistory] = useState<ScanRun[]>([]);
   const [selectedRunId, setSelectedRunId] = useState<string | null>(null);
+  const [scanning, setScanning] = useState(false);
+  const [progress, setProgress] = useState<string>("");
+
+  // Controlled open state per surface
+  const [open, setOpen] = useState<Record<SurfaceKey, boolean>>({
+    dialog: false, alertdialog: false, select: false,
+    popover: false, tooltip: false, dropdown: false, sonner: false,
+  });
+  const openRef = useRef(open);
+  openRef.current = open;
 
   useEffect(() => {
     document.body.classList.add("pos-brutalist-active");
     try {
       const raw = localStorage.getItem(HISTORY_KEY);
       if (raw) setHistory(JSON.parse(raw));
-    } catch {
-      // ignore
-    }
+    } catch { /* ignore */ }
     return () => {
       document.body.classList.remove("pos-brutalist-active");
     };
@@ -86,74 +120,126 @@ const POSFontQA = () => {
     }
   };
 
-  const scan = useCallback(async () => {
-    const results: Row[] = await Promise.all(
-      surfaces.map(async ({ surface, selector, headingSelector }) => {
-        const el = document.querySelector(selector) as HTMLElement | null;
-        if (!el) {
-          return {
-            surface, selector,
-            bodyFont: "— not mounted —",
-            headingFont: "—",
-            bodyOk: false,
-            headingOk: headingSelector ? false : null,
-            radiusOk: false,
-            screenshot: null,
-          };
-        }
-        const bodyFont = getComputedStyle(el).fontFamily;
-        const radiusOk = parseFloat(getComputedStyle(el).borderTopLeftRadius) === 0;
-        let headingFont = "—";
-        let headingOk: boolean | null = null;
-        if (headingSelector) {
-          const h = document.querySelector(headingSelector) as HTMLElement | null;
-          if (h) {
-            headingFont = getComputedStyle(h).fontFamily;
-            headingOk = CORMORANT.test(headingFont);
-          } else {
-            headingFont = "— heading not found —";
-            headingOk = false;
-          }
-        }
-        let screenshot: string | null = null;
-        try {
-          screenshot = await toPng(el, {
-            cacheBust: true,
-            pixelRatio: 1,
-            backgroundColor: "#ffffff",
-          });
-        } catch {
-          screenshot = null;
-        }
-        return {
-          surface, selector,
-          bodyFont,
-          headingFont,
-          bodyOk: KARLA.test(bodyFont),
-          headingOk,
-          radiusOk,
-          screenshot,
-        };
-      })
-    );
-    setRows(results);
+  const setSurfaceOpen = async (key: SurfaceKey, value: boolean) => {
+    setOpen((p) => ({ ...p, [key]: value }));
+    await nextFrame();
+  };
 
-    const summary = {
-      total: results.length,
-      bodyPass: results.filter((r) => r.bodyOk).length,
-      headingPass: results.filter((r) => r.headingOk === true).length,
-      radiusPass: results.filter((r) => r.radiusOk).length,
+  const captureSurface = async (def: SurfaceDef): Promise<Row> => {
+    let el: HTMLElement | null = null;
+
+    if (def.key === "sonner") {
+      // Sonner is fired imperatively, not via controlled state.
+      toast("Brutalist toast", {
+        description: "Karla body • Cormorant heading expected",
+      });
+    } else {
+      await setSurfaceOpen(def.key, true);
+    }
+
+    el = await waitForElement(def.selector, 2000);
+    // Extra settle time for animation + font swap.
+    await sleep(def.renderDelayMs);
+    el = el ?? (document.querySelector(def.selector) as HTMLElement | null);
+
+    if (!el) {
+      if (def.key !== "sonner") await setSurfaceOpen(def.key, false);
+      return {
+        surface: def.surface,
+        selector: def.selector,
+        bodyFont: "— not mounted —",
+        headingFont: "—",
+        bodyOk: false,
+        headingOk: def.headingSelector ? false : null,
+        radiusOk: false,
+        screenshot: null,
+      };
+    }
+
+    const bodyFont = getComputedStyle(el).fontFamily;
+    const radiusOk = parseFloat(getComputedStyle(el).borderTopLeftRadius) === 0;
+    let headingFont = "—";
+    let headingOk: boolean | null = null;
+    if (def.headingSelector) {
+      const h = document.querySelector(def.headingSelector) as HTMLElement | null;
+      if (h) {
+        headingFont = getComputedStyle(h).fontFamily;
+        headingOk = CORMORANT.test(headingFont);
+      } else {
+        headingFont = "— heading not found —";
+        headingOk = false;
+      }
+    }
+
+    let screenshot: string | null = null;
+    try {
+      screenshot = await toPng(el, {
+        cacheBust: true,
+        pixelRatio: 1,
+        backgroundColor: "#ffffff",
+      });
+    } catch {
+      screenshot = null;
+    }
+
+    // Deterministic close so the next surface starts from a clean slate.
+    if (def.key !== "sonner") {
+      await setSurfaceOpen(def.key, false);
+      await sleep(200); // close animation
+    } else {
+      toast.dismiss();
+      await sleep(200);
+    }
+
+    return {
+      surface: def.surface,
+      selector: def.selector,
+      bodyFont,
+      headingFont,
+      bodyOk: KARLA.test(bodyFont),
+      headingOk,
+      radiusOk,
+      screenshot,
     };
-    const run: ScanRun = {
-      id: `run-${Date.now()}`,
-      timestamp: Date.now(),
-      rows: results,
-      summary,
-    };
-    const next = [run, ...history].slice(0, MAX_HISTORY);
-    persistHistory(next);
-    setSelectedRunId(run.id);
-  }, [history]);
+  };
+
+  const scan = useCallback(async () => {
+    if (scanning) return;
+    setScanning(true);
+    setProgress("Starting…");
+    const results: Row[] = [];
+    try {
+      for (const def of surfaces) {
+        setProgress(`Capturing ${def.surface}…`);
+        // eslint-disable-next-line no-await-in-loop
+        const row = await captureSurface(def);
+        results.push(row);
+        setRows([...results]);
+      }
+
+      const summary = {
+        total: results.length,
+        bodyPass: results.filter((r) => r.bodyOk).length,
+        headingPass: results.filter((r) => r.headingOk === true).length,
+        radiusPass: results.filter((r) => r.radiusOk).length,
+      };
+      const run: ScanRun = {
+        id: `run-${Date.now()}`,
+        timestamp: Date.now(),
+        rows: results,
+        summary,
+      };
+      const next = [run, ...history].slice(0, MAX_HISTORY);
+      persistHistory(next);
+      setSelectedRunId(run.id);
+      setProgress(`Done · ${results.length} surfaces captured`);
+    } catch (e) {
+      console.error(e);
+      setProgress("Scan failed — see console");
+    } finally {
+      setScanning(false);
+    }
+  }, [history, scanning]);
 
   const clearHistory = () => {
     persistHistory([]);
@@ -181,13 +267,6 @@ const POSFontQA = () => {
     return deltas.length ? deltas.join(" · ") : "no change";
   };
 
-  const fireToast = () => {
-    toast("Brutalist toast", {
-      description: "Karla body • Cormorant heading expected",
-    });
-    setTimeout(scan, 250);
-  };
-
   const Status = ({ ok }: { ok: boolean | null }) => {
     if (ok === null) return <span className="text-muted-foreground">N/A</span>;
     return ok ? <span className="text-green-600 font-bold">✓ PASS</span> : <span className="text-red-600 font-bold">✗ FAIL</span>;
@@ -199,18 +278,22 @@ const POSFontQA = () => {
         <header className="border-2 border-foreground p-4 bg-accent">
           <h1 className="text-3xl">POS Font QA</h1>
           <p className="text-sm">
-            Trigger each portaled surface, then click <strong>Scan</strong>. Surfaces must use{" "}
-            <em>Karla</em> for body and <em>Cormorant Garamond</em> for headings.
+            Click <strong>Run Automated Scan</strong> — each surface is opened deterministically,
+            given time to render, captured, then closed before the next.
           </p>
         </header>
 
-        {/* Triggers */}
-        <section className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          {/* Dialog */}
-          <Dialog>
-            <DialogTrigger asChild>
-              <Button>Open Dialog</Button>
-            </DialogTrigger>
+        {/* Controls */}
+        <section className="flex flex-wrap items-center gap-3">
+          <Button onClick={scan} disabled={scanning} className="bg-primary text-primary-foreground">
+            {scanning ? "Scanning…" : "Run Automated Scan"}
+          </Button>
+          {progress && <span className="text-sm font-mono">{progress}</span>}
+        </section>
+
+        {/* Surface mounts — controlled, no manual triggers needed */}
+        <section className="sr-only" aria-hidden>
+          <Dialog open={open.dialog} onOpenChange={(v) => setOpen((p) => ({ ...p, dialog: v }))}>
             <DialogContent data-qa-surface="dialog">
               <DialogHeader>
                 <DialogTitle data-qa-heading>Dialog Title</DialogTitle>
@@ -220,11 +303,7 @@ const POSFontQA = () => {
             </DialogContent>
           </Dialog>
 
-          {/* AlertDialog */}
-          <AlertDialog>
-            <AlertDialogTrigger asChild>
-              <Button>Open AlertDialog</Button>
-            </AlertDialogTrigger>
+          <AlertDialog open={open.alertdialog} onOpenChange={(v) => setOpen((p) => ({ ...p, alertdialog: v }))}>
             <AlertDialogContent data-qa-surface="alertdialog">
               <AlertDialogHeader>
                 <AlertDialogTitle data-qa-heading>Alert Title</AlertDialogTitle>
@@ -237,8 +316,7 @@ const POSFontQA = () => {
             </AlertDialogContent>
           </AlertDialog>
 
-          {/* Select */}
-          <Select>
+          <Select open={open.select} onOpenChange={(v) => setOpen((p) => ({ ...p, select: v }))}>
             <SelectTrigger>
               <SelectValue placeholder="Open Select" />
             </SelectTrigger>
@@ -249,30 +327,21 @@ const POSFontQA = () => {
             </SelectContent>
           </Select>
 
-          {/* Popover */}
-          <Popover>
-            <PopoverTrigger asChild>
-              <Button>Open Popover</Button>
-            </PopoverTrigger>
+          <Popover open={open.popover} onOpenChange={(v) => setOpen((p) => ({ ...p, popover: v }))}>
+            <PopoverTrigger asChild><Button>Popover anchor</Button></PopoverTrigger>
             <PopoverContent data-qa-surface="popover">
               <h3 data-qa-heading className="text-xl">Popover Heading</h3>
               <p>Popover body text in Karla.</p>
             </PopoverContent>
           </Popover>
 
-          {/* Tooltip */}
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button>Hover for Tooltip</Button>
-            </TooltipTrigger>
+          <Tooltip open={open.tooltip} onOpenChange={(v) => setOpen((p) => ({ ...p, tooltip: v }))}>
+            <TooltipTrigger asChild><Button>Tooltip anchor</Button></TooltipTrigger>
             <TooltipContent data-qa-surface="tooltip">Tooltip text</TooltipContent>
           </Tooltip>
 
-          {/* Dropdown */}
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button>Open Dropdown</Button>
-            </DropdownMenuTrigger>
+          <DropdownMenu open={open.dropdown} onOpenChange={(v) => setOpen((p) => ({ ...p, dropdown: v }))}>
+            <DropdownMenuTrigger asChild><Button>Dropdown anchor</Button></DropdownMenuTrigger>
             <DropdownMenuContent data-qa-surface="dropdown">
               <DropdownMenuLabel>Menu</DropdownMenuLabel>
               <DropdownMenuSeparator />
@@ -280,14 +349,6 @@ const POSFontQA = () => {
               <DropdownMenuItem>Two</DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
-
-          {/* Sonner */}
-          <Button onClick={fireToast}>Fire Sonner Toast</Button>
-
-          {/* Scan */}
-          <Button onClick={scan} className="bg-primary text-primary-foreground">
-            Scan Open Surfaces
-          </Button>
         </section>
 
         {/* Timeline */}
@@ -365,7 +426,7 @@ const POSFontQA = () => {
             if (displayRows.length === 0) {
               return (
                 <p className="p-4 text-muted-foreground">
-                  Open one or more surfaces, then click <strong>Scan Open Surfaces</strong>.
+                  Click <strong>Run Automated Scan</strong> to capture every surface.
                 </p>
               );
             }
@@ -411,7 +472,6 @@ const POSFontQA = () => {
             );
           })()}
         </section>
-
       </div>
     </div>
   );
