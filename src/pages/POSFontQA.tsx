@@ -137,7 +137,49 @@ const POSFontQA = () => {
       })
     );
     setRows(results);
-  }, []);
+
+    const summary = {
+      total: results.length,
+      bodyPass: results.filter((r) => r.bodyOk).length,
+      headingPass: results.filter((r) => r.headingOk === true).length,
+      radiusPass: results.filter((r) => r.radiusOk).length,
+    };
+    const run: ScanRun = {
+      id: `run-${Date.now()}`,
+      timestamp: Date.now(),
+      rows: results,
+      summary,
+    };
+    const next = [run, ...history].slice(0, MAX_HISTORY);
+    persistHistory(next);
+    setSelectedRunId(run.id);
+  }, [history]);
+
+  const clearHistory = () => {
+    persistHistory([]);
+    setSelectedRunId(null);
+  };
+
+  const exportHistory = () => {
+    const blob = new Blob([JSON.stringify(history, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `pos-font-qa-history-${Date.now()}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const diffVsPrevious = (idx: number): string | null => {
+    if (idx >= history.length - 1) return null;
+    const cur = history[idx].summary;
+    const prev = history[idx + 1].summary;
+    const deltas: string[] = [];
+    if (cur.bodyPass !== prev.bodyPass) deltas.push(`body ${cur.bodyPass - prev.bodyPass > 0 ? "+" : ""}${cur.bodyPass - prev.bodyPass}`);
+    if (cur.headingPass !== prev.headingPass) deltas.push(`heading ${cur.headingPass - prev.headingPass > 0 ? "+" : ""}${cur.headingPass - prev.headingPass}`);
+    if (cur.radiusPass !== prev.radiusPass) deltas.push(`radius ${cur.radiusPass - prev.radiusPass > 0 ? "+" : ""}${cur.radiusPass - prev.radiusPass}`);
+    return deltas.length ? deltas.join(" · ") : "no change";
+  };
 
   const fireToast = () => {
     toast("Brutalist toast", {
