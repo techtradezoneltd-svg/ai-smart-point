@@ -48,15 +48,43 @@ const surfaces: Array<{
   { surface: "Sonner Toast", selector: '[data-sonner-toast]', headingSelector: '[data-sonner-toast] [data-title]' },
 ];
 
+type ScanRun = {
+  id: string;
+  timestamp: number;
+  label?: string;
+  rows: Row[];
+  summary: { total: number; bodyPass: number; headingPass: number; radiusPass: number };
+};
+
+const HISTORY_KEY = "pos-font-qa-history";
+const MAX_HISTORY = 25;
+
 const POSFontQA = () => {
   const [rows, setRows] = useState<Row[]>([]);
+  const [history, setHistory] = useState<ScanRun[]>([]);
+  const [selectedRunId, setSelectedRunId] = useState<string | null>(null);
 
   useEffect(() => {
     document.body.classList.add("pos-brutalist-active");
+    try {
+      const raw = localStorage.getItem(HISTORY_KEY);
+      if (raw) setHistory(JSON.parse(raw));
+    } catch {
+      // ignore
+    }
     return () => {
       document.body.classList.remove("pos-brutalist-active");
     };
   }, []);
+
+  const persistHistory = (next: ScanRun[]) => {
+    setHistory(next);
+    try {
+      localStorage.setItem(HISTORY_KEY, JSON.stringify(next));
+    } catch (e) {
+      console.warn("Could not persist scan history (likely quota).", e);
+    }
+  };
 
   const scan = useCallback(async () => {
     const results: Row[] = await Promise.all(
@@ -109,7 +137,49 @@ const POSFontQA = () => {
       })
     );
     setRows(results);
-  }, []);
+
+    const summary = {
+      total: results.length,
+      bodyPass: results.filter((r) => r.bodyOk).length,
+      headingPass: results.filter((r) => r.headingOk === true).length,
+      radiusPass: results.filter((r) => r.radiusOk).length,
+    };
+    const run: ScanRun = {
+      id: `run-${Date.now()}`,
+      timestamp: Date.now(),
+      rows: results,
+      summary,
+    };
+    const next = [run, ...history].slice(0, MAX_HISTORY);
+    persistHistory(next);
+    setSelectedRunId(run.id);
+  }, [history]);
+
+  const clearHistory = () => {
+    persistHistory([]);
+    setSelectedRunId(null);
+  };
+
+  const exportHistory = () => {
+    const blob = new Blob([JSON.stringify(history, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `pos-font-qa-history-${Date.now()}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const diffVsPrevious = (idx: number): string | null => {
+    if (idx >= history.length - 1) return null;
+    const cur = history[idx].summary;
+    const prev = history[idx + 1].summary;
+    const deltas: string[] = [];
+    if (cur.bodyPass !== prev.bodyPass) deltas.push(`body ${cur.bodyPass - prev.bodyPass > 0 ? "+" : ""}${cur.bodyPass - prev.bodyPass}`);
+    if (cur.headingPass !== prev.headingPass) deltas.push(`heading ${cur.headingPass - prev.headingPass > 0 ? "+" : ""}${cur.headingPass - prev.headingPass}`);
+    if (cur.radiusPass !== prev.radiusPass) deltas.push(`radius ${cur.radiusPass - prev.radiusPass > 0 ? "+" : ""}${cur.radiusPass - prev.radiusPass}`);
+    return deltas.length ? deltas.join(" · ") : "no change";
+  };
 
   const fireToast = () => {
     toast("Brutalist toast", {
@@ -220,54 +290,128 @@ const POSFontQA = () => {
           </Button>
         </section>
 
-        {/* Report */}
+        {/* Timeline */}
         <section className="border-2 border-foreground">
-          <h2 className="text-2xl p-3 border-b-2 border-foreground bg-accent">Report</h2>
-          {rows.length === 0 ? (
-            <p className="p-4 text-muted-foreground">
-              Open one or more surfaces, then click <strong>Scan Open Surfaces</strong>.
-            </p>
+          <div className="flex items-center justify-between p-3 border-b-2 border-foreground bg-accent">
+            <h2 className="text-2xl">Scan Timeline ({history.length})</h2>
+            <div className="flex gap-2">
+              <Button onClick={exportHistory} disabled={history.length === 0} variant="outline">
+                Export JSON
+              </Button>
+              <Button onClick={clearHistory} disabled={history.length === 0} variant="destructive">
+                Clear History
+              </Button>
+            </div>
+          </div>
+          {history.length === 0 ? (
+            <p className="p-4 text-muted-foreground">No runs yet. Scans are saved automatically.</p>
           ) : (
-            <table className="w-full text-sm">
-              <thead className="bg-muted">
-                <tr className="border-b-2 border-foreground">
-                  <th className="text-left p-2">Surface</th>
-                  <th className="text-left p-2">Body font</th>
-                  <th className="text-left p-2">Body</th>
-                  <th className="text-left p-2">Heading font</th>
-                  <th className="text-left p-2">Heading</th>
-                  <th className="text-left p-2">Radius 0</th>
-                  <th className="text-left p-2">Evidence</th>
-                </tr>
-              </thead>
-              <tbody>
-                {rows.map((r) => (
-                  <tr key={r.surface} className="border-b border-foreground align-top">
-                    <td className="p-2 font-bold">{r.surface}</td>
-                    <td className="p-2 font-mono text-xs">{r.bodyFont}</td>
-                    <td className="p-2"><Status ok={r.bodyOk} /></td>
-                    <td className="p-2 font-mono text-xs">{r.headingFont}</td>
-                    <td className="p-2"><Status ok={r.headingOk} /></td>
-                    <td className="p-2"><Status ok={r.radiusOk} /></td>
-                    <td className="p-2">
-                      {r.screenshot ? (
-                        <a href={r.screenshot} target="_blank" rel="noreferrer" title="Open full-size">
-                          <img
-                            src={r.screenshot}
-                            alt={`${r.surface} screenshot`}
-                            className="max-w-[180px] max-h-[120px] border-2 border-foreground"
-                          />
-                        </a>
-                      ) : (
-                        <span className="text-muted-foreground">— none —</span>
+            <ol className="divide-y-2 divide-foreground">
+              {history.map((run, idx) => {
+                const delta = diffVsPrevious(idx);
+                const isSelected = run.id === selectedRunId;
+                const regressed =
+                  idx < history.length - 1 &&
+                  (run.summary.bodyPass < history[idx + 1].summary.bodyPass ||
+                    run.summary.headingPass < history[idx + 1].summary.headingPass ||
+                    run.summary.radiusPass < history[idx + 1].summary.radiusPass);
+                return (
+                  <li
+                    key={run.id}
+                    className={`p-3 cursor-pointer hover:bg-muted ${isSelected ? "bg-accent" : ""}`}
+                    onClick={() => setSelectedRunId(run.id)}
+                  >
+                    <div className="flex items-center justify-between gap-4">
+                      <div>
+                        <div className="font-bold">
+                          {new Date(run.timestamp).toLocaleString()}
+                          {idx === 0 && <span className="ml-2 text-xs">(latest)</span>}
+                        </div>
+                        <div className="text-xs font-mono">
+                          body {run.summary.bodyPass}/{run.summary.total} · heading{" "}
+                          {run.summary.headingPass}/{run.summary.total} · radius{" "}
+                          {run.summary.radiusPass}/{run.summary.total}
+                        </div>
+                      </div>
+                      {delta && (
+                        <span
+                          className={`text-xs font-bold px-2 py-1 border-2 border-foreground ${
+                            regressed ? "bg-red-200 text-red-900" : delta === "no change" ? "" : "bg-green-200 text-green-900"
+                          }`}
+                        >
+                          Δ {delta}
+                        </span>
                       )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+                    </div>
+                  </li>
+                );
+              })}
+            </ol>
           )}
         </section>
+
+        {/* Report */}
+        <section className="border-2 border-foreground">
+          <h2 className="text-2xl p-3 border-b-2 border-foreground bg-accent">
+            Report {selectedRunId && history.find((r) => r.id === selectedRunId)
+              ? `— ${new Date(history.find((r) => r.id === selectedRunId)!.timestamp).toLocaleString()}`
+              : ""}
+          </h2>
+          {(() => {
+            const displayRows =
+              selectedRunId && history.find((r) => r.id === selectedRunId)
+                ? history.find((r) => r.id === selectedRunId)!.rows
+                : rows;
+            if (displayRows.length === 0) {
+              return (
+                <p className="p-4 text-muted-foreground">
+                  Open one or more surfaces, then click <strong>Scan Open Surfaces</strong>.
+                </p>
+              );
+            }
+            return (
+              <table className="w-full text-sm">
+                <thead className="bg-muted">
+                  <tr className="border-b-2 border-foreground">
+                    <th className="text-left p-2">Surface</th>
+                    <th className="text-left p-2">Body font</th>
+                    <th className="text-left p-2">Body</th>
+                    <th className="text-left p-2">Heading font</th>
+                    <th className="text-left p-2">Heading</th>
+                    <th className="text-left p-2">Radius 0</th>
+                    <th className="text-left p-2">Evidence</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {displayRows.map((r) => (
+                    <tr key={r.surface} className="border-b border-foreground align-top">
+                      <td className="p-2 font-bold">{r.surface}</td>
+                      <td className="p-2 font-mono text-xs">{r.bodyFont}</td>
+                      <td className="p-2"><Status ok={r.bodyOk} /></td>
+                      <td className="p-2 font-mono text-xs">{r.headingFont}</td>
+                      <td className="p-2"><Status ok={r.headingOk} /></td>
+                      <td className="p-2"><Status ok={r.radiusOk} /></td>
+                      <td className="p-2">
+                        {r.screenshot ? (
+                          <a href={r.screenshot} target="_blank" rel="noreferrer" title="Open full-size">
+                            <img
+                              src={r.screenshot}
+                              alt={`${r.surface} screenshot`}
+                              className="max-w-[180px] max-h-[120px] border-2 border-foreground"
+                            />
+                          </a>
+                        ) : (
+                          <span className="text-muted-foreground">— none —</span>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            );
+          })()}
+        </section>
+
       </div>
     </div>
   );
