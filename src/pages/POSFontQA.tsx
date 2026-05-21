@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
 import { toPng } from "html-to-image";
+import JSZip from "jszip";
 
 const KARLA = /Karla/i;
 const CORMORANT = /Cormorant Garamond/i;
