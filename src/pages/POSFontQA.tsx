@@ -86,6 +86,64 @@ const waitForElement = async (selector: string, timeoutMs = 1500): Promise<HTMLE
   return null;
 };
 
+/**
+ * Composite a caption banner onto a screenshot data URL highlighting which
+ * checks failed (body font, heading font, radius). Returns a new data URL.
+ */
+const annotateScreenshot = (
+  dataUrl: string,
+  surface: string,
+  failures: string[],
+): Promise<string> =>
+  new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => {
+      const pass = failures.length === 0;
+      const bannerH = pass ? 56 : 56 + failures.length * 28;
+      const canvas = document.createElement("canvas");
+      canvas.width = img.naturalWidth;
+      canvas.height = img.naturalHeight + bannerH;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return resolve(dataUrl);
+      ctx.fillStyle = "#ffffff";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.drawImage(img, 0, bannerH);
+      ctx.fillStyle = pass ? "#15803d" : "#b91c1c";
+      ctx.fillRect(0, 0, canvas.width, bannerH);
+      ctx.strokeStyle = "#000";
+      ctx.lineWidth = 4;
+      ctx.strokeRect(2, 2, canvas.width - 4, canvas.height - 4);
+      ctx.fillStyle = "#ffffff";
+      ctx.font = "bold 28px Karla, system-ui, sans-serif";
+      ctx.textBaseline = "top";
+      ctx.fillText(`${pass ? "✓ PASS" : "✗ FAIL"} — ${surface}`, 16, 12);
+      if (!pass) {
+        ctx.fillStyle = "#ffeb3b";
+        ctx.font = "bold 20px Karla, system-ui, sans-serif";
+        failures.forEach((f, i) => {
+          ctx.fillText(`• ${f}`, 16, 48 + i * 28);
+        });
+      }
+      resolve(canvas.toDataURL("image/png"));
+    };
+    img.onerror = () => resolve(dataUrl);
+    img.src = dataUrl;
+  });
+
+const computeFailures = (r: {
+  bodyOk: boolean;
+  headingOk: boolean | null;
+  radiusOk: boolean;
+  bodyFont: string;
+  headingFont: string;
+}): string[] => {
+  const f: string[] = [];
+  if (!r.bodyOk) f.push(`body font (got ${(r.bodyFont.split(",")[0] || "—").trim()})`);
+  if (r.headingOk === false) f.push(`heading font (got ${(r.headingFont.split(",")[0] || "—").trim()})`);
+  if (!r.radiusOk) f.push("radius ≠ 0");
+  return f;
+};
+
 const POSFontQA = () => {
   const [rows, setRows] = useState<Row[]>([]);
   const [history, setHistory] = useState<ScanRun[]>([]);
@@ -211,12 +269,22 @@ const POSFontQA = () => {
       await sleep(200);
     }
 
+    const bodyOk = KARLA.test(bodyFont);
+    const failures = computeFailures({ bodyOk, headingOk, radiusOk, bodyFont, headingFont });
+    if (screenshot) {
+      try {
+        screenshot = await annotateScreenshot(screenshot, def.surface, failures);
+      } catch {
+        /* keep un-annotated */
+      }
+    }
+
     return {
       surface: def.surface,
       selector: def.selector,
       bodyFont,
       headingFont,
-      bodyOk: KARLA.test(bodyFont),
+      bodyOk,
       headingOk,
       radiusOk,
       screenshot,
@@ -293,6 +361,10 @@ const POSFontQA = () => {
           const color = ok === null ? "#666" : ok ? "#15803d" : "#b91c1c";
           return `<td style="padding:8px;border:1px solid #000;color:${color};font-weight:700">${label}</td>`;
         };
+        const failures = computeFailures(r);
+        const failuresCell = failures.length
+          ? `<td style="padding:8px;border:1px solid #000;background:#fee2e2;color:#7f1d1d;font-weight:700">${failures.map((f) => `• ${f}`).join("<br/>")}</td>`
+          : `<td style="padding:8px;border:1px solid #000;background:#dcfce7;color:#14532d;font-weight:700">✓ all checks pass</td>`;
         return `<tr>
           <td style="padding:8px;border:1px solid #000;font-weight:700">${r.surface}</td>
           <td style="padding:8px;border:1px solid #000;font-family:monospace;font-size:11px">${r.bodyFont}</td>
@@ -300,6 +372,7 @@ const POSFontQA = () => {
           <td style="padding:8px;border:1px solid #000;font-family:monospace;font-size:11px">${r.headingFont}</td>
           ${cell(r.headingOk)}
           ${cell(r.radiusOk)}
+          ${failuresCell}
           <td style="padding:8px;border:1px solid #000">${img}</td>
         </tr>`;
       })
@@ -317,7 +390,7 @@ th{padding:8px;border:1px solid #000;background:#ffeb3b;text-align:left;font-fam
 <div class="summary">body ${run.summary.bodyPass}/${run.summary.total} · heading ${run.summary.headingPass}/${run.summary.total} · radius ${run.summary.radiusPass}/${run.summary.total}</div>
 <table>
 <thead><tr>
-<th>Surface</th><th>Body font</th><th>Body</th><th>Heading font</th><th>Heading</th><th>Radius 0</th><th>Evidence</th>
+<th>Surface</th><th>Body font</th><th>Body</th><th>Heading font</th><th>Heading</th><th>Radius 0</th><th>Failures</th><th>Evidence</th>
 </tr></thead>
 <tbody>${rowsHtml}</tbody>
 </table>
@@ -564,11 +637,14 @@ th{padding:8px;border:1px solid #000;background:#ffeb3b;text-align:left;font-fam
                     <th className="text-left p-2">Heading font</th>
                     <th className="text-left p-2">Heading</th>
                     <th className="text-left p-2">Radius 0</th>
+                    <th className="text-left p-2">Failures</th>
                     <th className="text-left p-2">Evidence</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {displayRows.map((r) => (
+                  {displayRows.map((r) => {
+                    const failures = computeFailures(r);
+                    return (
                     <tr key={r.surface} className="border-b border-foreground align-top">
                       <td className="p-2 font-bold">{r.surface}</td>
                       <td className="p-2 font-mono text-xs">{r.bodyFont}</td>
@@ -576,13 +652,22 @@ th{padding:8px;border:1px solid #000;background:#ffeb3b;text-align:left;font-fam
                       <td className="p-2 font-mono text-xs">{r.headingFont}</td>
                       <td className="p-2"><Status ok={r.headingOk} /></td>
                       <td className="p-2"><Status ok={r.radiusOk} /></td>
+                      <td className="p-2 text-xs">
+                        {failures.length === 0 ? (
+                          <span className="text-green-700 font-bold">✓ all checks pass</span>
+                        ) : (
+                          <ul className="text-red-700 font-bold space-y-1">
+                            {failures.map((f) => <li key={f}>• {f}</li>)}
+                          </ul>
+                        )}
+                      </td>
                       <td className="p-2">
                         {r.screenshot ? (
                           <a href={r.screenshot} target="_blank" rel="noreferrer" title="Open full-size">
                             <img
                               src={r.screenshot}
-                              alt={`${r.surface} screenshot`}
-                              className="max-w-[180px] max-h-[120px] border-2 border-foreground"
+                              alt={`${r.surface} screenshot — ${failures.length ? failures.join(", ") : "all pass"}`}
+                              className="max-w-[180px] max-h-[140px] border-2 border-foreground"
                             />
                           </a>
                         ) : (
@@ -590,7 +675,8 @@ th{padding:8px;border:1px solid #000;background:#ffeb3b;text-align:left;font-fam
                         )}
                       </td>
                     </tr>
-                  ))}
+                    );
+                  })}
                 </tbody>
               </table>
             );
