@@ -269,12 +269,22 @@ const POSFontQA = () => {
       await sleep(200);
     }
 
+    const bodyOk = KARLA.test(bodyFont);
+    const failures = computeFailures({ bodyOk, headingOk, radiusOk, bodyFont, headingFont });
+    if (screenshot) {
+      try {
+        screenshot = await annotateScreenshot(screenshot, def.surface, failures);
+      } catch {
+        /* keep un-annotated */
+      }
+    }
+
     return {
       surface: def.surface,
       selector: def.selector,
       bodyFont,
       headingFont,
-      bodyOk: KARLA.test(bodyFont),
+      bodyOk,
       headingOk,
       radiusOk,
       screenshot,
