@@ -637,11 +637,14 @@ th{padding:8px;border:1px solid #000;background:#ffeb3b;text-align:left;font-fam
                     <th className="text-left p-2">Heading font</th>
                     <th className="text-left p-2">Heading</th>
                     <th className="text-left p-2">Radius 0</th>
+                    <th className="text-left p-2">Failures</th>
                     <th className="text-left p-2">Evidence</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {displayRows.map((r) => (
+                  {displayRows.map((r) => {
+                    const failures = computeFailures(r);
+                    return (
                     <tr key={r.surface} className="border-b border-foreground align-top">
                       <td className="p-2 font-bold">{r.surface}</td>
                       <td className="p-2 font-mono text-xs">{r.bodyFont}</td>
@@ -649,13 +652,22 @@ th{padding:8px;border:1px solid #000;background:#ffeb3b;text-align:left;font-fam
                       <td className="p-2 font-mono text-xs">{r.headingFont}</td>
                       <td className="p-2"><Status ok={r.headingOk} /></td>
                       <td className="p-2"><Status ok={r.radiusOk} /></td>
+                      <td className="p-2 text-xs">
+                        {failures.length === 0 ? (
+                          <span className="text-green-700 font-bold">✓ all checks pass</span>
+                        ) : (
+                          <ul className="text-red-700 font-bold space-y-1">
+                            {failures.map((f) => <li key={f}>• {f}</li>)}
+                          </ul>
+                        )}
+                      </td>
                       <td className="p-2">
                         {r.screenshot ? (
                           <a href={r.screenshot} target="_blank" rel="noreferrer" title="Open full-size">
                             <img
                               src={r.screenshot}
-                              alt={`${r.surface} screenshot`}
-                              className="max-w-[180px] max-h-[120px] border-2 border-foreground"
+                              alt={`${r.surface} screenshot — ${failures.length ? failures.join(", ") : "all pass"}`}
+                              className="max-w-[180px] max-h-[140px] border-2 border-foreground"
                             />
                           </a>
                         ) : (
@@ -663,7 +675,8 @@ th{padding:8px;border:1px solid #000;background:#ffeb3b;text-align:left;font-fam
                         )}
                       </td>
                     </tr>
-                  ))}
+                    );
+                  })}
                 </tbody>
               </table>
             );
