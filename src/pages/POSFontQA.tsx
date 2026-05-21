@@ -473,6 +473,13 @@ th{padding:8px;border:1px solid #000;background:#ffeb3b;text-align:left;font-fam
           <div className="flex items-center justify-between p-3 border-b-2 border-foreground bg-accent">
             <h2 className="text-2xl">Scan Timeline ({history.length})</h2>
             <div className="flex gap-2">
+              <Button
+                onClick={exportCurrentRunAsZip}
+                disabled={history.length === 0}
+                className="bg-primary text-primary-foreground"
+              >
+                Export ZIP (screenshots + report)
+              </Button>
               <Button onClick={exportHistory} disabled={history.length === 0} variant="outline">
                 Export JSON
               </Button>
