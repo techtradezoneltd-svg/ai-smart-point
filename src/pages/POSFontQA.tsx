@@ -276,6 +276,103 @@ const POSFontQA = () => {
     URL.revokeObjectURL(url);
   };
 
+  const slug = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+
+  const statusLabel = (ok: boolean | null) =>
+    ok === null ? "N/A" : ok ? "PASS" : "FAIL";
+
+  const buildReportHtml = (run: ScanRun) => {
+    const ts = new Date(run.timestamp).toLocaleString();
+    const rowsHtml = run.rows
+      .map((r, i) => {
+        const img = r.screenshot
+          ? `<img src="screenshots/${String(i + 1).padStart(2, "0")}-${slug(r.surface)}.png" alt="${r.surface}" style="max-width:320px;border:2px solid #000" />`
+          : `<em>no screenshot</em>`;
+        const cell = (ok: boolean | null) => {
+          const label = statusLabel(ok);
+          const color = ok === null ? "#666" : ok ? "#15803d" : "#b91c1c";
+          return `<td style="padding:8px;border:1px solid #000;color:${color};font-weight:700">${label}</td>`;
+        };
+        return `<tr>
+          <td style="padding:8px;border:1px solid #000;font-weight:700">${r.surface}</td>
+          <td style="padding:8px;border:1px solid #000;font-family:monospace;font-size:11px">${r.bodyFont}</td>
+          ${cell(r.bodyOk)}
+          <td style="padding:8px;border:1px solid #000;font-family:monospace;font-size:11px">${r.headingFont}</td>
+          ${cell(r.headingOk)}
+          ${cell(r.radiusOk)}
+          <td style="padding:8px;border:1px solid #000">${img}</td>
+        </tr>`;
+      })
+      .join("");
+    return `<!doctype html><html><head><meta charset="utf-8" />
+<title>POS Font QA — ${ts}</title>
+<style>body{font-family:Karla,system-ui,sans-serif;padding:24px;background:#fff;color:#000}
+h1{font-family:'Cormorant Garamond',serif;font-size:32px;margin:0 0 8px}
+table{border-collapse:collapse;width:100%;margin-top:16px}
+th{padding:8px;border:1px solid #000;background:#ffeb3b;text-align:left;font-family:'Cormorant Garamond',serif}
+.summary{margin-top:8px;font-family:monospace}</style></head>
+<body>
+<h1>POS Font QA Report</h1>
+<div>Run: <strong>${ts}</strong></div>
+<div class="summary">body ${run.summary.bodyPass}/${run.summary.total} · heading ${run.summary.headingPass}/${run.summary.total} · radius ${run.summary.radiusPass}/${run.summary.total}</div>
+<table>
+<thead><tr>
+<th>Surface</th><th>Body font</th><th>Body</th><th>Heading font</th><th>Heading</th><th>Radius 0</th><th>Evidence</th>
+</tr></thead>
+<tbody>${rowsHtml}</tbody>
+</table>
+</body></html>`;
+  };
+
+  const exportCurrentRunAsZip = async () => {
+    const run =
+      (selectedRunId && history.find((r) => r.id === selectedRunId)) ||
+      history[0];
+    if (!run) return;
+    setProgress("Building ZIP…");
+    const zip = new JSZip();
+    const screenshotsDir = zip.folder("screenshots")!;
+
+    run.rows.forEach((r, i) => {
+      if (r.screenshot && r.screenshot.startsWith("data:image/")) {
+        const base64 = r.screenshot.split(",")[1];
+        const filename = `${String(i + 1).padStart(2, "0")}-${slug(r.surface)}.png`;
+        screenshotsDir.file(filename, base64, { base64: true });
+      }
+    });
+
+    const summaryRows = run.rows.map((r) => ({
+      surface: r.surface,
+      body: statusLabel(r.bodyOk),
+      bodyFont: r.bodyFont,
+      heading: statusLabel(r.headingOk),
+      headingFont: r.headingFont,
+      radiusZero: statusLabel(r.radiusOk),
+      hasScreenshot: !!r.screenshot,
+    }));
+
+    zip.file("results.json", JSON.stringify({ ...run, rows: summaryRows }, null, 2));
+    zip.file(
+      "results.csv",
+      [
+        "surface,body,bodyFont,heading,headingFont,radiusZero,hasScreenshot",
+        ...summaryRows.map((r) =>
+          [r.surface, r.body, `"${r.bodyFont}"`, r.heading, `"${r.headingFont}"`, r.radiusZero, r.hasScreenshot].join(","),
+        ),
+      ].join("\n"),
+    );
+    zip.file("report.html", buildReportHtml(run));
+
+    const blob = await zip.generateAsync({ type: "blob" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `pos-font-qa-${new Date(run.timestamp).toISOString().replace(/[:.]/g, "-")}.zip`;
+    a.click();
+    URL.revokeObjectURL(url);
+    setProgress("ZIP downloaded");
+  };
+
   const diffVsPrevious = (idx: number): string | null => {
     if (idx >= history.length - 1) return null;
     const cur = history[idx].summary;
