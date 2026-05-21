@@ -390,7 +390,7 @@ th{padding:8px;border:1px solid #000;background:#ffeb3b;text-align:left;font-fam
 <div class="summary">body ${run.summary.bodyPass}/${run.summary.total} · heading ${run.summary.headingPass}/${run.summary.total} · radius ${run.summary.radiusPass}/${run.summary.total}</div>
 <table>
 <thead><tr>
-<th>Surface</th><th>Body font</th><th>Body</th><th>Heading font</th><th>Heading</th><th>Radius 0</th><th>Evidence</th>
+<th>Surface</th><th>Body font</th><th>Body</th><th>Heading font</th><th>Heading</th><th>Radius 0</th><th>Failures</th><th>Evidence</th>
 </tr></thead>
 <tbody>${rowsHtml}</tbody>
 </table>
