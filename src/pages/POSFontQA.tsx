@@ -361,6 +361,10 @@ const POSFontQA = () => {
           const color = ok === null ? "#666" : ok ? "#15803d" : "#b91c1c";
           return `<td style="padding:8px;border:1px solid #000;color:${color};font-weight:700">${label}</td>`;
         };
+        const failures = computeFailures(r);
+        const failuresCell = failures.length
+          ? `<td style="padding:8px;border:1px solid #000;background:#fee2e2;color:#7f1d1d;font-weight:700">${failures.map((f) => `• ${f}`).join("<br/>")}</td>`
+          : `<td style="padding:8px;border:1px solid #000;background:#dcfce7;color:#14532d;font-weight:700">✓ all checks pass</td>`;
         return `<tr>
           <td style="padding:8px;border:1px solid #000;font-weight:700">${r.surface}</td>
           <td style="padding:8px;border:1px solid #000;font-family:monospace;font-size:11px">${r.bodyFont}</td>
@@ -368,6 +372,7 @@ const POSFontQA = () => {
           <td style="padding:8px;border:1px solid #000;font-family:monospace;font-size:11px">${r.headingFont}</td>
           ${cell(r.headingOk)}
           ${cell(r.radiusOk)}
+          ${failuresCell}
           <td style="padding:8px;border:1px solid #000">${img}</td>
         </tr>`;
       })
