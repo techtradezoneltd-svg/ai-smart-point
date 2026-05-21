@@ -171,12 +171,31 @@ const POSFontQA = () => {
       }
     }
 
+    // Walk up to the portal/root wrapper so the screenshot includes overlay,
+    // shadows, footer actions and any sibling layers — not just the inner content node.
+    const findCaptureRoot = (node: HTMLElement): HTMLElement => {
+      let cur: HTMLElement = node;
+      while (
+        cur.parentElement &&
+        cur.parentElement !== document.body &&
+        cur.parentElement !== document.documentElement
+      ) {
+        cur = cur.parentElement;
+      }
+      return cur;
+    };
+    const captureRoot = findCaptureRoot(el);
+    const rect = captureRoot.getBoundingClientRect();
+
     let screenshot: string | null = null;
     try {
-      screenshot = await toPng(el, {
+      screenshot = await toPng(captureRoot, {
         cacheBust: true,
-        pixelRatio: 1,
+        pixelRatio: 2,
         backgroundColor: "#ffffff",
+        width: Math.max(1, Math.ceil(rect.width)),
+        height: Math.max(1, Math.ceil(rect.height)),
+        style: { transform: "none", inset: "0", position: "static" },
       });
     } catch {
       screenshot = null;
