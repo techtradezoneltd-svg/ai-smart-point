@@ -86,6 +86,64 @@ const waitForElement = async (selector: string, timeoutMs = 1500): Promise<HTMLE
   return null;
 };
 
+/**
+ * Composite a caption banner onto a screenshot data URL highlighting which
+ * checks failed (body font, heading font, radius). Returns a new data URL.
+ */
+const annotateScreenshot = (
+  dataUrl: string,
+  surface: string,
+  failures: string[],
+): Promise<string> =>
+  new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => {
+      const pass = failures.length === 0;
+      const bannerH = pass ? 56 : 56 + failures.length * 28;
+      const canvas = document.createElement("canvas");
+      canvas.width = img.naturalWidth;
+      canvas.height = img.naturalHeight + bannerH;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return resolve(dataUrl);
+      ctx.fillStyle = "#ffffff";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.drawImage(img, 0, bannerH);
+      ctx.fillStyle = pass ? "#15803d" : "#b91c1c";
+      ctx.fillRect(0, 0, canvas.width, bannerH);
+      ctx.strokeStyle = "#000";
+      ctx.lineWidth = 4;
+      ctx.strokeRect(2, 2, canvas.width - 4, canvas.height - 4);
+      ctx.fillStyle = "#ffffff";
+      ctx.font = "bold 28px Karla, system-ui, sans-serif";
+      ctx.textBaseline = "top";
+      ctx.fillText(`${pass ? "✓ PASS" : "✗ FAIL"} — ${surface}`, 16, 12);
+      if (!pass) {
+        ctx.fillStyle = "#ffeb3b";
+        ctx.font = "bold 20px Karla, system-ui, sans-serif";
+        failures.forEach((f, i) => {
+          ctx.fillText(`• ${f}`, 16, 48 + i * 28);
+        });
+      }
+      resolve(canvas.toDataURL("image/png"));
+    };
+    img.onerror = () => resolve(dataUrl);
+    img.src = dataUrl;
+  });
+
+const computeFailures = (r: {
+  bodyOk: boolean;
+  headingOk: boolean | null;
+  radiusOk: boolean;
+  bodyFont: string;
+  headingFont: string;
+}): string[] => {
+  const f: string[] = [];
+  if (!r.bodyOk) f.push(`body font (got ${(r.bodyFont.split(",")[0] || "—").trim()})`);
+  if (r.headingOk === false) f.push(`heading font (got ${(r.headingFont.split(",")[0] || "—").trim()})`);
+  if (!r.radiusOk) f.push("radius ≠ 0");
+  return f;
+};
+
 const POSFontQA = () => {
   const [rows, setRows] = useState<Row[]>([]);
   const [history, setHistory] = useState<ScanRun[]>([]);
