@@ -14,6 +14,7 @@ import { useCurrency } from "@/hooks/useCurrency";
 import { useNavigate } from "react-router-dom";
 import { useIsMobile } from "@/hooks/use-mobile";
 import ReceiptPreview from "./ReceiptPreview";
+import POSAIPanel from "./POSAIPanel";
 import { 
   Receipt, 
   Scan, 
