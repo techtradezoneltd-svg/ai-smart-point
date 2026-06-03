@@ -534,6 +534,7 @@ const EnhancedPOSInterface: React.FC<EnhancedPOSInterfaceProps> = ({ onNavigate 
       <POSAIPanel
         cart={cart}
         products={products}
+        customer={selectedCustomer as any}
         onAdd={(p) => addToCart(p as Product)}
         onSetQty={(id, qty) => updateQuantity(id, qty)}
         onRemove={(id) => removeFromCart(id)}
