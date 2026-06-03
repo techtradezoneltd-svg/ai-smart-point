@@ -18,10 +18,6 @@ interface CustomerLite {
   preferred_location?: string | null;
 }
 
-interface _Unused {
-  stock: number;
-  category?: string | null;
-}
 
 interface CartLite {
   id: string;
