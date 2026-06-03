@@ -34,3 +34,6 @@ verify_jwt = false
 
 [functions.voice-chat]
 verify_jwt = false
+
+[functions.pos-ai-assistant]
+verify_jwt = false

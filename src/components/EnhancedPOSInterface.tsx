@@ -14,6 +14,7 @@ import { useCurrency } from "@/hooks/useCurrency";
 import { useNavigate } from "react-router-dom";
 import { useIsMobile } from "@/hooks/use-mobile";
 import ReceiptPreview from "./ReceiptPreview";
+import POSAIPanel from "./POSAIPanel";
 import { 
   Receipt, 
   Scan, 
@@ -530,6 +531,14 @@ const EnhancedPOSInterface: React.FC<EnhancedPOSInterfaceProps> = ({ onNavigate 
           </div>
         </>
       )}
+      <POSAIPanel
+        cart={cart}
+        products={products}
+        onAdd={(p) => addToCart(p as Product)}
+        onSetQty={(id, qty) => updateQuantity(id, qty)}
+        onRemove={(id) => removeFromCart(id)}
+        onClear={() => setCart([])}
+      />
     </>
   );
 
