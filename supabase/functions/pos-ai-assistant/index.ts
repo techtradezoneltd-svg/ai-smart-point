@@ -40,17 +40,42 @@ Deno.serve(async (req) => {
     const body = await req.json();
     const mode: "suggest" | "command" = body.mode;
     const cart: CartLite[] = body.cart || [];
-    const products: ProductLite[] = (body.products || []).slice(0, 120);
+    const customer: CustomerLite | null = body.customer || null;
+    const nowIso = new Date().toISOString().slice(0, 10);
+    const preferredLocation = (customer?.preferred_location || "").toString().trim().toLowerCase() || null;
+
+    // Server-side eligibility: only in-stock and not expired
+    const rawProducts: ProductLite[] = (body.products || []).slice(0, 200);
+    const products: ProductLite[] = rawProducts.filter((p) => {
+      if (!p) return false;
+      if ((p.stock ?? 0) <= 0) return false;
+      if (p.expiry_date) {
+        const exp = new Date(p.expiry_date);
+        if (!isNaN(exp.getTime()) && exp < new Date(nowIso)) return false;
+      }
+      return true;
+    }).slice(0, 120);
 
     let systemPrompt = "";
     let userPrompt = "";
 
     if (mode === "suggest") {
-      systemPrompt = `You are a smart POS sales assistant. Given the current cart and the product catalog, suggest up to 4 high-impact upsell/cross-sell/bundle items the cashier should offer the customer. Only pick products that EXIST in the catalog (use their exact id). Prefer complementary items, frequently bundled goods, higher-margin alternatives, or quantity upgrades. If cart is empty, suggest top general-purpose items. Return STRICT JSON only.`;
+      systemPrompt = `You are a smart POS sales assistant. Suggest up to 4 high-impact upsell/cross-sell/bundle items the cashier should offer the customer.
+
+STRICT RULES (do not violate):
+- Only pick products from the provided catalog (use exact id).
+- Only suggest products with stock > 0 and NOT expired (expiry_date >= today=${nowIso}).
+- If a preferred_location is provided, STRONGLY prefer products whose location matches or contains it; if a product has a location that clearly does NOT match, exclude it.
+- Prefer complementary items, frequently bundled goods, higher-margin alternatives, quantity upgrades.
+- If cart is empty, suggest top general-purpose items that satisfy the rules above.
+- Return STRICT JSON only.`;
       userPrompt = JSON.stringify({
+        today: nowIso,
+        customer: customer ? { name: customer.name, preferred_location: preferredLocation } : null,
         cart: cart.map((c) => ({ name: c.name, qty: c.quantity, price: c.price })),
         products: products.map((p) => ({
-          id: p.id, name: p.name, price: p.price, stock: p.stock, category: p.category,
+          id: p.id, name: p.name, price: p.price, stock: p.stock,
+          category: p.category, expiry_date: p.expiry_date || null, location: p.location || null,
         })),
         schema: {
           suggestions: [
