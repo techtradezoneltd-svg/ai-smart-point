@@ -149,7 +149,7 @@ const POSAIPanel: React.FC<POSAIPanelProps> = ({
       if (debounceRef.current) clearTimeout(debounceRef.current);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [cart.length, cart.map((c) => `${c.id}:${c.quantity}`).join("|"), products.length]);
+  }, [cart.length, cart.map((c) => `${c.id}:${c.quantity}`).join("|"), products.length, preferredLocation]);
 
   const applyActions = (actions: AIAction[]) => {
     let applied = 0;
