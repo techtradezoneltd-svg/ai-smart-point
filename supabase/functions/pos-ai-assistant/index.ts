@@ -9,6 +9,18 @@ interface ProductLite {
   price: number;
   stock: number;
   category?: string | null;
+  expiry_date?: string | null;
+  location?: string | null;
+}
+
+interface CustomerLite {
+  name?: string | null;
+  preferred_location?: string | null;
+}
+
+interface _Unused {
+  stock: number;
+  category?: string | null;
 }
 
 interface CartLite {
