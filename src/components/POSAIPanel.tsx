@@ -16,6 +16,8 @@ interface ProductLike {
   categories?: { name: string } | null;
   is_active: boolean;
   image_url?: string | null;
+  expiry_date?: string | null;
+  location?: string | null;
 }
 
 interface CartItemLike {
@@ -23,6 +25,13 @@ interface CartItemLike {
   name: string;
   price: number;
   quantity: number;
+}
+
+interface CustomerLike {
+  id?: string;
+  name?: string;
+  address?: string | null;
+  preferred_location?: string | null;
 }
 
 interface Suggestion {
@@ -39,6 +48,7 @@ interface AIAction {
 interface POSAIPanelProps {
   cart: CartItemLike[];
   products: ProductLike[];
+  customer?: CustomerLike | null;
   onAdd: (product: ProductLike, qty?: number) => void;
   onSetQty: (productId: string, qty: number) => void;
   onRemove: (productId: string) => void;
@@ -48,6 +58,7 @@ interface POSAIPanelProps {
 const POSAIPanel: React.FC<POSAIPanelProps> = ({
   cart,
   products,
+  customer,
   onAdd,
   onSetQty,
   onRemove,
@@ -63,28 +74,64 @@ const POSAIPanel: React.FC<POSAIPanelProps> = ({
 
   const productMap = new Map(products.map((p) => [p.id, p]));
 
+  const preferredLocation =
+    (customer?.preferred_location || customer?.address || "").toString().trim().toLowerCase() || null;
+
+  // Eligibility: active, in-stock, not expired. Location preference is a soft signal.
+  const isEligible = (p: ProductLike) => {
+    if (!p.is_active) return false;
+    if ((p.current_stock ?? 0) <= 0) return false;
+    if (p.expiry_date) {
+      const exp = new Date(p.expiry_date);
+      if (!isNaN(exp.getTime()) && exp.getTime() < Date.now()) return false;
+    }
+    return true;
+  };
+
+  const eligibleProducts = () => products.filter(isEligible);
+
   const compactProducts = () =>
-    products.map((p) => ({
+    eligibleProducts().map((p) => ({
       id: p.id,
       name: p.name,
       sku: p.sku,
       price: p.selling_price,
       stock: p.current_stock,
       category: p.categories?.name || null,
+      expiry_date: p.expiry_date || null,
+      location: p.location || null,
     }));
 
   const fetchSuggestions = async () => {
     if (products.length === 0) return;
+    const eligible = eligibleProducts();
+    if (eligible.length === 0) {
+      setSuggestions([]);
+      return;
+    }
     setLoadingSuggest(true);
     try {
       const { data, error } = await supabase.functions.invoke("pos-ai-assistant", {
-        body: { mode: "suggest", cart, products: compactProducts() },
+        body: {
+          mode: "suggest",
+          cart,
+          products: compactProducts(),
+          customer: customer
+            ? { name: customer.name || null, preferred_location: preferredLocation }
+            : null,
+        },
       });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
-      const list: Suggestion[] = (data?.suggestions || []).filter((s: Suggestion) =>
-        productMap.has(s.product_id)
-      );
+      // Re-validate suggestions client-side against eligibility + location preference
+      const list: Suggestion[] = (data?.suggestions || []).filter((s: Suggestion) => {
+        const p = productMap.get(s.product_id);
+        if (!p || !isEligible(p)) return false;
+        if (preferredLocation && p.location) {
+          if (!p.location.toLowerCase().includes(preferredLocation)) return false;
+        }
+        return true;
+      });
       setSuggestions(list.slice(0, 4));
     } catch (e: any) {
       // silent; suggestions are non-critical
@@ -102,7 +149,7 @@ const POSAIPanel: React.FC<POSAIPanelProps> = ({
       if (debounceRef.current) clearTimeout(debounceRef.current);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [cart.length, cart.map((c) => `${c.id}:${c.quantity}`).join("|"), products.length]);
+  }, [cart.length, cart.map((c) => `${c.id}:${c.quantity}`).join("|"), products.length, preferredLocation]);
 
   const applyActions = (actions: AIAction[]) => {
     let applied = 0;
